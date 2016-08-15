@@ -1,0 +1,24 @@
+﻿@helper TextSearch()
+{
+    <p>ユーザーのアカウント名、またはツイートのURL(twitter.com/***/status/***)で検索できます。</p>
+    <div class="container">
+        <form action="" method="get" class="form-inline">
+            <input name="Str" type="text" class="form-control" placeholder="@('@')name/URL" />
+            <br /><br />
+            <button type="submit" class="btn btn-primary">検索</button>
+            <input type="hidden" name="Direct" value="false" />
+        </form>
+    </div>
+}
+
+@helper MediaSearch()
+{
+    <p>画像で検索(仮)</p>
+    <div class="container">
+        <form action="/Search/Media" method="post" enctype="multipart/form-data" class="form-inline">
+            <input name="File" type="file" />
+            <br />
+            <button type="submit" class="btn btn-primary">うｐ</button>
+        </form>
+    </div>
+}

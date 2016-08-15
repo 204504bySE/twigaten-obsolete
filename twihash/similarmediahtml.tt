@@ -1,0 +1,23 @@
+﻿<#@ template language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+
+<#@ import namespace="twidown" #>
+<html><body>
+<# foreach(mediapair p in mediapairs){
+	try{
+        dbvalues media0 = db.mediainfo(p.media0);
+        dbvalues media1 = db.mediainfo(p.media1);
+		string url0 = localstrs.localmediapath(media0.media_url);
+	   	string url1 = localstrs.localmediapath(media1.media_url);
+#>Hamming Distance = <#= p.hammingdistance #><br />
+<table border="2"><tr><td><img src="pict/small/<#= url0 #>" /></td><td><img src="pict/small/<#= url1 #>" /></td></tr>
+<tr><td><#= string.Format("{0} {1}",media0.screen_name, media0.name) #></td>
+<td><#= string.Format("{0} {1}",media1.screen_name, media1.name) #></td></tr>
+<tr><td><#= media0.text.Replace("\n","<br>") #><br><br><#= (media0.created_at != null ? UnixTime.FromUnixTime((long)media0.created_at).ToString() : "") #></td>
+<td><#= media1.text.Replace("\n","<br>") #><br><br><#= (media1.created_at != null ? UnixTime.FromUnixTime((long)media1.created_at).ToString() : "") #></td></tr></table><br>
+<#	}catch(Exception e){Console.WriteLine(e);}
+   } #>
+</body></html>

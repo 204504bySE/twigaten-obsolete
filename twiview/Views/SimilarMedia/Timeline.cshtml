@@ -1,0 +1,180 @@
+﻿@model twiview.Models.SimilarMediaModelTimeline
+@helper RenderScripts()
+{
+    @Styles.Render("~/Content/bootstrap-datepicker")
+    @ScriptHelper.datetimepickerScript(Model.Date.ToLocalTime())
+}
+@{
+
+    if (Model.TargetUser != null)
+    {
+        if (Model.isLatest)
+        {
+            ViewBag.Title = string.Format("{0} のタイムライン上の類似画像", Model.TargetUser.screen_name);
+        }
+        else
+        {
+            string datestr;
+            switch (Model.Before)
+            {
+                case true:
+                    datestr = "~" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss");
+                    break;
+                case false:
+                    datestr = Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "~";
+                    break;
+                default:
+                    datestr = "~" + Model.Date.ToString("yyyy/MM/dd");
+                    break;
+            }
+            ViewBag.Title = string.Format("{0} のタイムライン上の類似画像({1})", Model.TargetUser.screen_name, datestr);
+        }
+    }
+    else
+    {
+        ViewBag.Title = "ユーザーが見つかりませんでした";
+    }
+}
+@section TwitterCard{@TextHelper.TwitterCardDefault()}
+
+    @helper pager(bool datepicker = false)
+    {
+    <div>
+    <ul class="pagination">
+        @switch (Model.Before)
+        {
+            case true:
+                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを表示", "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
+                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを除く", "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
+                break;
+            case false:
+                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを表示", "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
+                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを除く", "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
+                break;
+            default:
+                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを表示", "Timeline", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = true })</li>
+                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを除く", "Timeline", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = false })</li>
+                break;
+        }
+    </ul>
+    <ul class="pagination">
+        <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink("最新", "Timeline", new { UserID = Model.TargetUser.user_id })</li>
+        @if (Model.NextNew == null)
+        {
+            <li class="disabled"><a>« 新しい</a></li>
+        }
+        else
+        {
+            <li>@Html.ActionLink("« 新しい", "Timeline", new { UserID = Model.TargetUser.user_id, After = ((DateTimeOffset)Model.NextNew).ToUnixTimeSeconds() })</li>
+        }
+        @if (Model.NextOld == null)
+        {
+            <li class="disabled"><a>古い »</a></li>
+        }
+        else
+        {
+            <li>@Html.ActionLink("古い »", "Timeline", new { UserID = Model.TargetUser.user_id, Before = ((DateTimeOffset)Model.NextOld).ToUnixTimeSeconds() })</li>
+        }
+    </ul>
+    </div>
+    if (datepicker)
+    {
+    <div>
+        <form method="get" class="form-inline" style="display:inline-block">
+            <div class="form-group">
+                表示件数
+                <select class="form-control" name="Count" onchange="this.form.submit()">
+                    <option value="10" @(Model.TweetCount == 10 ? " selected" : "")>10</option>
+                    <option value="20" @(Model.TweetCount == 20 ? " selected" : "")>20</option>
+                    <option value="50" @(Model.TweetCount == 50 ? " selected" : "")>50</option>
+                </select>
+                @switch (Model.Before)
+                {
+                    case true:
+                        <input type="hidden" name="Before" value="@(Model.Date.ToUnixTimeSeconds())" />
+                        break;
+                    case false:
+                        <input type="hidden" name="After" value="@(Model.Date.ToUnixTimeSeconds())" />
+                        break;
+                    case null:
+                    default:
+                        <input type="hidden" name="Date" value="@(Model.Date.ToString("yyyy-MM-dd"))" />
+                        break;
+                }
+            </div>
+        </form>
+        <form method="get" class="form-inline" style="display:inline-block">
+            <div class="form-group">
+                日付指定
+                <div class='input-group date' id='datetimepicker_similarmedia'>
+                    <input name="Date" type='text' class="form-control" />
+                    <span class="input-group-addon">
+                        <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Go</button>
+        </form>
+    </div>
+    }
+}
+@{
+    if (Model.TargetUser != null)
+    {
+        @(pager(true))
+        <h2>@@@(Model.TargetUser.screen_name) のタイムライン</h2>
+        switch (Model.Before)
+        {
+            case null:
+            <h3>(~@(Model.Date.ToString("yyyy/MM/dd")))</h3>
+                break;
+            case true:
+            <h3>(~@(Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")))</h3>
+                break;
+            case false:
+            <h3>(@(Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))~)</h3>
+                break;
+        }
+        <p>
+            @switch (Model.Before)
+            {
+                case true:
+                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds() }))
+                    break;
+                case false:
+                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds() }))
+                    break;
+                default:
+                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd") }))
+                    break;
+            }
+        </p>
+    }
+    else
+    {
+        <h2>ユーザーが見つかりませんでした</h2>
+    }
+    <p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
+}
+@if (Model.Tweets.Length > 0)
+{
+    DateTimeOffset LastTweetDate = Model.Tweets[0].tweet.created_at.ToLocalTime();
+    <h3>@(LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd"))</h3>
+    //if (Model.Tweets.Length < Model.TweetCount) { <span class="text-danger">類似画像を含むツイートが少ないため、24時間分を表示しています。</span><br /> }
+    foreach (SimilarMediaTweet Tweet in Model.Tweets)
+    {
+        DateTimeOffset ThisTweetDate = Tweet.tweet.created_at.ToLocalTime();
+        if (LastTweetDate.Year != ThisTweetDate.Year || LastTweetDate.Month != ThisTweetDate.Month || LastTweetDate.Day != ThisTweetDate.Day)
+        {
+            <h3>@(Tweet.tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd"))</h3>
+        }
+        LastTweetDate = ThisTweetDate;
+        @(SimilarMediaHelper.SimilarMedia(Tweet, Model.SimilarLimit))
+    }
+    @(pager())
+}
+else
+{
+@SimilarMediaHelper.NoTweetToShow()
+}
+@RenderScripts()

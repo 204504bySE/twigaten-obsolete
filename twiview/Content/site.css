@@ -1,0 +1,46 @@
+﻿body {
+    padding-top: 50px;
+    padding-bottom: 20px;
+    font-family: "メイリオ", "Meiryo", "ヒラギノ角ゴ Pro", "Hiragino Kaku Gothic Pro", "Yu Gothic UI", "Osaka", sans-serif;
+}
+html, body{
+    margin:0px;
+    padding:0px;
+}
+.body-content {word-wrap: break-word;}
+
+iframe.twitter-share-button {vertical-align:text-bottom;} 
+
+.glyphicon-retweet{color:#aab8c2;}
+.glyphicon-retweet:hover{color:#19cf86;}
+.glyphicon-star{color: #aab8c2;}
+.glyphicon-star:hover{color:#feac33;}
+
+.twigaten-media {
+    display: inline-block;
+}
+.twigaten-similarmedia{
+    vertical-align: top;
+    margin: 0 4px;
+    }
+@media (max-width: 512px){
+    .twigaten-media{
+    width: 100%;
+    }
+}
+@media (min-width: 513px){
+    .twigaten-media{
+    width: 216px;
+    }
+}
+.twigaten-tweettext{
+    white-space:pre-line;
+}
+img.twigaten-thumb{
+    max-width:150px;
+    max-height:150px;
+}
+img.twigaten-icon{
+    max-width:48px;
+    max-height:48px;
+}

@@ -1,0 +1,46 @@
+﻿@helper TweetButton()
+{
+    <span><a href="https://twitter.com/share" class="twitter-share-button" data-lang="ja" data-size="large">ツイート</a></span>
+}
+
+@helper TweetButton(string RouteUrl)
+{
+    <span><a href="https://twitter.com/share" class="twitter-share-button" data-url="@(Request.Url.GetLeftPart(UriPartial.Authority))@(RouteUrl)" data-lang="ja" data-size="large">ツイート</a></span>
+}
+
+@helper TweetButton(string RouteUrl, string Title)
+{
+    string hash = RouteUrl.GetHashCode().ToString("x8");
+    <span><a id="twbid@(hash)" data-lazy-widget="twb@(hash)" href="https://twitter.com/share" data-url="@(Request.Url.GetLeftPart(UriPartial.Authority))@(RouteUrl)" data-text="@(Title)" data-lang="ja" data-size="large">ツイート</a></span>
+    <span id="twb@(hash)"><!--<script type="text/javascript">var e=document.getElementById('twbid@(hash)');e.className='twitter-share-button';twttr.widgets.load(e);</script>--></span>
+}
+
+@helper FavoriteIntent(long tweet_id)
+{
+    <a href="https://twitter.com/intent/favorite?tweet_id=@(tweet_id)"><span class="glyphicon glyphicon-star"></span></a>
+}
+
+@helper RetweetIntent(long tweet_id)
+{
+    <a href="https://twitter.com/intent/retweet?tweet_id=@(tweet_id)"><span class="glyphicon glyphicon-retweet"></span></a>
+}
+
+// System.Web.Mvc.HtmlHelper Html を渡さないとHtml.Rawは動かないってStackOverFlowが言ってた
+// http://stackoverflow.com/questions/5282655/why-is-the-htmlhelper-instance-null-in-a-razor-declarative-helper-method
+
+@helper datetimepickerScript(DateTimeOffset Date)
+{
+<script type="text/javascript">
+$(function () {
+    $('#datetimepicker_similarmedia').datetimepicker({
+        dayViewHeaderFormat: "YYYY/MM",
+        allowInputToggle: true,
+        format: "YYYY-MM-DD",
+        defaultDate: new Date(@(Date.Year), @(Date.Month - 1), @(Date.Day)),
+        maxDate: Date.now()
+    });
+});
+</script>
+}
+
+

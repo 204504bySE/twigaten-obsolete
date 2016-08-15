@@ -1,0 +1,118 @@
+﻿@using System.Web.Mvc.Html
+@using twiview;
+@helper NoTweetToShow()
+{
+    <div>
+        該当するツイートが見つからないか、表示できないようです。
+        <ul>
+            <li>登録ユーザーのタイムライン上の画像のみを収集しています</li>
+            <li>非公開かつフォロー外のアカウントのツイートは表示されません</li>
+            <li>類似画像検出は半分リアルタイムで半分非リアルタイム(適当)</li>
+            <li>類似画像を含むツイートが本当に存在しない可能性もあります</li>
+        </ul>
+    </div>
+}
+
+@helper SimilarMedia(SimilarMediaTweet Tweet, int SeeMoreButton)
+{
+// たとえば、ヘルパーにはコードまたはマークアップ (あるいはその両方) を使用できます。
+// var msg = "ハロー " + name;
+// <p>@msg</p>
+// 詳細については、http://go.microsoft.com/fwlink/?LinkID=204658 を参照してください
+var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
+var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContext);
+    <div id= "@(Tweet.media.media_id)" class="well well-sm" style="width:100%">
+        <div class="panel twigaten-media">
+            @if (Tweet.tweet.retweet == null)
+        {
+                <div class="text-center" style="margin:4px">@(TextHelper.OneTweetMediaLink(Tweet.tweet, Tweet.media))</div>
+                @(TextHelper.MediaTypeGlyphIcon(Tweet.media))
+                <p>
+                    @(TextHelper.UserIcon(Tweet.tweet.user))
+                    @(TextHelper.UserTweetLink(Tweet.tweet)) @(TextHelper.UserLink(Tweet.tweet.user))<br />
+                    @(Tweet.tweet.user.name)
+                </p>
+                <p>@(TextHelper.DateTweetLink(Tweet.tweet))</p>
+                <p>
+                    @(ScriptHelper.RetweetIntent(Tweet.tweet.tweet_id))@(Tweet.tweet.retweet_count)
+                    @(ScriptHelper.FavoriteIntent(Tweet.tweet.tweet_id))@(Tweet.tweet.favorite_count)
+                    @(TextHelper.GoogleMediaLink(Tweet.media))
+                </p>
+                <p class="twigaten-tweettext">@(html.Raw(Tweet.tweet.text))</p>
+                }
+                else
+                {
+                <div class="text-center" style="margin:4px">@(TextHelper.OneTweetMediaLink(Tweet.tweet.retweet, Tweet.media))</div>
+                @(TextHelper.MediaTypeGlyphIcon(Tweet.media))
+                <p>
+                    @(TextHelper.UserIcon(Tweet.tweet.retweet.user))
+                    @(TextHelper.UserTweetLink(Tweet.tweet.retweet)) @(TextHelper.UserLink(Tweet.tweet.retweet.user))<br />
+                    @(Tweet.tweet.retweet.user.name)
+                </p>
+                <p>@(TextHelper.DateTweetLink(Tweet.tweet.retweet))</p>
+                <p>
+                    @(ScriptHelper.RetweetIntent(Tweet.tweet.retweet.tweet_id)) @(Tweet.tweet.retweet.retweet_count)
+                    @(ScriptHelper.FavoriteIntent(Tweet.tweet.retweet.tweet_id)) @(Tweet.tweet.retweet.favorite_count)
+                    @(TextHelper.GoogleMediaLink(Tweet.media))
+                </p>
+                <p class="twigaten-tweettext">@html.Raw(@Tweet.tweet.retweet.text))</p>
+                <p>
+                    @(TextHelper.UserIcon(Tweet.tweet.user))
+                    <span class="glyphicon glyphicon-retweet"></span>
+                    @(TextHelper.UserTweetLink(Tweet.tweet))<br />
+                    @(Tweet.tweet.user.name)
+                </p>
+                <p>@(TextHelper.DateTweetLink(Tweet.tweet))</p>
+                if (Tweet.tweet.text != null)
+                {
+                <p class="twigaten-tweettext">@(html.Raw(Tweet.tweet.text))</p>
+                }
+                }
+            </div>
+        @foreach (SimilarMediaTweet Similar in Tweet.Similars)
+        {
+            <div class="twigaten-media twigaten-similarmedia">
+                <div class="text-center" style="margin:4px">@(TextHelper.OneTweetMediaLink(Similar.tweet, Similar.media))</div>
+                @(TextHelper.MediaTypeGlyphIcon(Similar.media))
+                <p>
+                    @(TextHelper.UserIcon(Similar.tweet.user))
+                    @(TextHelper.UserTweetLink(Similar.tweet)) @(TextHelper.UserLink(Similar.tweet.user))<br />
+                    @(Similar.tweet.user.name)</p>
+                @{
+                    if (Tweet.tweet.retweet == null)
+                    {
+                        if (Similar.tweet.created_at < Tweet.tweet.created_at)
+                        { <p><strong>@(TextHelper.DateTweetLink(Similar.tweet))</strong></p> }
+                        else
+                        { <p>@(TextHelper.DateTweetLink(Similar.tweet)) </p> }
+                    }
+                    else
+                    {
+                        if (Similar.tweet.created_at < Tweet.tweet.retweet.created_at)
+                        { <p><strong>@(TextHelper.DateTweetLink(Similar.tweet))</strong></p> }
+                        else
+                        { <p>@(TextHelper.DateTweetLink(Similar.tweet)) </p> }
+                        }
+                }
+                <p>
+                    @(ScriptHelper.RetweetIntent(Similar.tweet.tweet_id))@(Similar.tweet.retweet_count)
+                    @(ScriptHelper.FavoriteIntent(Similar.tweet.tweet_id))@(Similar.tweet.favorite_count)
+                    @(TextHelper.GoogleMediaLink(Tweet.media))
+                </p>
+                <p class="twigaten-tweettext">@(html.Raw(Similar.tweet.text))</p>
+            </div>
+        }
+        @if (SeeMoreButton > 0)
+        {
+            <p>
+                @if (Tweet.SimilarMediaCount > SeeMoreButton) {
+                <strong>全@(Tweet.SimilarMediaCount)件</strong>@(TextHelper.OneTweetLinkButtonSeeMore(Tweet)) }
+                else { <span>全@(Tweet.SimilarMediaCount)件</span>@(TextHelper.OneTweetLinkButton(Tweet)) }
+                @(TextHelper.OneTweetButtonTweet(Tweet))
+            </p>
+        }
+        else
+        { <p>全@(Tweet.SimilarMediaCount)件</p> }
+</div>
+}
+

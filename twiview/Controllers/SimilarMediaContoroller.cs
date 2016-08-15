@@ -1,0 +1,140 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+using twiview.Models;
+using System.ComponentModel;
+namespace twiview.Controllers
+{
+    public class SimilarMediaController : Controller
+    {
+        public ActionResult Index()
+        {
+            return RedirectToAction("Featured", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") });
+        }
+
+        [Route("featured/{Date?}")]
+        public ActionResult Featured(string Date, dbhandlerview.TweetOrder? Order)
+        {
+            LoginHandler Login = new LoginHandler(Session, Request, Response);
+            DateTimeOffset? DateOffset = StrToDateDay(Date);
+
+            return View(new SimilarMediaModelFeatured(3, DateOffset ?? new DateTimeOffset(DateTimeOffset.Now.Year, DateTimeOffset.Now.Month, DateTimeOffset.Now.Day, 0, 0, 0, new TimeSpan(0)), getTweetOrderPref(Order)));
+        }
+
+        [Route("tweet/{TweetID:long}")]
+        public ActionResult OneTweet(long TweetID)
+        {
+            LoginHandler Login = new LoginHandler(Session, Request, Response);
+            return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100));
+        }
+
+        [Route("timeline/{UserID:long?}")]
+        public ActionResult Timeline(long? UserID, string Date, int? Count, bool? RT, long? Before, long? After)
+        {
+            LoginHandler Login = new LoginHandler(Session, Request, Response);
+            if (UserID == null && Login.UserID == null) { throw (new ArgumentNullException()); }
+
+            long? Time = Before ?? After;
+            DateTimeOffset? DateOffset = (Time == null ? DateOffset = StrToDateDay(Date) : DateTimeOffset.FromUnixTimeSeconds((long)Time));
+
+            bool? isBefore;
+            if (Before != null) { isBefore = true; }
+            else if (After != null) { isBefore = false; }
+            else { isBefore = null; }
+
+            if (UserID == null)
+            {
+                if (Date == null) { return RedirectToAction("Timeline", new { UserID = UserID ?? Login.UserID, Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
+                else { return RedirectToAction("Timeline", new { UserID = UserID ?? Login.UserID, Date = ((DateTimeOffset)DateOffset).ToString("yyyy-MM-dd"), Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
+            }
+            return View(new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore));
+        }
+
+        [Route("users/{UserID:long?}")]
+        public ActionResult UserTweet(long? UserID, string Date, int? Count, bool? RT, long? Before, long? After)
+        {
+            //Before == nullは日付指定
+            LoginHandler Login = new LoginHandler(Session, Request, Response);
+
+            long? Time = Before ?? After;
+            bool? isBefore;
+            if (Before != null) { isBefore = true; }
+            else if (After != null) { isBefore = false; }
+            else { isBefore = null; }
+
+            DateTimeOffset? DateOffset = (Time == null ? DateOffset = StrToDateDay(Date) : DateTimeOffset.FromUnixTimeSeconds((long)Time));
+
+            if (UserID == null && Login.UserID == null) { throw new ArgumentNullException(); }
+
+            if (UserID == null)
+            {
+                if (Date == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID, Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
+                else { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID, Date = ((DateTimeOffset)DateOffset).ToString("yyyy-MM-dd"), Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
+            }
+            return View(new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore));
+        }
+
+        [Route("SimilarMedia/{ActionName}")]
+        public ActionResult Redirecter(string ActionName, long? TweetID, long? UserID, string Date, int? Count, bool? RT, long? Before, long? After)
+        {
+            return RedirectToActionPermanent(ActionName, "SimilarMedia", new { TweetID = TweetID, UserID = UserID, Date=Date,Count = Count, RT =RT,Before= Before, After= After });
+        }
+        
+        //URL > Cookie > Default の優先順位で値を持ってくるやつ
+        //ついでにクエリで指定されてたらCookieにも入れる
+        T getCookiePref<T>(T URLPref, T Default, string CookieName)
+        {
+            LoginHandler Login = new LoginHandler(Session, Request, Response);
+            if (URLPref != null)
+            {
+                Login.SetCookie(CookieName, URLPref.ToString());
+                return URLPref;
+            }
+            //後ろがデフォルト
+            if (Request.Cookies[CookieName] != null)
+            {
+                try
+                {
+                    TypeConverter Converter = TypeDescriptor.GetConverter(typeof(T));
+                    if(Converter != null)
+                    {
+                        return (T)Converter.ConvertFromString(Request.Cookies[CookieName].Value);
+                    }
+                }
+                catch { }
+            }
+            return Default;
+        }
+
+        int getCountPref(int? QueryPref)
+        {
+            int? ret = getCookiePref(QueryPref, 20, "TweetCount");
+            if(ret > 50) { return 50; } //URL直接入力でも最大数を制限
+            return (int)ret;
+        }
+
+        bool getRetweetPref(bool? QueryPref)
+        {
+            return (bool)getCookiePref(QueryPref, true, "GetRetweet");
+        }
+
+        dbhandlerview.TweetOrder getTweetOrderPref(dbhandlerview.TweetOrder? QueryPref)
+        {
+            return (dbhandlerview.TweetOrder)getCookiePref(QueryPref, dbhandlerview.TweetOrder.Featured, "TweetOrder");
+        }
+
+        //"yyyy-MM-dd" を変換する 失敗したらnull
+        DateTimeOffset? StrToDateDay(string DateStr)
+        {
+            if (DateStr == null) { return null; }
+            try
+            {
+                string[] SplitDate = DateStr.Split('-');
+                return new DateTimeOffset(int.Parse(SplitDate[0]), int.Parse(SplitDate[1]), int.Parse(SplitDate[2]), 0, 0, 0, new TimeSpan(9, 0, 0));
+            }
+            catch { return null; }
+        }
+    }
+}

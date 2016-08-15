@@ -1,0 +1,75 @@
+﻿@model twiview.Models.SearchModelUsers
+@{
+    if (Model.Users.Length >= Model.Limit)
+    {
+        ViewBag.title = string.Format("{0} の検索結果 (≧{1})", Model.target_screen_name, Model.Limit);
+    }
+    else
+    {
+        ViewBag.title = string.Format("{0} の検索結果 ({1})", Model.target_screen_name, Model.Users.Length);
+    }
+}
+@section TwitterCard{@TextHelper.TwitterCardDefault()}
+
+@helper UserInfo(TweetData._user user)
+{ 
+    var url = new UrlHelper(HttpContext.Current.Request.RequestContext);
+    <div class="well well-sm">
+        <div>
+            @(TextHelper.UserIcon(user))
+            <p class="lead">@(TextHelper.UserTweetLink(user)) @(user.name)</p>
+        </div>
+        <p>@(Html.Raw(user.description))</p>
+    </div>
+}
+
+@helper NoUserToShow()
+{
+    <div>
+        該当するアカウントが見つかりませんでした。
+        <ul>
+            <li>大小文字は区別しません</li>
+            <li>「閲覧可能」は非公開かつフォロー外のアカウントを除外します</li>
+            <li>画像収集の対象になったことがないアカウントは出てきません</li>
+            <li>登録ユーザーのタイムライン上の画像のみを収集しています</li>
+        </ul>
+    </div>
+}
+
+@helper LimitMessage()
+{
+    <p class="text-danger">@(Model.Limit)人以上見つかったので全ては表示しません(｀・ω・´)</p> 
+}
+
+@helper pager()
+{
+    <ul class="pagination">
+        <li @(Model.ModeStr == "Show" ? "class=active" : "")>@Html.ActionLink("閲覧可能", "Index", new { Str = Model.target_screen_name, Mode = dbhandlerview.SelectUserLikeMode.Show, Direct = false })</li>
+        @if (Model.Logined)
+        {
+        <li @(Model.ModeStr == "Following" ? "class=active" : "")>@Html.ActionLink("フォローしている", "Index", new { Str = Model.target_screen_name, Mode = dbhandlerview.SelectUserLikeMode.Following, Direct = false })</li>
+        }
+        else
+        {
+            <li class="disabled"><a>フォローしている</a></li>
+        }
+        <li @(Model.ModeStr == "All" ? "class=active" : "")>@Html.ActionLink("すべて", "Index", new { Str = Model.target_screen_name, Mode = dbhandlerview.SelectUserLikeMode.All, Direct = false })</li>
+    </ul>
+}
+
+<h2>@@@(ViewBag.title)</h2>
+@(pager())
+@{if (Model.Users.Length >= Model.Limit) { @LimitMessage() } }
+<p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
+@ScriptHelper.TweetButton()
+@if(Model.Users.Length > 0)
+{
+    foreach (TweetData._user u in Model.Users)
+    {
+        @(UserInfo(u))
+    }
+}
+else
+{
+    @NoUserToShow()
+}

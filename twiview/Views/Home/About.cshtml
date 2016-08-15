@@ -1,0 +1,123 @@
+﻿@{ViewBag.Title = "このサイトについて";}
+@section TwitterCard{@TextHelper.TwitterCardDefault()}
+
+<h2>@ViewBag.Title</h2>
+<h3>概要</h3>
+<p>
+    Twitter上の画像付きツイートを収集し、よく似た画像同士をまとめて表示します。<br />
+    <span class="text-warning">
+        1ツイートに複数の画像が含まれる場合は、1枚ずつ類似判定を行って別々に表示します。<br />
+        また、よく似た画像が見つからなかったツイートは表示されません。
+    </span><br />
+    収集対象はこのサイトにログインしたTwitterアカウントのタイムラインです。
+</p>
+<h3>検索機能</h3>
+<p>
+    右上の検索窓に、アカウント名(@@*****)または<br />
+    ツイートのURL(https://twitter.com/****/status/****)を入力して検索できます。
+</p>
+<h3>人気のツイート</h3>
+<p>
+    類似画像が見つかったツイートを、お気に入り(いいねに改称)とリツイートの合計が大きい順に表示します。<br />
+    対象は公開アカウントのみです。
+</p>
+<h3>タイムライン</h3>
+<p>@Html.ActionLink("ログインすると使用できます。", "Twitter", "Auth")</p>
+<p>
+    あなたのタイムラインから、類似画像が見つかったツイートを新しい順に表示します。<br />
+    リツイートの表示/非表示の切替ができます。
+</p>
+
+<h3>非公開アカウントの表示</h3>
+<p>
+    ログインすると、あなたがフォローしている非公開アカウントのツイートが表示されるようになります。<br />
+    あなた自身が非公開アカウントを所持している場合でもログインが必要です。
+</p>
+
+<h3>ツイートの収集を停止する</h3>
+<p>
+    <a href="http://www.atmarkit.co.jp/ait/articles/1407/18/news030.html">http://www.atmarkit.co.jp/ait/articles/1407/18/news030.html</a><br />
+    ↑の方法で「TwiGaTen」のアプリ連携を解除してください。
+</p>
+
+
+<h3>名称</h3>
+<p>
+    「ツイッター画像転載奴～！」も「TwiGaTen」も有効な名称ということにしておきます。<br />
+    とりあえず、Twitterから画像転載を発見するツールです。
+</p>
+<p class="text-muted"> ﾟ(ﾟ∩´﹏`∩ﾟ)ﾟ｡名前とかどうやってつけるの</p>
+
+<h3>問い合わせ</h3>
+<p>┌（┌；・o・）┐・・・ <a href="https://twitter.com/204504bySE">@@204504bySE</a><br />
+    リプライでもなんでも投げてください。</p>
+
+<h3>サーバー機の仕様</h3>
+<ul>
+    <li>
+        ソフトウェア
+        <ul>
+            <li>OS: Windows Server 2012 R2 Standard</li>
+            <li>データベース: MySQL 5.7</li>
+            <li>Webサーバー: IIS 8.5 (ASP.NETおいしい)</li>
+            <li>ツイート収集ツール等はC#で適当に</li>
+        </ul>
+    </li>
+    <li>
+        ハードウェア
+        <ul>
+            <li>CPU: AMD FX-8300</li>
+            <li>RAM: DDR3L-1600 32GB(8GBx4) ECC Unbuffered</li>
+            <li>M/B: ASUS M5A88-M (MicroATX, ECCメモリ対応)</li>
+            <li>SSD: Intel SSD 730 480GB (OSとデータベース用)</li>
+            <li>HDD: Western Digital Velociraptor WD5000HHTZ (10000rpm, 500GB) (画像キャッシュ用)</li>
+            <li>電源: Enhance FLEX 350 ENP7135B-24YGF (350W 80PLUS GOLD, FlexATX)</li>
+            <li>ケース: Cooler Master Elite 100 (MicroATX用のくせに拡張カードが使えない)</li>
+        </ul>
+    </li>
+</ul>
+
+<h3>使用ツール等</h3>
+<ul>
+    <li>
+        Bootstrap
+        <ul>
+            <li><a href="http://getbootstrap.com/">http://getbootstrap.com/</a></li>
+            <li>Apache License 2.0 <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a></li>
+        </ul>
+    </li>
+</ul>
+<p>以下はMIT License <a href="http://opensource.org/licenses/mit-license.php">http://opensource.org/licenses/mit-license.php</a></p>
+<ul>
+    <li>
+        CoreTweet
+        <ul>
+            <li><a href="http://coretweet.github.io/">http://coretweet.github.io/</a></li>
+            <li>日本語版wiki <a href="https://github.com/CoreTweet/CoreTweet/wiki/Home%28%E6%97%A5%E6%9C%AC%E8%AA%9E%29">https://github.com/CoreTweet/CoreTweet/wiki/Home(日本語)</a></li>
+        </ul>
+    </li>
+    <li>
+        Bootstrap 3 Datepicker
+        <ul>
+            <li><a href="http://eonasdan.github.io/bootstrap-datetimepicker/">http://eonasdan.github.io/bootstrap-datetimepicker/</a></li>
+        </ul>
+    </li>
+    <li>
+        jQuery Lazy Load XT plugin
+        <ul>
+            <li><a href="http://ressio.github.io/lazy-load-xt/">http://ressio.github.io/lazy-load-xt/</a></li>
+        </ul>
+    </li>
+    <li>
+        jQuery
+        <ul>
+            <li><a href="https://jquery.com/">https://jquery.com/</a></li>
+        </ul>
+    </li>
+    <li>
+        MySql.Data
+        <ul>
+            <li><a href="https://www.nuget.org/packages/MySql.Data/">https://www.nuget.org/packages/MySql.Data/</a></li>
+        </ul>
+    </li>
+</ul>

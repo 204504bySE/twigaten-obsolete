@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:site" content="@('@')204504bySE" />
+    <meta name="twitter:title" content="@(ViewBag.Title) - TwiGaTen" />
+    @RenderSection("TwitterCard", false)
+    <title>@(ViewBag.Title) - TwiGaTen</title>
+    @Styles.Render("~/Content/css")
+</head>
+<body>
+    <nav class="navbar navbar-default">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                @Html.ActionLink("TwiGaTen", "Index", "Home", null, new { @class = "navbar-brand" })
+            </div>
+            <div class="navbar-header">
+                <ul class="nav navbar-nav">
+                    @if (Session["LoginUserID"] == null)
+                    {
+                        <li>@Html.ActionLink("Twitterアカウントでログイン", "Twitter", "Auth")</li>
+                    }
+                    else
+                    {
+                        <li class="dropdown">
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@@@(Session["LoginUserScreenName"].ToString())<span class="caret"></span></a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li>@Html.ActionLink("自分のツイート", "UserTweet", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
+                                <li>@Html.ActionLink("タイムライン", "Timeline", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
+                                <li class="divider"></li>
+                                <li>@Html.ActionLink("ログアウト", "Logout", "Auth")</li>
+                            </ul>
+                        </li>
+                    }
+                    <li>@Html.ActionLink("人気のツイート", "Featured", "SimilarMedia", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") }, null)</li>
+                    <li>@Html.ActionLink("このサイトについて", "About", "Home")</li>
+                </ul>
+                <form action=@(Url.RouteUrl(new { controller = "Search", action = "Index" })) method="get" class="navbar-form navbar-right">
+                    <div class="form-group">
+                        <input name="Str" type="text" class="form-control" placeholder="@('@')name/URL" style="width:11em" />
+                        <button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-search"></span></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </nav>
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    <script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+    <div class="container-fluid body-content">
+        @RenderBody()
+        <hr />
+        <footer>
+            <p class="text-muted"><a class="text-muted" href="/">twigaten.204504byse.info</a> by つ(*ﾟーﾟ) ◆204504bySE</p>
+        </footer>
+    </div>
+    @Scripts.Render("~/bundles/lazyloadxt")
+    @RenderSection("scripts", required: false)
+
+<!--Google Analytics-->
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-71736823-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</body>
+</html>

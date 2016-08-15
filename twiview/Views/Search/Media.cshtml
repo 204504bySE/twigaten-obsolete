@@ -1,0 +1,31 @@
+﻿@model twiview.Models.SearchModelMedia
+
+@helper MediaFailure()
+{
+    <ul>
+        <li>画像ファイルが大きすぎると処理できません(約5MBまで)。</li>
+        <li>実は画像ファイルではないかもしれません。</li>
+        <li>画像の送信に失敗した可能性もあります。</li>
+    </ul>
+}
+
+@switch (Model.Mode)
+{
+    case twiview.Models.SearchModelMedia.FailureType.HashFail:
+        ViewBag.Title = "画像の読み込みに失敗しました";
+        break;
+    case twiview.Models.SearchModelMedia.FailureType.NoTweet:
+        ViewBag.Title = "ツイートが見つかりませんでした";
+        break;
+}
+<h2>@(ViewBag.title)</h2>
+@switch (Model.Mode)
+{
+    case twiview.Models.SearchModelMedia.FailureType.HashFail:
+        @MediaFailure()
+        break;
+    case twiview.Models.SearchModelMedia.FailureType.NoTweet:
+        @SimilarMediaHelper.NoTweetToShow()
+        break;
+}
+@SearchHelper.MediaSearch()

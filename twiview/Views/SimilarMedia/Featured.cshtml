@@ -1,0 +1,66 @@
+﻿@model twiview.Models.SimilarMediaModelFeatured
+
+@{ViewBag.title = string.Format("人気のツイートと類似画像({0})", Model.Date.ToString("yyyy/MM/dd"));}
+@section TwitterCard{@TextHelper.TwitterCardDefault()}
+
+@helper RenderScripts()
+{
+    @Styles.Render("~/Content/bootstrap-datepicker")
+    @ScriptHelper.datetimepickerScript(Model.Date.ToLocalTime())
+}
+
+@helper pager(bool datepicker = false)
+{
+    <div>
+    <ul class="pagination">
+        <li @(Model.Order == dbhandlerview.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink("人気順", "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = dbhandlerview.TweetOrder.Featured })</li>
+        <li @(Model.Order == dbhandlerview.TweetOrder.New ? "class=active" : "")>@Html.ActionLink("時刻順", "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = dbhandlerview.TweetOrder.New })</li>
+    </ul>
+    <ul class="pagination">
+        <li @(Model.Date.AddDays(1) > DateTimeOffset.Now ? "class=active" : "")>@Html.ActionLink("今日", "Featured", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") })</li>
+        @if (Model.Date.AddDays(1) > DateTimeOffset.Now)
+        {
+            <li class="disabled"><a>« 次の日</a></li>
+        }
+        else
+        {
+            <li>@Html.ActionLink("« 次の日", "Featured", new { Date = Model.Date.AddDays(1).ToString("yyyy-MM-dd") })</li>
+        }
+        <li>@Html.ActionLink("前の日 »", "Featured", new {  Date = Model.Date.AddDays(-1).ToString("yyyy-MM-dd") })</li>
+    </ul>
+    </div>
+    if (datepicker)
+    {
+    <div class="container">
+        <form action="/SimilarMedia/Featured" method="get" class="form-inline">
+            <div class="form-group">
+                日付指定
+                <div class='input-group date' id='datetimepicker_similarmedia'>
+                    <input name="Date" type='text' class="form-control" />
+                    <span class="input-group-addon">
+                        <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Go</button>
+        </form>
+    </div>
+    }
+}
+@(pager(true))
+<h2>人気のツイート (@(Model.Date.ToString("yyyy/MM/dd")))</h2>
+<p>@ScriptHelper.TweetButton(@Url.Action("Featured", new { Date = Model.Date.ToString("yyyy-MM-dd") }))</p>
+<p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
+@if(Model.Tweets.Length > 0)
+{
+    foreach (SimilarMediaTweet Tweet in Model.Tweets)
+    {
+        @(SimilarMediaHelper.SimilarMedia(Tweet, Model.SimilarLimit))
+    }
+    @(pager())
+}
+else
+{
+    @SimilarMediaHelper.NoTweetToShow()
+}
+@RenderScripts()

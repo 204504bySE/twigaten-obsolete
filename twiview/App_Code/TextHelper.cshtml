@@ -1,0 +1,90 @@
+﻿@using System.Text.RegularExpressions;
+@using System.Web.Mvc.Html
+@using twiview;
+
+@helper TwitterCardDefault()
+{
+    <meta name="twitter:description" content="TwiGaTenは、Twitter上の画像付きツイートから、画像転載と思われるツイートを検索できるWebサイトです。" />
+    <meta name="twitter:image" content="@(Request.Url.GetLeftPart(UriPartial.Authority))/Content/Images/ten120.png" />
+}
+
+@helper UserTweetLink(TweetData._user User)
+{
+var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
+if(User.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(User.user_id)">@@@(User.screen_name)</a>
+}
+
+@helper UserTweetLink(TweetData._tweet Tweet)
+{
+var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
+if (Tweet.user.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy-MM-dd"))">@@@(Tweet.user.screen_name)</a>
+}
+
+@helper DateTweetLink(TweetData._tweet Tweet)
+{
+    <a href="https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)">@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</a>
+}
+
+@helper OneTweetLinkButton(SimilarMediaTweet Tweet)
+{
+    <a href="/tweet/@(Tweet.tweet.retweet == null ? Tweet.tweet.tweet_id : Tweet.tweet.retweet.tweet_id)#@(Tweet.media.media_id)" class="btn btn-default">別ページで見る</a>
+}
+@helper OneTweetLinkButtonSeeMore(SimilarMediaTweet Tweet)
+{
+    <a href="/tweet/@(Tweet.tweet.retweet == null ? Tweet.tweet.tweet_id : Tweet.tweet.retweet.tweet_id)#@(Tweet.media.media_id)" class="btn btn-primary">もっと見る</a>
+}
+
+@helper OneTweetButtonTweet(SimilarMediaTweet Tweet)
+{
+TweetData._tweet LinkTweet = Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.tweet.retweet;
+    @ScriptHelper.TweetButton(@"/tweet/" + LinkTweet.tweet_id + "#" + Tweet.media.media_id, string.Format("{0} のツイートと類似画像({1}) - TwiGaTen", LinkTweet.user.screen_name, LinkTweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")))
+}
+
+@helper OneTweetMediaLink(TweetData._tweet Tweet, TweetData._media Media)
+{
+    <a href="/tweet/@(Tweet.tweet_id)"><img class="twigaten-thumb" src="/Content/Images/dummy/150.png" data-src="@(Media.media_url)" /></a>
+}
+
+@helper GoogleMediaLink(TweetData._media Media)
+{
+    var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContext);
+    string mediaurl;
+    if (Media.media_url.IndexOf("twimg.com") >= 0)
+    {
+        mediaurl = Media.orig_media_url.Replace("http://", "https://") + ":small";
+    }
+    else
+    {
+        mediaurl = Media.orig_media_url;
+    }
+    <a class="btn btn-default btn-xs" href="https://www.google.co.jp/searchbyimage?image_url=@(url.Encode(mediaurl))"><span class="glyphicon glyphicon-search"></span>画像でググる</a>
+}
+
+@helper UserLink(TweetData._user User)
+{
+    <a href="https://twitter.com/@(User.screen_name)"><img src="/Content/Images/Twitter_bird_logo_2012.svg" width="16" height="16" /></a>
+}
+
+@helper UserIcon(TweetData._user User)
+{
+if(User.profile_image_url != null) {
+    <img src="/Content/Images/dummy/48.png" data-src="@(User.profile_image_url)" class="pull-left twigaten-icon" />
+}
+else { <img src="/Content/Images/dummy/48.png" class="pull-left twigaten-icon" /> }
+}
+@helper TweetPermalink(TweetData._tweet Tweet)
+{
+    <a href="https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)">https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)</a>
+}
+@helper MediaTypeGlyphIcon(TweetData._media Media)
+{
+switch (Media.type)
+{
+    case "video":
+        <p class="text-center"><span class="glyphicon glyphicon-facetime-video"></span></p>
+        break;
+    case "animated_gif":
+        <p class="text-center"><span class="glyphicon glyphicon-film"></span></p>
+        break;
+}
+}

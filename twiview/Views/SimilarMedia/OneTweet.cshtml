@@ -1,0 +1,36 @@
+﻿@model twiview.Models.SimilarMediaModelOneTweet
+@{
+    if (Model.Tweets.Length > 0) {
+        ViewBag.Title = string.Format("{0} のツイートと類似画像({1})", Model.Tweets[0].tweet.user.screen_name, Model.Tweets[0].tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"));
+    }
+    else
+    {
+        ViewBag.Title = string.Format("ツイート({0})が見つかりませんでした", Model.TargetTweetID);
+    }
+    @section TwitterCard{
+        @if(Model.Tweets.Length > 0)
+        {
+            <meta name="twitter:description" content="@(Model.Tweets[0].tweet.text)" />
+            <meta name="twitter:image" content="@(LocalText.MediaUrlFull(Model.Tweets[0].media, Request))" />
+        } else { <meta name="twitter:description" content="このツイートは収集されていないか、削除されたか、または非公開アカウントのツイートです。" /> }
+    }
+}
+
+
+@if (Model.Tweets.Length > 0)
+{
+    <h2>@(Html.ActionLink("@" + Model.Tweets[0].tweet.user.screen_name,"UserTweet", new{ UserID = Model.Tweets[0].tweet.user.user_id })) のツイート</h2>
+    <p>@TextHelper.TweetPermalink(Model.Tweets[0].tweet)</p>
+    <p>@ScriptHelper.TweetButton(@Url.Action("OneTweet", new { TweetID = Model.TargetTweetID }))</p>
+    <p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
+    foreach (SimilarMediaTweet Tweet in Model.Tweets)
+    {
+        @(SimilarMediaHelper.SimilarMedia(Tweet, 0))
+    }
+}
+else
+{
+    <h2>ツイート<small>(@(Model.TargetTweetID))</small>が見つかりませんでした</h2>
+    <p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
+    @SimilarMediaHelper.NoTweetToShow()
+}
