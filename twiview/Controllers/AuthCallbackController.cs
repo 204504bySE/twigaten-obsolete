@@ -27,12 +27,12 @@ namespace twiview.Controllers
                 // token から AccessToken と AccessTokenSecret を永続化しておくとか、
                 // セッション情報に格納しておけば毎回認証しなくて良いかも
 
-                dbhandlertoken db = new dbhandlertoken();
-                dbhandlertoken.VerifytokenResult vt = Login.StoreNewLogin(token);
+                DBHandlerToken db = new DBHandlerToken();
+                DBHandlerToken.VerifytokenResult vt = Login.StoreNewLogin(token);
 
                 //127.0.0.1だとInvalid Hostnameされる localhostだとおｋ
                 //http://localhost:49776/AuthCallback/Twitter?oauth_token=T6976QAAAAAAg7LaAAABUJCk2Pw&oauth_verifier=WhDu2ITngpeH1wjS2PwVYEBdpJyiv5cE
-                if (vt == dbhandlertoken.VerifytokenResult.Exist)
+                if (vt == DBHandlerToken.VerifytokenResult.Exist)
                 {
                     return Redirect(@"~/users");
                 }

@@ -13,8 +13,6 @@ namespace twidown
     {
         static void Main(string[] args)
         {
-            System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
-            System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
             Config config = Config.Instance;
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -36,16 +34,9 @@ namespace twidown
                 Thread.Sleep(60000);
                 LastConnectProcessTick.update();                
                 manager.AddAll(db.SelectAlltoken(), ref LastConnectProcessTick);
-
-                LastFullGCTick.update();
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, true);
-                LastFullGCTick.update();
             }
         }
-
-        //MainでフルGCをしてからの経過時間
-        static TickCount LastFullGCTick = new TickCount();
-
+        
         //StreamerLockerのアンロックはここでやる
         static void IntervalProcess()
         {
@@ -55,7 +46,6 @@ namespace twidown
             {
                 Thread.Sleep(30000);
                 Locker.ActualUnlockAll();
-                if (LastFullGCTick.Elasped > 70000) { GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, false, false); }
             }
         }
 

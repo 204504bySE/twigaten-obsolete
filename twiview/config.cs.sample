@@ -1,0 +1,20 @@
+﻿namespace twiview
+{
+    public static class config
+    {
+        //<summary>
+        //iniファイル使えないからその代わり(雑 Singleton以前にstatic
+        //</summary>
+
+        public const string ConsumerKey = "";
+        public const string ConsumerSecret = "";
+        public const string CallBackUrl = "https://twigaten.204504byse.info/AuthCallback/Twitter";
+
+        //最後に "/" を付ける
+        public const string PictPathProfileImage = "/twimg/profile_image/";
+        public const string PictPathsmall = "/twimg/small/";
+        public const string PictPaththumb = "/twimg/thumb/";
+
+        public const string DBAddress = "localhost";
+    }
+}

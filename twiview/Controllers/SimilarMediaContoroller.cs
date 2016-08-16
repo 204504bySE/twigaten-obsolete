@@ -15,7 +15,7 @@ namespace twiview.Controllers
         }
 
         [Route("featured/{Date?}")]
-        public ActionResult Featured(string Date, dbhandlerview.TweetOrder? Order)
+        public ActionResult Featured(string Date, DBHandlerView.TweetOrder? Order)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
             DateTimeOffset? DateOffset = StrToDateDay(Date);
@@ -120,9 +120,9 @@ namespace twiview.Controllers
             return (bool)getCookiePref(QueryPref, true, "GetRetweet");
         }
 
-        dbhandlerview.TweetOrder getTweetOrderPref(dbhandlerview.TweetOrder? QueryPref)
+        DBHandlerView.TweetOrder getTweetOrderPref(DBHandlerView.TweetOrder? QueryPref)
         {
-            return (dbhandlerview.TweetOrder)getCookiePref(QueryPref, dbhandlerview.TweetOrder.Featured, "TweetOrder");
+            return (DBHandlerView.TweetOrder)getCookiePref(QueryPref, DBHandlerView.TweetOrder.Featured, "TweetOrder");
         }
 
         //"yyyy-MM-dd" を変換する 失敗したらnull

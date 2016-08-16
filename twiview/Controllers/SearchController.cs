@@ -11,10 +11,10 @@ namespace twiview.Controllers
 {
     public class SearchController : Controller
     {
-        dbhandlerview db = new dbhandlerview();
+        DBHandlerView db = new DBHandlerView();
 
         // GET: UserSearch
-        public ActionResult Index(string Str, dbhandlerview.SelectUserLikeMode Mode = dbhandlerview.SelectUserLikeMode.Show, bool Direct = true)
+        public ActionResult Index(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Show, bool Direct = true)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
             string QueryStr = twitenlib.CharCodes.KillNonASCII(Str);
@@ -55,7 +55,7 @@ namespace twiview.Controllers
             return RedirectToRoute(new { controller = "SimilarMedia", action = "OneTweet", TweetID = tweet_id });
         }
 
-        public ActionResult Users(string Str, dbhandlerview.SelectUserLikeMode Mode = dbhandlerview.SelectUserLikeMode.Undefined)
+        public ActionResult Users(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Undefined)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
             //screen_name 検索
@@ -67,9 +67,9 @@ namespace twiview.Controllers
             return View(new SearchModelUsers(QueryStr, Login.UserID, getsetUserLikeMode(Mode)));
         }
 
-        dbhandlerview.SelectUserLikeMode getsetUserLikeMode(dbhandlerview.SelectUserLikeMode Mode)
+        DBHandlerView.SelectUserLikeMode getsetUserLikeMode(DBHandlerView.SelectUserLikeMode Mode)
         {
-            if(Mode != dbhandlerview.SelectUserLikeMode.Undefined)
+            if(Mode != DBHandlerView.SelectUserLikeMode.Undefined)
             {
                 Session["UserLikeMode"] = Mode;
                 return Mode;
@@ -77,7 +77,7 @@ namespace twiview.Controllers
             else
             {
                 //ここでデフォルト値も決める
-                dbhandlerview.SelectUserLikeMode newMode = Session["UserLikeMode"] as dbhandlerview.SelectUserLikeMode? ?? dbhandlerview.SelectUserLikeMode.Show;
+                DBHandlerView.SelectUserLikeMode newMode = Session["UserLikeMode"] as DBHandlerView.SelectUserLikeMode? ?? DBHandlerView.SelectUserLikeMode.Show;
                 Session["UserLikeMode"] = newMode;
                 return newMode;
             }

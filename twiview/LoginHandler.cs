@@ -9,8 +9,8 @@ namespace twiview
 {
     public class LoginHandler
     {
-        dbhandlertoken dbtoken = new dbhandlertoken();
-        dbhandlerview dbview = new dbhandlerview();
+        DBHandlerToken dbtoken = new DBHandlerToken();
+        DBHandlerView dbview = new DBHandlerView();
 
         HttpSessionStateBase Session;
         HttpRequestBase Request;
@@ -29,11 +29,11 @@ namespace twiview
             ScreenName = Session["LoginUserScreenName"] as string;
         }
 
-        public dbhandlertoken.VerifytokenResult StoreNewLogin(Tokens token)
+        public DBHandlerToken.VerifytokenResult StoreNewLogin(Tokens token)
         {
 
-            dbhandlertoken.VerifytokenResult vt = dbtoken.Verifytoken(token);
-            if (vt != dbhandlertoken.VerifytokenResult.Exist)
+            DBHandlerToken.VerifytokenResult vt = dbtoken.Verifytoken(token);
+            if (vt != DBHandlerToken.VerifytokenResult.Exist)
             {
                 if (dbtoken.InsertNewtoken(token) < 1)
                 {
@@ -115,7 +115,7 @@ namespace twiview
             long UserID;
             if (!long.TryParse(Request.Cookies["ID"].Value, out UserID)) { return null; }
             string LoginToken = Request.Cookies["LoginToken"].Value;
-            dbhandlerview db = new dbhandlerview();
+            DBHandlerView db = new DBHandlerView();
             if (db.SelectUserLoginString(UserID) == LoginToken)
             {
                 //Cookieの有効期限を延長する

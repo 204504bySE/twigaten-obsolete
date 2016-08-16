@@ -10,9 +10,9 @@ using CoreTweet;
 
 namespace twiview
 {
-    public class dbhandlertoken : twitenlib.DBHandler
+    public class DBHandlerToken : twitenlib.DBHandler
     {
-        public dbhandlertoken() : base("token", "") { }
+        public DBHandlerToken() : base("token", "") { }
 
         public int InsertNewtoken(Tokens token)
         //<summary>
@@ -79,9 +79,9 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         }
     }
 
-    public class dbhandlerview : twitenlib.DBHandler
+    public class DBHandlerView : twitenlib.DBHandler
     {
-        public dbhandlerview() : base("view", "", twiview.config.DBAddress, 15, 40, 600) { }
+        public DBHandlerView() : base("view", "", twiview.config.DBAddress, 15, 40, 600) { }
         public TweetData._user SelectUser(long user_id)
         {
             DataTable Table;

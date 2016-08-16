@@ -143,8 +143,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\twidown\picthash.cs">
-      <Link>picthash.cs</Link>
+    <Compile Include="..\twidown\PictHash.cs">
+      <Link>PictHash.cs</Link>
     </Compile>
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="App_Start\FilterConfig.cs" />
@@ -154,7 +154,7 @@
     <Compile Include="LoginHandler.cs" />
     <Compile Include="Models\SearchModel.cs" />
     <Compile Include="TweetData.cs" />
-    <Compile Include="dbhandler.cs" />
+    <Compile Include="DBHandler.cs" />
     <Compile Include="twitenlib.cs" />
     <Compile Include="Controllers\AuthCallbackController.cs" />
     <Compile Include="Controllers\AuthController.cs" />
@@ -214,6 +214,7 @@
     <Content Include="Scripts\moment.min.js" />
     <Content Include="Scripts\_references.js" />
     <Content Include="robots.txt" />
+    <None Include="config.cs.sample" />
     <Content Include="Web.config">
       <SubType>Designer</SubType>
     </Content>

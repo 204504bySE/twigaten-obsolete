@@ -11,7 +11,7 @@ namespace twiview.Models
     {
         public long QueryElapsedMilliseconds { get; protected set; }
         protected System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        dbhandlerview db = new dbhandlerview();
+        DBHandlerView db = new DBHandlerView();
         public string target_screen_name { get; }
         public string ModeStr { get; }
         public int Limit { get; }
@@ -19,7 +19,7 @@ namespace twiview.Models
 
         public TweetData._user[] Users { get; }
 
-        public SearchModelUsers(string _target_screen_name, long? LoginUserID, dbhandlerview.SelectUserLikeMode _Mode) {
+        public SearchModelUsers(string _target_screen_name, long? LoginUserID, DBHandlerView.SelectUserLikeMode _Mode) {
             sw.Start();
             Limit = 100;
             Logined = (LoginUserID != null);

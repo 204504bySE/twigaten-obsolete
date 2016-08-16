@@ -8,7 +8,7 @@ namespace twiview.Models
     public class SimilarMediaModel
     {
         protected System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
-        protected dbhandlerview db = new dbhandlerview();
+        protected DBHandlerView db = new DBHandlerView();
         public TweetData._user TargetUser { get; protected set; }
         public SimilarMediaTweet[] Tweets { get; protected set; }
         public DateTimeOffset Date { get; protected set; }
@@ -19,8 +19,8 @@ namespace twiview.Models
 
     public class SimilarMediaModelFeatured : SimilarMediaModel
     {
-        public dbhandlerview.TweetOrder Order { get; }
-        public SimilarMediaModelFeatured(int SimilarLimit, DateTimeOffset BeginDate, dbhandlerview.TweetOrder sortOrder)
+        public DBHandlerView.TweetOrder Order { get; }
+        public SimilarMediaModelFeatured(int SimilarLimit, DateTimeOffset BeginDate, DBHandlerView.TweetOrder sortOrder)
         {
             sw.Start();
             this.SimilarLimit = SimilarLimit;
