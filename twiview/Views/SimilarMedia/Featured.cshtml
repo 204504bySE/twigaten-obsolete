@@ -13,8 +13,8 @@
 {
     <div>
     <ul class="pagination">
-        <li @(Model.Order == dbhandlerview.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink("人気順", "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = dbhandlerview.TweetOrder.Featured })</li>
-        <li @(Model.Order == dbhandlerview.TweetOrder.New ? "class=active" : "")>@Html.ActionLink("時刻順", "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = dbhandlerview.TweetOrder.New })</li>
+        <li @(Model.Order == DBHandlerView.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink("人気順", "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = DBHandlerView.TweetOrder.Featured })</li>
+        <li @(Model.Order == DBHandlerView.TweetOrder.New ? "class=active" : "")>@Html.ActionLink("時刻順", "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = DBHandlerView.TweetOrder.New })</li>
     </ul>
     <ul class="pagination">
         <li @(Model.Date.AddDays(1) > DateTimeOffset.Now ? "class=active" : "")>@Html.ActionLink("今日", "Featured", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") })</li>
