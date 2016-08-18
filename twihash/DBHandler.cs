@@ -12,67 +12,50 @@ namespace twihash
     {
         public DBHandler() : base("similar", "", Config.Instance.database.Address, 300) { }
 
+        MediaPair.OrderPri OrderPri = new MediaPair.OrderPri();
+        MediaPair.OrderSub OrderSub = new MediaPair.OrderSub();
+        public int StoreMediaPairs(List<MediaPair> StorePairs)
         //類似画像のペアをDBに保存
-        //トランザクションはBulk Insertごとに切っちゃう
-        string BulkCmdFull;
-        public int StoreMediaPairs(List<mediapair> mediapairs)
+        //StorePairsがでかすぎると死ぬ
         {
-            const int BulkUnit = 1000;
-            const string head = @"INSERT IGNORE INTO dcthashpair VALUES";
-            int ret = 0;
-            //Parallel.For(0, mediapairs.Count / BulkUnit, op, (int i) =>
-            for (int i = 0; i < mediapairs.Count / BulkUnit; i++)
+            using (MySqlCommand Cmd = new MySqlCommand(BulkCmdStr(StorePairs.Count, 3, @"INSERT IGNORE INTO dcthashpair VALUES")))
             {
-                if (BulkCmdFull == null) { BulkCmdFull = BulkCmdStr(BulkUnit * 2, 3, head); }
-                using (MySqlCommand cmd = new MySqlCommand(BulkCmdFull))
+                for (int i = 0; i < StorePairs.Count; i++)
                 {
-                    for (int j = 0; j < BulkUnit; j++)
-                    {
-                        string evn = (j << 1).ToString();
-                        string odd = (j << 1 | 1).ToString();
-                        int num = i * BulkUnit + j;
-                        cmd.Parameters.AddWithValue("@a" + evn, mediapairs[num].media0);
-                        cmd.Parameters.AddWithValue("@b" + evn, mediapairs[num].media1);
-                        cmd.Parameters.AddWithValue("@c" + evn, mediapairs[num].hammingdistance);
-                        cmd.Parameters.AddWithValue("@a" + odd, mediapairs[num].media1);    //逆も入れる
-                        cmd.Parameters.AddWithValue("@b" + odd, mediapairs[num].media0);
-                        cmd.Parameters.AddWithValue("@c" + odd, mediapairs[num].hammingdistance);
-                    }
-                    ret += ExecuteNonQuery(cmd, true);
-                    //Interlocked.Add(ref ret, r);
+                    string numstr = i.ToString();
+                    Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
+                    Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
+                    Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
                 }
-            }
-            //余りを処理
-            int LastOffset = mediapairs.Count / BulkUnit * BulkUnit;
-            int LastCount = mediapairs.Count % BulkUnit;
-            if (LastCount != 0)
-            {
-                using (MySqlCommand cmdlast = new MySqlCommand(BulkCmdStr(LastCount * 2, 3, head)))
+
+                StorePairs.Sort(OrderPri);
+                for (int i = 0; i < StorePairs.Count; i++)
                 {
-                    for (int j = 0; j < LastCount; j++)
-                    {
-                        string evn = (j << 1).ToString();
-                        string odd = (j << 1 | 1).ToString();
-                        int num = LastOffset + j;
-                        cmdlast.Parameters.AddWithValue("@a" + evn, mediapairs[num].media0);
-                        cmdlast.Parameters.AddWithValue("@b" + evn, mediapairs[num].media1);
-                        cmdlast.Parameters.AddWithValue("@c" + evn, mediapairs[num].hammingdistance);
-                        cmdlast.Parameters.AddWithValue("@a" + odd, mediapairs[num].media1);    //逆も入れる
-                        cmdlast.Parameters.AddWithValue("@b" + odd, mediapairs[num].media0);
-                        cmdlast.Parameters.AddWithValue("@c" + odd, mediapairs[num].hammingdistance);
-                    }
-                    ret += ExecuteNonQuery(cmdlast, true);
+                    string numstr = i.ToString();
+                    Cmd.Parameters["@a" + numstr].Value = StorePairs[i].media0;
+                    Cmd.Parameters["@b" + numstr].Value = StorePairs[i].media1;
+                    Cmd.Parameters["@c" + numstr].Value = StorePairs[i].hammingdistance;
                 }
+                int ret = ExecuteNonQuery(Cmd, true);
+
+                StorePairs.Sort(OrderSub);
+                for (int i = 0; i < StorePairs.Count; i++)
+                {
+                    string numstr = i.ToString();
+                    Cmd.Parameters["@a" + numstr].Value = StorePairs[i].media1;   //↑とは逆
+                    Cmd.Parameters["@b" + numstr].Value = StorePairs[i].media0;
+                    Cmd.Parameters["@c" + numstr].Value = StorePairs[i].hammingdistance;
+                }
+                return ret + ExecuteNonQuery(Cmd, true);
             }
-            return ret;
         }
 
         //全mediaのhashを読み込む
-        public mediahasharray allmediahash()
+        public MediaHashArray AllMediaHash()
         {
             const int selectunit = 1000; //でかくするとGCが捗らない
             DataTable Table;
-            mediahasharray ret = new mediahasharray((int)(config.hash.LastHashCount * config.hash.HashCountFactor));
+            MediaHashArray ret = new MediaHashArray((int)(config.hash.LastHashCount * config.hash.HashCountFactor));
 
             using (MySqlCommand firstcmd = new MySqlCommand(@"SELECT
 dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE

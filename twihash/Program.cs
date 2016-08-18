@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.Threading;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Data;
-using MySql.Data.MySqlClient;
 using twitenlib;
 
 namespace twihash
@@ -25,7 +22,7 @@ namespace twihash
             Console.WriteLine("{0} Loading hash", DateTime.Now);
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            mediahasharray allmediahash =  db.allmediahash();
+            MediaHashArray allmediahash =  db.AllMediaHash();
             if(allmediahash == null) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
             sw.Stop();
             Console.WriteLine("{0} {1} hash loaded", DateTime.Now, allmediahash.Count);
@@ -41,30 +38,39 @@ namespace twihash
     }
 
     //メモリ使用量を減らすための悪あがき
-    public class mediahasharray
+    public class MediaHashArray
     {
         public long[] Hashes;
         public bool[] NeedstoInsert;
-        public mediahasharray() { Count = 0; }
-        public mediahasharray(int Length): this()
+        public MediaHashArray(int Length)
         {
             Hashes = new long[Length];
             NeedstoInsert = new bool[Length];
+            AutoReadAll();
         }
         public int Length { get { return Hashes.Length; } }
-        public int Count { get; set; }  //実際に使ってる個数
+        public int Count = 0;  //実際に使ってる個数
+        public bool EnableAutoRead = true;
 
-        public void ReadCount()
-            //配列を読み捨てて物理メモリに復帰させる(つもり
+        public void AutoReadAll()
+        //配列を読み捨てて物理メモリに保持する(つもり
         {
-            for(int i = 0; i < Count; i++)
+            Task.Run(() =>
             {
-                long a = Hashes[i];
-                bool b = NeedstoInsert[i];
-            }
+                Thread.CurrentThread.Priority = ThreadPriority.Lowest;
+                while (true)
+                {
+                    for (int i = 0; EnableAutoRead && i < Length; i++)
+                    {
+                        long a = Hashes[i];
+                        bool b = NeedstoInsert[i];
+                    }
+                    Thread.Sleep(30000);
+                }
+            });
         }
 
-        public void CopyTo(int SourceIndex, mediahasharray Destination, int DestIndex, int Count)
+        public void CopyTo(int SourceIndex, MediaHashArray Destination, int DestIndex, int Count)
         {
             Array.Copy(Hashes, SourceIndex, Destination.Hashes, DestIndex, Count);
             Array.Copy(NeedstoInsert, SourceIndex, Destination.NeedstoInsert, DestIndex, Count);
@@ -132,42 +138,58 @@ namespace twihash
     }
     */
     //ハミング距離が一定以下のハッシュ値のペア
-    public struct mediapair : IComparable
+    public struct MediaPair
     {
         public long media0 { get; }
         public long media1 { get; }
         public sbyte hammingdistance { get; }
-        public mediapair(long _media0, long _media1, sbyte _ham)
+        public MediaPair(long _media0, long _media1, sbyte _ham)
         {
             media0 = _media0;
             media1 = _media1;
             hammingdistance = _ham;
         }
 
-        public int CompareTo(object obj)
+        //media0,media1順で比較
+        public class OrderPri : IComparer<MediaPair>
         {
-            if (obj == null) throw new ArgumentNullException();
-            mediapair other = (mediapair)obj;
-            if (media0 < other.media0) { return -1; }
-            else if (media0 > other.media0) { return 1; }
-            else if (media1 < other.media1) { return -1; }
-            else if (media1 > other.media1) { return 1; }
-            else { return 0; }
-        }        
+            public int Compare(MediaPair a, MediaPair b)
+            {
+                if (a.media0 < b.media0) { return -1; }
+                else if (a.media0 > b.media0) { return 1; }
+                else if (a.media1 < b.media1) { return -1; }
+                else if (a.media1 > b.media1) { return 1; }
+                else { return 0; }
+            }
+        }
+        //media1,media0順で比較
+        public class OrderSub : IComparer<MediaPair>
+        {
+            public int Compare(MediaPair a, MediaPair b)
+            {
+                if (a.media1 < b.media1) { return -1; }
+                else if (a.media1 > b.media1) { return 1; }
+                else if (a.media0 < b.media0) { return -1; }
+                else if (a.media0 > b.media0) { return 1; }
+                else { return 0; }
+            }
+        }
+
+
     }
 
     //複合ソート法による全ペア類似度検索 とかいうやつ
     //http://d.hatena.ne.jp/tb_yasu/20091107/1257593519
     class mediahashsorter
     {
-        mediahasharray media;
+        MediaHashArray media;
         DBHandler db;
         int maxhammingdistance;
         int extrablock;
         Combinations combi;
-        ConcurrentQueue<mediapair> SimilarMedia = new ConcurrentQueue<mediapair>();   //media_idのペアとハミング距離(処理結果)
+        ConcurrentQueue<MediaPair> SimilarMedia = new ConcurrentQueue<MediaPair>();   //media_idのペアとハミング距離(処理結果)
         
-        public mediahashsorter(mediahasharray media, DBHandler db, int maxhammingdistance, int extrablock)
+        public mediahashsorter(MediaHashArray media, DBHandler db, int maxhammingdistance, int extrablock)
         {
             this.media = media;
             this.maxhammingdistance = maxhammingdistance;
@@ -200,7 +222,7 @@ namespace twihash
         }
 
         const int bitcount = 64;    //longのbit数
-        long multiplesortlast(mediahasharray basemedia, Combinations combi, int[] baseblocks)
+        long multiplesortlast(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
         {
             long ret = 0;
             long dbcount = 0;
@@ -217,7 +239,6 @@ namespace twihash
             mergesortall(fullmask, ref basemediaa);
             mediahasharray basemedia = basemediaa;
             */
-            basemedia.ReadCount();
             QuickSortAll(fullmask, basemedia);
 
             ParallelOptions op = new ParallelOptions();
@@ -257,12 +278,12 @@ namespace twihash
                           if (x == startblock)
                           {
                               Interlocked.Increment(ref ret);
-                              SimilarMedia.Enqueue(new mediapair(basemedia.Hashes[i], basemedia.Hashes[j], ham));
+                              SimilarMedia.Enqueue(new MediaPair(basemedia.Hashes[i], basemedia.Hashes[j], ham));
                               if (SimilarMedia.Count >= (Interlocked.Read(ref dbthreads) + 1) << 9)
                               {   //溜まったらDBに入れる
                                   Interlocked.Increment(ref dbthreads);
-                                  List<mediapair> PairstoStore = new List<mediapair>();
-                                  mediapair outpair;
+                                  List<MediaPair> PairstoStore = new List<MediaPair>();
+                                  MediaPair outpair;
                                   while (SimilarMedia.TryDequeue(out outpair)) { PairstoStore.Add(outpair); }
                                   int c = db.StoreMediaPairs(PairstoStore);
                                   Interlocked.Add(ref dbcount, c);
@@ -296,8 +317,9 @@ namespace twihash
             return ret;
         }
 
-        void QuickSortAll(long SortMask, mediahasharray SortList)
+        void QuickSortAll(long SortMask, MediaHashArray SortList)
         {
+            SortList.EnableAutoRead = false;
             //Key:ソート開始位置 Value:ソート終了位置
             var QuickSortBlock = new TransformBlock<KeyValuePair<int, int>, KeyValuePair<int, int>[]>
                 ((KeyValuePair<int, int> SortRange) => {
@@ -319,9 +341,10 @@ namespace twihash
                 }
                 ProcessingCount--;
             } while (ProcessingCount > 0);
+            SortList.EnableAutoRead = true;
         }
 
-        KeyValuePair<int,int>[] QuickSortUnit(int Left, int Right, long SortMask, mediahasharray SortList)
+        KeyValuePair<int,int>[] QuickSortUnit(int Left, int Right, long SortMask, MediaHashArray SortList)
         {
             if (Left >= Right) { return null; }
             
@@ -376,11 +399,11 @@ namespace twihash
         }
 
         //baselistをsortmaskで破壊的にソートする
-        mediahasharray templist;
-        void mergesortall(long sortmask, ref mediahasharray baselist)
+        MediaHashArray templist;
+        void mergesortall(long sortmask, ref MediaHashArray baselist)
         {
-            if (templist == null) { templist = new mediahasharray(baselist.Count); }
-            mediahasharray sortlist = baselist;
+            if (templist == null) { templist = new MediaHashArray(baselist.Count); }
+            MediaHashArray sortlist = baselist;
             ParallelOptions op = new ParallelOptions();
             op.MaxDegreeOfParallelism = Environment.ProcessorCount;
             for (int sortunit = 2; sortunit <= sortlist.Count; sortunit <<= 1)
@@ -412,14 +435,14 @@ namespace twihash
                      }
                      mergesortunit(sortmask, sortbase, sortlist, templist, count_a_max, count_b_max);
                  });
-                mediahasharray swaplist = sortlist;
+                MediaHashArray swaplist = sortlist;
                 sortlist = templist;
                 templist = swaplist;
             }
             baselist = sortlist;
         }
 
-        void mergesortunit(long sortmask, int sortbase, mediahasharray sortlist, mediahasharray templist, int count_a_max, int count_b_max, bool copyback = false)
+        void mergesortunit(long sortmask, int sortbase, MediaHashArray sortlist, MediaHashArray templist, int count_a_max, int count_b_max, bool copyback = false)
         {
             int count_a = 0;  //  sortlist.* [sortbase + count_a]
             int count_b = 0;  //  sortlist.* [sortbase + count_a_max + 1 + count_b]
