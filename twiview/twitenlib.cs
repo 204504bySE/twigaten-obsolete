@@ -145,7 +145,7 @@ namespace twitenlib
             public int ExtraBlocks { get; }
             public long LastUpdate { get; }
             public int LastHashCount { get; }
-            public double HashCountFactor { get; }
+            public int HashCountOffset { get; }
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
@@ -153,7 +153,7 @@ namespace twitenlib
                 ExtraBlocks = int.Parse(ini.getvalue("hash", "ExtraBlocks", "1"));
                 LastUpdate = long.Parse(ini.getvalue("hash", "LastUpdate", "0"));
                 LastHashCount = int.Parse(ini.getvalue("hash", "LastHashCount", "0"));
-                HashCountFactor = double.Parse(ini.getvalue("hash", "HashCountFactor", "1.05"));
+                HashCountOffset = int.Parse(ini.getvalue("hash", "HashCountOffset", "5000000"));
             }
             public void NewLastUpdate(long time)
             {

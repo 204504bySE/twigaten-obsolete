@@ -222,11 +222,8 @@ namespace twihash
         }
 
         const int bitcount = 64;    //longのbit数
-        long multiplesortlast(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
+        int multiplesortlast(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
         {
-            long ret = 0;
-            long dbcount = 0;
-            long dbthreads = 0;
             int startblock = baseblocks.Last();
             long fullmask = UnMask(baseblocks, combi.Count);
             /*//基数ソートを再利用する版
@@ -240,6 +237,11 @@ namespace twihash
             mediahasharray basemedia = basemediaa;
             */
             QuickSortAll(fullmask, basemedia);
+
+            int ret = 0;
+            int dbcount = 0;
+            int dbthreads = 0;
+            int InsertUnit = Math.Max(100, 2000 / Environment.ProcessorCount);
 
             ParallelOptions op = new ParallelOptions();
             op.MaxDegreeOfParallelism = Environment.ProcessorCount;
@@ -279,12 +281,16 @@ namespace twihash
                           {
                               Interlocked.Increment(ref ret);
                               SimilarMedia.Enqueue(new MediaPair(basemedia.Hashes[i], basemedia.Hashes[j], ham));
-                              if (SimilarMedia.Count >= (Interlocked.Read(ref dbthreads) + 1) << 9)
+                              if (SimilarMedia.Count >= (dbthreads + 1) * InsertUnit)
                               {   //溜まったらDBに入れる
                                   Interlocked.Increment(ref dbthreads);
                                   List<MediaPair> PairstoStore = new List<MediaPair>();
                                   MediaPair outpair;
-                                  while (SimilarMedia.TryDequeue(out outpair)) { PairstoStore.Add(outpair); }
+                                  for (int n = 0; n < InsertUnit; n++)
+                                  {
+                                      if(!SimilarMedia.TryDequeue(out outpair)) { break; }
+                                      PairstoStore.Add(outpair);
+                                  }
                                   int c = db.StoreMediaPairs(PairstoStore);
                                   Interlocked.Add(ref dbcount, c);
                                   Interlocked.Decrement(ref dbthreads);
@@ -294,7 +300,7 @@ namespace twihash
                       }
                   }
               });
-            Interlocked.Add(ref dbcount, db.StoreMediaPairs(SimilarMedia.ToList()));
+            dbcount += db.StoreMediaPairs(SimilarMedia.ToList());
             Console.WriteLine("{0} {1} Rows affected", DateTime.Now, dbcount);
             return ret;
         }
