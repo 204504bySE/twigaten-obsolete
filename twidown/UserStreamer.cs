@@ -43,14 +43,19 @@ namespace twidown
         //これを外部から叩いてtrueなら再接続
         public bool NeedRetry()
         {
-            if (!isAttemptingConnect && StreamDisposable == null) { return true; }
-            if (e != null)
-            {   //ここで切断しちゃう
-                Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, e);
-                if (e is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
-                StreamDisposable.Dispose();
-                StreamDisposable = null;
-                e = null;
+            if (e != null || (!isAttemptingConnect && StreamDisposable == null))
+            {
+                if (e != null)
+                {
+                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, e);
+                    if (e is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
+                    e = null;
+                }
+                if (StreamDisposable != null)
+                {
+                    StreamDisposable.Dispose();
+                    StreamDisposable = null;
+                }
                 return true;
             }
             DateTimeOffset TimeoutTweetTime;
@@ -128,8 +133,9 @@ namespace twidown
                     }
                     HandleStreamingMessage(m);
                 },
-                (Exception ex) => { e = ex; },
-                () => { e = new Exception("UserAsObservable unexpectedly finished."); } //接続中のRevokeはこれ
+                (Exception ex) => { StreamDisposable.Dispose(); StreamDisposable = null; e = ex; },
+                () => { StreamDisposable.Dispose(); StreamDisposable = null;  //接続中のRevokeはこれ
+                    e = new Exception("UserAsObservable unexpectedly finished."); }
                 );
         }
 
