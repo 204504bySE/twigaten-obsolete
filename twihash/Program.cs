@@ -40,15 +40,16 @@ namespace twihash
     //メモリ使用量を減らすための悪あがき
     public class MediaHashArray
     {
-        public long[] Hashes;
-        public bool[] NeedstoInsert;
+        public readonly long[] Hashes;
+        public readonly bool[] NeedstoInsert;
+        public readonly int Length; 
         public MediaHashArray(int Length)
         {
             Hashes = new long[Length];
             NeedstoInsert = new bool[Length];
+            this.Length = Length;
             AutoReadAll();
         }
-        public int Length { get { return Hashes.Length; } }
         public int Count = 0;  //実際に使ってる個数
         public bool EnableAutoRead = true;
 

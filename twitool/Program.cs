@@ -838,7 +838,7 @@ FROM token;"))
             UpdateUserBlock.Completion.Wait();
         }
 
-        public void ReHash()
+        public void ReHashTest()
         {
             int updated = 0;
             ServicePointManager.ReusePort = true;
@@ -855,7 +855,8 @@ ORDER BY downloaded_at DESC limit 100;"))
             {
                 long? hash = downloadforHash(row[1] as string + ":thumb");
                 if(hash == null) { Console.WriteLine("null"); continue; }
-                Console.WriteLine("{0:x}\t{1:x}", hash, hash ^ (long)row[2]);
+                Console.WriteLine("{0:x}\t{1:x}", hash, hash ^ row.Field<long>(2));
+                if((hash ^ row.Field<long>(2)) != 0) { Console.WriteLine("＼(^o^)／");Console.ReadKey(); }
                 /*
                 using (MySqlCommand cmdtmp = new MySqlCommand(@"UPDATE media SET dcthash=@dcthash WHERE media_id = @media_id"))
                 {

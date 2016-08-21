@@ -32,28 +32,29 @@ namespace twidown
             //dct32[0, 0] = 0.5F / 64F; 原点をずらしたから用なし
             */
             //Cosテーブル[行 << 5 | 列]
-            cos32 = new float[1024];
-            for (int y = 0; y < 32; y++)
+            //1~8行を切り抜いておく
+            cos32 = new float[256];
+            for (int y = 0; y < 8; y++)
                 for (int x = 0; x < 32; x++)
                 {
-                    cos32[y << 5 | x] = (float)(Math.Cos((2 * x + 1) * y * Math.PI / 64));
+                    cos32[y << 5 | x] = (float)(Math.Cos((2 * x + 1) * (y + 1) * Math.PI / 64));
                 }
 
             VectorCount = Math.Min(32, Vector<float>.Count);
 
-            //1~8行の範囲を切り抜く
-            cos32h1_8 = new Vector<float>[32 * 8 / VectorCount];
+            //こっちも1~8行だけ使う
+            cos32h1_8 = new Vector<float>[256 / VectorCount];
+            float[] costmph = new float[VectorCount];
             for (int y = 0; y < 8; y++)
             {
-                float[] costmph = new float[VectorCount];
                 int n = 0;
                 for (int x = 0; x < 32; x++)
                 {
-                    costmph[n] = cos32[(y + 1) << 5 | x];
+                    costmph[n] = cos32[y << 5 | x];
                     n++;
                     if (n == VectorCount)
                     {
-                        cos32h1_8[(y * 32 + x) / VectorCount] = new Vector<float>(costmph);
+                        cos32h1_8[(y << 5 | x) / VectorCount] = new Vector<float>(costmph);
                         n = 0;
                     }
                 }
@@ -108,7 +109,7 @@ namespace twidown
                         {
                             tosum += tosumvec[i];
                         }
-                        sum += tosum * cos32[(u + 1) << 5 | y];
+                        sum += tosum * cos32[u << 5 | y];
                     }
                     dctbuf[(u << 3) | v] = sum; //dct32[u, v]をかけていないので実際の64倍の値
                 }
