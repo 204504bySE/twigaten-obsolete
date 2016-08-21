@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Security.Cryptography;
+using System.ComponentModel;
 using CoreTweet;
 
 namespace twiview
@@ -131,6 +132,31 @@ namespace twiview
                 Logout();
                 return null;
             }
+        }
+
+        //URL > Cookie > Default の優先順位で値を持ってくるやつ
+        //ついでにクエリで指定されてたらCookieにも入れる
+        public T getCookiePref<T>(T URLPref, T Default, string CookieName)
+        {
+            if (URLPref != null)
+            {
+                SetCookie(CookieName, URLPref.ToString());
+                return URLPref;
+            }
+            //後ろがデフォルト
+            if (Request.Cookies[CookieName] != null)
+            {
+                try
+                {
+                    TypeConverter Converter = TypeDescriptor.GetConverter(typeof(T));
+                    if (Converter != null)
+                    {
+                        return (T)Converter.ConvertFromString(Request.Cookies[CookieName].Value);
+                    }
+                }
+                catch { }
+            }
+            return Default;
         }
     }
 }
