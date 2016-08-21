@@ -14,9 +14,9 @@ namespace twidown
     static class PictHash
     {
         //static readonly float[,] dct32; //[1,1]-[8,8]だけ
-        static readonly float[] cos32;
+        static readonly float[] cos32_1_8;
         static readonly int VectorCount;    //Vector<float>の要素数
-        static readonly Vector<float>[] cos32h1_8; //横方向にVectorCountずつ取った奴
+        static readonly Vector<float>[] cos32Vector_1_8; //横方向にVectorCountずつ取った奴
         static PictHash()
         {
             //DCT係数テーブル 対称行列だからxyは気にするな
@@ -33,28 +33,28 @@ namespace twidown
             */
             //Cosテーブル[行 << 5 | 列]
             //1~8行を切り抜いておく
-            cos32 = new float[256];
+            cos32_1_8 = new float[256];
             for (int y = 0; y < 8; y++)
                 for (int x = 0; x < 32; x++)
                 {
-                    cos32[y << 5 | x] = (float)(Math.Cos((2 * x + 1) * (y + 1) * Math.PI / 64));
+                    cos32_1_8[y << 5 | x] = (float)(Math.Cos((2 * x + 1) * (y + 1) * Math.PI / 64));
                 }
 
             VectorCount = Math.Min(32, Vector<float>.Count);
 
             //こっちも1~8行だけ使う
-            cos32h1_8 = new Vector<float>[256 / VectorCount];
+            cos32Vector_1_8 = new Vector<float>[256 / VectorCount];
             float[] costmph = new float[VectorCount];
             for (int y = 0; y < 8; y++)
             {
                 int n = 0;
                 for (int x = 0; x < 32; x++)
                 {
-                    costmph[n] = cos32[y << 5 | x];
+                    costmph[n] = cos32_1_8[y << 5 | x];
                     n++;
                     if (n == VectorCount)
                     {
-                        cos32h1_8[(y << 5 | x) / VectorCount] = new Vector<float>(costmph);
+                        cos32Vector_1_8[(y << 5 | x) / VectorCount] = new Vector<float>(costmph);
                         n = 0;
                     }
                 }
@@ -99,17 +99,17 @@ namespace twidown
                     float sum = 0;
                     for (int y = 0; y < 32; y++)
                     {
-                        Vector<float> tosumvec = hashbuf[y * xCount] * cos32h1_8[v * xCount];
+                        Vector<float> tosumvec = hashbuf[y * xCount] * cos32Vector_1_8[v * xCount];
                         for (int x = 1; x < xCount; x++)
                         {
-                            tosumvec += hashbuf[y * xCount + x] * cos32h1_8[v * xCount + x];
+                            tosumvec += hashbuf[y * xCount + x] * cos32Vector_1_8[v * xCount + x];
                         }
                         float tosum = tosumvec[0];
                         for (int i = 1; i < VectorCount; i++)
                         {
                             tosum += tosumvec[i];
                         }
-                        sum += tosum * cos32[u << 5 | y];
+                        sum += tosum * cos32_1_8[u << 5 | y];
                     }
                     dctbuf[(u << 3) | v] = sum; //dct32[u, v]をかけていないので実際の64倍の値
                 }
