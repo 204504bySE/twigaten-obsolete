@@ -70,74 +70,8 @@ namespace twihash
                 }
             });
         }
-
-        public void CopyTo(int SourceIndex, MediaHashArray Destination, int DestIndex, int Count)
-        {
-            Array.Copy(Hashes, SourceIndex, Destination.Hashes, DestIndex, Count);
-            Array.Copy(NeedstoInsert, SourceIndex, Destination.NeedstoInsert, DestIndex, Count);
-        }
-    }
-    /*
-    public class mediahashlist
-    {
-        public List<long> Hashes;
-        public List<bool> NeedstoInsert;
-        public mediahashlist()
-        {
-            Hashes = new List<long>();
-            NeedstoInsert = new List<bool>();
-        }
-        public mediahashlist(int capacity)
-        {
-            Hashes = new List<long>(capacity);
-            NeedstoInsert = new List<bool>(capacity);
-        }
-        public void Add(long hash, bool needtoinsert)
-        {
-            Hashes.Add(hash);
-            NeedstoInsert.Add(needtoinsert);
-        }
-        public void AddRange(mediahashlist he)
-        {
-            Hashes.AddRange(he.Hashes);
-            NeedstoInsert.AddRange(he.NeedstoInsert);
-        }
-        public void Clear()
-        {
-            Hashes.Clear();
-            NeedstoInsert.Clear();
-        }
-
-        public int Count { get { return Hashes.Count(); } }
-
-        public void TrimExcess()
-        {
-            NeedstoInsert.TrimExcess();
-            Hashes.TrimExcess();
-        }
-
-        public mediahasharray ToArrayandFree()
-        {
-            mediahasharray ret = new mediahasharray();
-            ret.NeedstoInsert = NeedstoInsert.ToArray();
-            NeedstoInsert = null;
-            ret.Hashes = Hashes.ToArray();
-            Hashes = null;
-            return ret;
-        }
     }
 
-    public struct mediahash
-    {
-        public long hash { get; }
-        public bool needtoinsert { get; }
-        public mediahash(long _hash, bool _needtoinsert)
-        {
-            hash = _hash;
-            needtoinsert = _needtoinsert;
-        }
-    }
-    */
     //ハミング距離が一定以下のハッシュ値のペア
     public struct MediaPair
     {
@@ -217,8 +151,6 @@ namespace twihash
                 sw.Stop();
                 Console.WriteLine("{0} {1}\t{2}\t{3}\t{4}ms ", DateTime.Now, i, count, combi.CombiString(i), sw.ElapsedMilliseconds);
             }
-            templist = null;
-            media = null;
             //Console.WriteLine("{0} Pairs found", similarmedia.Count);
         }
 
@@ -404,146 +336,7 @@ namespace twihash
                 new KeyValuePair<int, int>(j + 1, Right)
             };
         }
-
-        //baselistをsortmaskで破壊的にソートする
-        MediaHashArray templist;
-        void mergesortall(long sortmask, ref MediaHashArray baselist)
-        {
-            if (templist == null) { templist = new MediaHashArray(baselist.Count); }
-            MediaHashArray sortlist = baselist;
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = Environment.ProcessorCount;
-            for (int sortunit = 2; sortunit <= sortlist.Count; sortunit <<= 1)
-            {
-                int i_max = sortlist.Count / sortunit - 1;
-                Parallel.For(0, i_max + 1, op, (int i) =>
-                 {
-                     int sortbase = i * sortunit;
-                     int count_a_max;
-                     int count_b_max;
-                     if (i == i_max)
-                     {  //最後のグループはうまいことまとめなきゃいけないのであった
-                         if ((sortlist.Count / (sortunit >> 1) & 1) != 0)
-                         {
-                             count_a_max = count_b_max = (sortunit >> 1) - 1;
-                             mergesortunit(sortmask, sortbase, sortlist, templist, count_a_max, count_b_max, true);
-                             count_a_max = sortunit - 1;
-                             count_b_max = sortlist.Count % sortunit - 1;
-                         }
-                         else
-                         {
-                             count_a_max = (sortunit >> 1) - 1;
-                             count_b_max = (sortunit >> 1) + sortlist.Count % sortunit - 1;
-                         }
-                     }
-                     else
-                     {
-                         count_a_max = count_b_max = (sortunit >> 1) - 1;
-                     }
-                     mergesortunit(sortmask, sortbase, sortlist, templist, count_a_max, count_b_max);
-                 });
-                MediaHashArray swaplist = sortlist;
-                sortlist = templist;
-                templist = swaplist;
-            }
-            baselist = sortlist;
-        }
-
-        void mergesortunit(long sortmask, int sortbase, MediaHashArray sortlist, MediaHashArray templist, int count_a_max, int count_b_max, bool copyback = false)
-        {
-            int count_a = 0;  //  sortlist.* [sortbase + count_a]
-            int count_b = 0;  //  sortlist.* [sortbase + count_a_max + 1 + count_b]
-            while (count_a <= count_a_max || count_b <= count_b_max)
-            {
-                if (count_a > count_a_max)
-                {
-                    sortlist.CopyTo(sortbase + count_a_max + 1 + count_b,
-                        templist, sortbase + count_a + count_b,
-                        count_b_max - count_b + 1);
-                    break;
-                }
-                else if (count_b > count_b_max)
-                {
-                    sortlist.CopyTo(sortbase + count_a,
-                        templist, sortbase + count_a + count_b,
-                        count_a_max - count_a + 1);
-                    break;
-                }
-                else
-                {
-                    if ((sortlist.Hashes[sortbase + count_a] & sortmask) <= (sortlist.Hashes[sortbase + count_a_max + 1 + count_b] & sortmask))
-                    {
-                        templist.Hashes[sortbase + count_a + count_b] = sortlist.Hashes[sortbase + count_a];
-                        templist.NeedstoInsert[sortbase + count_a + count_b] = sortlist.NeedstoInsert[sortbase + count_a];
-                        count_a++;
-                    }
-                    else
-                    {
-                        templist.Hashes[sortbase + count_a + count_b] = sortlist.Hashes[sortbase + count_a_max + 1 + count_b];
-                        templist.NeedstoInsert[sortbase + count_a + count_b] = sortlist.NeedstoInsert[sortbase + count_a_max + 1 + count_b];
-                        count_b++;
-                    }
-                }
-            }
-            if (copyback)   //ソートした部分をsortlistに書き戻す
-            {
-                templist.CopyTo(sortbase, sortlist, sortbase, count_a_max + count_b_max + 2);
-            }
-        }
-        /*
-        mediahashlist radixsortall(long sortmask, mediahashlist unsorted)
-        {
-            mediahashlist sortarray_a = new mediahashlist(unsorted.Count);
-            mediahashlist sortarray_b = new mediahashlist(unsorted.Count);
-            bool sortab = false;    //unsortedとsortedarray_a に交互にソート済みデータが入る
-            for(int i = 0; i< bitcount; i++)
-            { 
-                if ((1L << i & sortmask) != 0)
-                {
-                    if (sortab) { sortab = false; radixsort(ref sortarray_a, ref unsorted, ref sortarray_b, i); }
-                    else { sortab = true; radixsort(ref unsorted, ref sortarray_a, ref sortarray_b, i); }
-                }
-            }
-            if (sortab) { return sortarray_a; }
-            else { return unsorted; }
-        }
-        //下からbit目について基数ソート
-        void radixsort(ref mediahashlist unsorted, ref mediahashlist sorted, ref mediahashlist tmp, int bit)
-        {
-            ulong mask = 1UL << bit;
-            int sortedcursor = 0;
-            int tmpcursor = 0;
-            for(int i = 0;i < unsorted.Count; i++)
-            {
-                if(((ulong)unsorted.Hashes[i] & mask) == 0)
-                {
-                    sorted.Hashes[sortedcursor] = unsorted.Hashes[i];
-                    sorted.NeedstoInsert[sortedcursor] = unsorted.NeedstoInsert[i];
-                    sortedcursor++;
-                }
-                else
-                {
-                    tmp.Hashes[tmpcursor] = unsorted.Hashes[i];
-                    tmp.NeedstoInsert[tmpcursor] = unsorted.NeedstoInsert[i];
-                    tmpcursor++;
-                }
-            }
-            tmp.CopyTo(0, sorted, sortedcursor, tmpcursor);
-        }
-
-                //下からbit目について基数ソート
-                List<long> radixsort(List<long> list, int bit)
-                {
-                    List<long> sorted0 = new List<long>(list.Count);
-                    List<long> sorted1 = new List<long>(list.Count);
-                    long mask = 1L << bit;
-                    list.ForEach((long m) => { if ((m & mask) == 0) { sorted0.Add(m); } else { sorted1.Add(m); } });
-                    sorted0.AddRange(sorted1);
-                    sorted1 = null;
-                    GC.Collect();
-                    return sorted0;
-                }
-        */
+        
         //ハミング距離を計算する
         sbyte hammingdistance(ulong a, ulong b)
         {
