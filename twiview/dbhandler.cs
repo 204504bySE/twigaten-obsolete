@@ -347,10 +347,10 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
                         return SelectTable(cmd);
                     }
                 }, op);
-            int n = 0;
-            for (; n <= ThreadCount; n++)
+            int PostedCount = 0;
+            for (; PostedCount <= ThreadCount; PostedCount++)
             {
-                GetTimelineBlock.Post(n);
+                GetTimelineBlock.Post(PostedCount);
             }
             int RecievedCount = 0;
             do
@@ -373,12 +373,12 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
                         if (retTable.Rows.Count >= TweetCount) { break; }
                     }
                 }
-                if (Before || QueryTime + QueryRangeSeconds * (n - 1) < NowTime)   //未来は取得しない
+                if (Before || QueryTime + QueryRangeSeconds * (PostedCount - 1) < NowTime)   //未来は取得しない
                 {
-                    GetTimelineBlock.Post(n);
-                    n++;
+                    GetTimelineBlock.Post(PostedCount);
+                    PostedCount++;
                 }
-            } while (n > RecievedCount && (retTable == null || retTable.Rows.Count < TweetCount)
+            } while (PostedCount > RecievedCount && (retTable == null || retTable.Rows.Count < TweetCount)
                 && NoTweetSeconds < NoTweetLimitSeconds
                 && unchecked(Environment.TickCount - QueryTick) < GiveupMilliSeconds);
             CancelToken.Cancel();
