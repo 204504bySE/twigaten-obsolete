@@ -10,7 +10,7 @@ namespace twihash
 {
     class DBHandler : twitenlib.DBHandler
     {
-        public DBHandler() : base("similar", "", Config.Instance.database.Address, 300)
+        public DBHandler() : base("hash", "", Config.Instance.database.Address, 300)
         {
             StoreMediaPairsStrFull = BulkCmdStr(StoreMediaPairsUnit, 3, StoreMediaPairsHead);
         }
