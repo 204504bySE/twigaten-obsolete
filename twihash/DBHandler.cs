@@ -4,6 +4,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Data;
 using MySql.Data.MySqlClient;
+using System.Threading.Tasks;
 using twitenlib;
 
 namespace twihash
@@ -17,7 +18,7 @@ namespace twihash
 
         const string StoreMediaPairsHead = @"INSERT IGNORE INTO dcthashpair VALUES";
         readonly string StoreMediaPairsStrFull;
-        const int StoreMediaPairsUnit = 500;
+        public const int StoreMediaPairsUnit = 1000;
         public int StoreMediaPairs(List<MediaPair> StorePairs)
         //類似画像のペアをDBに保存
         {
@@ -90,10 +91,46 @@ namespace twihash
         //全mediaのhashを読み込む
         public MediaHashArray AllMediaHash()
         {
-            const int selectunit = 1000; //でかくするとGCが捗らない
-            DataTable Table;
+            try
+            {
+                MediaHashArray ret = new MediaHashArray(config.hash.LastHashCount + config.hash.HashCountOffset);
+                int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2));
+                bool ForceInsert = config.hash.LastUpdate <= 0;
+                Parallel.For(0, 1 << (64 - HashUnitBits),
+                    new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                    (long i) =>
+                {
+                    DataTable Table;
+                    using (MySqlCommand Cmd = new MySqlCommand(@"SELECT
+dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE
+FROM media
+WHERE dcthash BETWEEN @begin AND @end
+GROUP BY dcthash ORDER BY dcthash;"))
+                    {
+                        Cmd.Parameters.AddWithValue("@lastupdate", config.hash.LastUpdate);
+                        Cmd.Parameters.AddWithValue("@begin", i << HashUnitBits);
+                        Cmd.Parameters.AddWithValue("@end", unchecked(((i + 1) << HashUnitBits) - 1));
+                        Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
+                    }
+                    if (Table == null) { throw new Exception("Hash load failed"); }
+                    lock (ret)
+                    {
+                        foreach(DataRow row in Table.Rows)
+                        {
+                            ret.Hashes[ret.Count] = row.Field<long>(0);
+                            ret.NeedstoInsert[ret.Count] = ForceInsert || row.Field<long>(1) == 1;
+                            ret.Count++;
+                        }
+                    }
+                });
+                config.hash.NewLastHashCount(ret.Count);
+                return ret;
+            }
+            catch { return null; }
+            /*
             MediaHashArray ret = new MediaHashArray(config.hash.LastHashCount + config.hash.HashCountOffset);
-
+            DataTable Table;
+            const int selectunit = 1000; //でかくするとGCが捗らない
             using (MySqlCommand firstcmd = new MySqlCommand(@"SELECT
 dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE
 FROM media GROUP BY dcthash ORDER BY dcthash LIMIT @selectunit;"))
@@ -114,8 +151,6 @@ GROUP BY dcthash ORDER BY dcthash LIMIT @selectunit;");
 
             int i = 0;
             bool ForceInsert = config.hash.LastUpdate <= 0;
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
             while (Table.Rows.Count > 0)
             {
                 foreach (DataRow row in Table.Rows)
@@ -135,6 +170,7 @@ GROUP BY dcthash ORDER BY dcthash LIMIT @selectunit;");
             config.hash.NewLastHashCount(i);
             ret.Count = i;
             return ret;
+            */
         }
     }
 
