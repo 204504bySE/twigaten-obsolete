@@ -174,11 +174,16 @@ END)
             {
                 if (update)
                 {
-                    cmd.CommandText = @"INSERT INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count) VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count) ON DUPLICATE KEY UPDATE retweet_count=@retweet_count, favorite_count=@favorite_count;";
+                    cmd.CommandText = @"INSERT
+INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count)
+VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count)
+ON DUPLICATE KEY UPDATE retweet_count=@retweet_count, favorite_count=@favorite_count;";
                 }
                 else
                 {
-                    cmd.CommandText = @"INSERT IGNORE INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count) VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count);";
+                    cmd.CommandText = @"INSERT IGNORE
+INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count)
+VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count);";
                 }
                 cmd.Parameters.AddWithValue("@tweet_id", x.Id);
                 cmd.Parameters.AddWithValue("@user_id", x.User.Id);
@@ -195,7 +200,7 @@ END)
         //</summary>
         public int StoreTweet(DeleteMessage x)
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM tweet WHERE tweet_id = @tweet_id;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"DELETE IGNORE FROM tweet WHERE tweet_id = @tweet_id;"))
             {
                 cmd.Parameters.AddWithValue("@tweet_id", x.Id);
                 return ExecuteNonQuery(cmd);
@@ -374,7 +379,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
                     cmdList.Add(new MySqlCommand(@"DELETE FROM friend WHERE user_id = @source AND friend_id = @target;"));
                     break;
                 case EventCode.Block:
-                    cmdList.Add(new MySqlCommand(@"DELETE FROM friend WHERE (user_id = @source AND friend_id = @target) OR (user_id = @target AND friend_id = @source);"));
+                    cmdList.Add(new MySqlCommand(@"DELETE IGNORE FROM friend WHERE (user_id = @source AND friend_id = @target) OR (user_id = @target AND friend_id = @source);"));
                     cmdList.Add(new MySqlCommand(@"INSERT IGNORE INTO block VALUES (@source, @target);"));
                     break;
                 case EventCode.Unblock:

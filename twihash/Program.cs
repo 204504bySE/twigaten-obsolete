@@ -56,6 +56,11 @@ namespace twihash
         public void AutoReadAll()
         //配列を読み捨てて物理メモリに保持する(つもり
         {
+            for (int i = 0; i < Length; i++)
+            {
+                long a = Hashes[i];
+                bool b = NeedstoInsert[i];
+            }
             Task.Run(() =>
             {
                 Thread.CurrentThread.Priority = ThreadPriority.Lowest;
@@ -66,7 +71,7 @@ namespace twihash
                         long a = Hashes[i];
                         bool b = NeedstoInsert[i];
                     }
-                    Thread.Sleep(30000);
+                    Thread.Sleep(100000);
                 }
             });
         }
@@ -109,8 +114,6 @@ namespace twihash
                 else { return 0; }
             }
         }
-
-
     }
 
     //複合ソート法による全ペア類似度検索 とかいうやつ
@@ -135,14 +138,6 @@ namespace twihash
 
         public void Proceed()
         {
-            //基数ソートを再利用する版
-            /*Parallel.For(0, combi.Count - combi.Select + 1, op, (int i) => {
-                int[] firstblocks = new int[1];
-                firstblocks[0] = i;
-                multiplesort(media, combi, firstblocks);
-            });
-            */
-            //基数ソートを再利用しない版
             Stopwatch sw = new Stopwatch();
             for (int i = 0; i < combi.Length; i++)
             {
@@ -159,22 +154,11 @@ namespace twihash
         {
             int startblock = baseblocks.Last();
             long fullmask = UnMask(baseblocks, combi.Count);
-            /*//基数ソートを再利用する版
-            long sortmask = UnMask(startblock, combi.Count);
-            sortedmedia = radixsortall(sortmask, ref sortedmedia);
-            */
-            //基数ソートを再利用しない版
-            //sortedmedia = radixsortall(fullmask, sortedmedia);
-            /*
-            mergesortall(fullmask, ref basemediaa);
-            mediahasharray basemedia = basemediaa;
-            */
             QuickSortAll(fullmask, basemedia);
 
             int ret = 0;
             int dbcount = 0;
             int dbthreads = 0;
-            int InsertUnit = Math.Max(100, 2000 / Environment.ProcessorCount);
 
             ParallelOptions op = new ParallelOptions();
             op.MaxDegreeOfParallelism = Environment.ProcessorCount;
@@ -214,12 +198,12 @@ namespace twihash
                           {
                               Interlocked.Increment(ref ret);
                               SimilarMedia.Enqueue(new MediaPair(basemedia.Hashes[i], basemedia.Hashes[j], ham));
-                              if (SimilarMedia.Count >= (dbthreads + 1) * InsertUnit)
+                              if (SimilarMedia.Count >= (dbthreads + 1) * DBHandler.StoreMediaPairsUnit)
                               {   //溜まったらDBに入れる
                                   Interlocked.Increment(ref dbthreads);
                                   List<MediaPair> PairstoStore = new List<MediaPair>();
                                   MediaPair outpair;
-                                  for (int n = 0; n < InsertUnit; n++)
+                                  for (int n = 0; n < DBHandler.StoreMediaPairsUnit; n++)
                                   {
                                       if(!SimilarMedia.TryDequeue(out outpair)) { break; }
                                       PairstoStore.Add(outpair);

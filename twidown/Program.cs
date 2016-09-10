@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using System.IO;
 using System.Net;
+using System.Runtime;
 using twitenlib;
 
 namespace twidown
@@ -13,6 +14,7 @@ namespace twidown
     {
         static void Main(string[] args)
         {
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
             Config config = Config.Instance;
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -32,7 +34,7 @@ namespace twidown
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count());
                 LastConnectProcessTick.update(60000) ; //Sleep中に自殺するのを防ぐチート
                 Thread.Sleep(60000);
-                LastConnectProcessTick.update();                
+                LastConnectProcessTick.update();
                 manager.AddAll(db.SelectAlltoken(), ref LastConnectProcessTick);
             }
         }
@@ -44,8 +46,9 @@ namespace twidown
             Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
             for (;;)
             {
-                Thread.Sleep(30000);
+                Thread.Sleep(60000);
                 Locker.ActualUnlockAll();
+                GC.Collect();
             }
         }
 

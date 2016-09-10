@@ -559,9 +559,9 @@ m.media_id, m.media_url, m.type, m.downloaded_at,
         SimilarMediaTweet[] TableToTweet(DataTable Table, long? login_user_id, int SimilarLimit, bool GetNoSimilar = false, bool GetSimilars = true)
         {
             SimilarMediaTweet[] retArray = new SimilarMediaTweet[Table.Rows.Count];
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = Environment.ProcessorCount;
-            Parallel.For(0, Table.Rows.Count, op, (int i) =>
+            Parallel.For(0, Table.Rows.Count, 
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                (int i) =>
             //for(int i = 0; i < Table.Rows.Count; i++)
             {
                 SimilarMediaTweet rettmp = new SimilarMediaTweet();
