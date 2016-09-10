@@ -97,6 +97,7 @@ namespace twidown
                         case UserStreamer.ConnectResult.Success:
                             s.Value.RecieveStream();
                             s.Value.RecieveRestTimeline();
+                            s.Value.RestMyTweet();
                             s.Value.RestBlock();
                             break;
                         case UserStreamer.ConnectResult.Revoked:
