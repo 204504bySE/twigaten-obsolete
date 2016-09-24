@@ -66,7 +66,11 @@ namespace twidown
 
         string ExpandUrls(Status x)
         {
-            string ret = x.Text;
+            string ret;
+
+            if(x.ExtendedTweet == null) { ret = x.FullText; }
+            else { ret = x.ExtendedTweet.FullText; }
+
             foreach (MediaEntity m in x.ExtendedEntities.Media)
             {
                 ret = ret.Replace(m.Url, m.ExpandedUrl);

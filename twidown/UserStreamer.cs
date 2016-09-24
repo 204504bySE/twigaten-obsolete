@@ -183,7 +183,7 @@ namespace twidown
             //RESTで取得してツイートをDBに突っ込む
             try
             {
-                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200);
+                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
 
                 Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
                 foreach (Status s in Tweets)
@@ -204,7 +204,7 @@ namespace twidown
             //0ツイートだったら現在時刻を返して1ツイート受信したっぽい戻り値にする
             try
             {
-                CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200);
+                CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
                 Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
                 DateTimeOffset[] ret = new DateTimeOffset[Timeline.Count];
                 for (int i = 0; i < Timeline.Count; i++)
