@@ -133,7 +133,7 @@ namespace twidown
                     }
                     HandleStreamingMessage(m);
                 },
-                (Exception ex) => { StreamDisposable.Dispose(); StreamDisposable = null; e = ex; },
+                (Exception ex) => { Console.WriteLine(ex); StreamDisposable.Dispose(); StreamDisposable = null; e = ex; },
                 () => { StreamDisposable.Dispose(); StreamDisposable = null;  //接続中のRevokeはこれ
                     e = new Exception("UserAsObservable unexpectedly finished."); }
                 );
