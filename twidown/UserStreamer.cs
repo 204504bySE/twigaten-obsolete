@@ -47,7 +47,7 @@ namespace twidown
             {
                 if (e != null)
                 {
-                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, e);
+                    //Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, e);
                     if (e is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
                     e = null;
                 }
@@ -102,17 +102,6 @@ namespace twidown
             finally { isAttemptingConnect = false; }
         }
 
-        public void RecieveRestTimeline()
-        {
-            DateTimeOffset[] RestTweetTime = RestTimeline();
-            for (int i = Math.Max(0, RestTweetTime.Length - config.crawl.UserStreamTimeoutTweets); i < RestTweetTime.Length; i++)
-            {
-                TweetTimeQueue.Enqueue(RestTweetTime[i]);
-                while (TweetTimeQueue.Count > config.crawl.UserStreamTimeoutTweets
-                    && TweetTimeQueue.TryDequeue(out nulloffset)) { }
-            }
-        }
-
         public void RecieveStream()
         {
             if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
@@ -133,10 +122,25 @@ namespace twidown
                     }
                     HandleStreamingMessage(m);
                 },
-                (Exception ex) => { Console.WriteLine(ex); StreamDisposable.Dispose(); StreamDisposable = null; e = ex; },
-                () => { StreamDisposable.Dispose(); StreamDisposable = null;  //接続中のRevokeはこれ
-                    e = new Exception("UserAsObservable unexpectedly finished."); }
+                (Exception ex) => {
+                    Console.WriteLine("{0} {1}:\n{2}",DateTime.Now, Token.UserId, ex);
+                    StreamDisposable.Dispose(); StreamDisposable = null; e = ex; },
+                () => {
+                    StreamDisposable.Dispose(); StreamDisposable = null;  //接続中のRevokeはこれ
+                    e = new Exception("UserAsObservable unexpectedly finished.");
+                }
                 );
+        }
+
+        public void RecieveRestTimeline()
+        {
+            DateTimeOffset[] RestTweetTime = RestTimeline();
+            for (int i = Math.Max(0, RestTweetTime.Length - config.crawl.UserStreamTimeoutTweets); i < RestTweetTime.Length; i++)
+            {
+                TweetTimeQueue.Enqueue(RestTweetTime[i]);
+                while (TweetTimeQueue.Count > config.crawl.UserStreamTimeoutTweets
+                    && TweetTimeQueue.TryDequeue(out nulloffset)) { }
+            }
         }
 
         //----------------------------------------
@@ -144,7 +148,27 @@ namespace twidown
         // つまり具体的な処理が多い(適当
         //----------------------------------------
 
-        public void HandleStreamingMessage(StreamingMessage x)
+        public void RestMyTweet()
+        {
+            //RESTで取得してツイートをDBに突っ込む
+            try
+            {
+                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
+
+                Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
+                foreach (Status s in Tweets)
+                {   //ここでRESTをDBに突っ込む
+                    HandleTweet(s, false);
+                }
+                Console.WriteLine("{0} {1}: REST tweets success", DateTime.Now, Token.UserId);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("{0} {1}: REST tweets failed:\n{2}", DateTime.Now, Token.UserId, e);
+            }
+        }
+
+        void HandleStreamingMessage(StreamingMessage x)
         {
             switch (x.Type)
             {
@@ -175,26 +199,6 @@ namespace twidown
                         Console.WriteLine("{0} {1}: Stream connected", DateTime.Now, Token.UserId);
                     }
                     break;
-            }
-        }
-
-        public void RestMyTweet()
-        {
-            //RESTで取得してツイートをDBに突っ込む
-            try
-            {
-                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
-
-                Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
-                foreach (Status s in Tweets)
-                {   //ここでRESTをDBに突っ込む
-                    HandleTweet(s, false);
-                }
-                Console.WriteLine("{0} {1}: REST tweets success", DateTime.Now, Token.UserId);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("{0} {1}: REST tweets failed:\n{2}", DateTime.Now, Token.UserId, e);
             }
         }
 
@@ -235,8 +239,8 @@ namespace twidown
             else { Console.WriteLine("{0} {1}: REST blocks failed", DateTime.Now, Token.UserId); }
         }
 
-        public enum RestCursorMode { Friend, Block }
-        public long[] RestCursored(RestCursorMode Mode)
+        enum RestCursorMode { Friend, Block }
+        long[] RestCursored(RestCursorMode Mode)
         {
             Cursored<long> CursoredUsers = new Cursored<long>();
             try
@@ -267,7 +271,7 @@ namespace twidown
         int HandleTweet(Status x, bool update = true, bool locked = false)
         {
             //画像なしツイートは捨てる
-            if (x.Entities.Media == null) { return 0; }
+            if ((x.ExtendedEntities ?? x.Entities).Media == null) { return 0; }
             if (!locked && !Locker.LockTweet(x.Id)) { return 0; }
             int ret = 0;
             //RTを先にやる(キー制約)
@@ -321,7 +325,7 @@ namespace twidown
             try
             {
                 if (db.ExistTweet(StatusId)) { return 0; }
-                var res = Token.Statuses.Lookup(id => StatusId, include_entities => true);
+                var res = Token.Statuses.Lookup(id => StatusId, include_entities => true, tweet_mode => TweetMode.extended);
                 if (res.RateLimit.Remaining < 1) { OneTweetReset = res.RateLimit.Reset.AddMinutes(1); }  //とりあえず1分延長奴
                 return HandleTweet(res.First(), true, true);
             }

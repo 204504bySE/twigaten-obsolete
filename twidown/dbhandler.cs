@@ -68,14 +68,14 @@ namespace twidown
         {
             string ret;
 
-            if(x.ExtendedTweet == null) { ret = x.FullText ?? x.Text; } else { ret = x.ExtendedTweet.FullText; }
+            if (x.ExtendedTweet == null) { ret = x.FullText ?? x.Text; } else { ret = x.ExtendedTweet.FullText; }
 
             foreach (MediaEntity m in x.ExtendedEntities.Media)
             {
                 ret = ret.Replace(m.Url, m.ExpandedUrl);
             }
             UrlEntity[] Urls;
-            if(x.ExtendedTweet == null) { Urls = x.Entities.Urls; } else { Urls = x.ExtendedTweet.Entities.Urls; }
+            if (x.ExtendedTweet == null) { Urls = x.Entities.Urls; } else { Urls = x.ExtendedTweet.Entities.Urls; }
             foreach (UrlEntity u in Urls)
             {
                 ret = ret.Replace(u.Url, u.ExpandedUrl);
