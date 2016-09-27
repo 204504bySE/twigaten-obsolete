@@ -113,14 +113,17 @@ GROUP BY dcthash ORDER BY dcthash;"))
                         Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
                     }
                     if (Table == null) { throw new Exception("Hash load failed"); }
+                    int retIndex;
                     lock (ret)
                     {
-                        foreach(DataRow row in Table.Rows)
-                        {
-                            ret.Hashes[ret.Count] = row.Field<long>(0);
-                            ret.NeedstoInsert[ret.Count] = ForceInsert || row.Field<long>(1) == 1;
-                            ret.Count++;
-                        }
+                        retIndex = ret.Count;
+                        ret.Count += Table.Rows.Count;
+                    }
+                    foreach (DataRow row in Table.Rows)
+                    {
+                        ret.Hashes[retIndex] = row.Field<long>(0);
+                        ret.NeedstoInsert[retIndex] = ForceInsert || row.Field<long>(1) == 1;
+                        retIndex++;
                     }
                 });
                 config.hash.NewLastHashCount(ret.Count);

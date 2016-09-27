@@ -71,7 +71,7 @@ namespace twihash
                         long a = Hashes[i];
                         bool b = NeedstoInsert[i];
                     }
-                    Thread.Sleep(100000);
+                    Thread.Sleep(60000);
                 }
             });
         }
