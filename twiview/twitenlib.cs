@@ -96,22 +96,22 @@ namespace twitenlib
             public string PictPaththumb { get; }
             public int UserStreamTimeout { get; }
             public int UserStreamTimeoutTweets { get; }
-            public int StreamersConnectTimeout { get; }
             public int DefaultConnections { get; }
             public int ConnectionCountFactor { get; }
             public int MaxDBConnections { get; }
-            public bool RestConnected { get; }
+            public int RestThreads { get; }
+            public int LockedTokenPostpone { get; }
             public _crawl(IniFileHandler ini)
             {
                 PictPathProfileImage = ini.getvalue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image");
                 PictPaththumb = ini.getvalue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb");
                 UserStreamTimeout = int.Parse(ini.getvalue("crawl", "UserStreamTimeout", "180"));
                 UserStreamTimeoutTweets = int.Parse(ini.getvalue("crawl", "UserStreamTimeoutTweets", "50"));
-                StreamersConnectTimeout = 1000 * int.Parse(ini.getvalue("crawl", "StreamersConnectTimeout", "600"));
                 DefaultConnections = int.Parse(ini.getvalue("crawl", "DefaultConnections", "10"));
                 ConnectionCountFactor = int.Parse(ini.getvalue("crawl", "ConnectionCountFactor", "3"));
                 MaxDBConnections = int.Parse(ini.getvalue("crawl", "MaxDBConnections", "10"));
-                RestConnected = bool.Parse(ini.getvalue("crawl", "RestConnected", "true"));
+                RestThreads = int.Parse(ini.getvalue("crawl", "RestThreads", Environment.ProcessorCount.ToString()));
+                LockedTokenPostpone = int.Parse(ini.getvalue("crawl", "LockedTokenPostpone", "86400"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -123,14 +123,12 @@ namespace twitenlib
             public int AccountLimit { get; }
             public string ChildPath { get; }
             public string ChildName { get; }
-            public bool ChildSingleThread { get; }
             public bool InitTruncate { get; }
             public _crawlparent(IniFileHandler ini)
             {
                 AccountLimit = int.Parse(ini.getvalue("crawlparent", "AccountLimit", "250"));
                 ChildPath = ini.getvalue("crawlparent", "ChildPath", "");
                 ChildName = ini.getvalue("crawlparent", "ChildName", "twidown");
-                ChildSingleThread = bool.Parse(ini.getvalue("crawlparent", "ChildSingleThread", "false"));
                 InitTruncate = bool.Parse(ini.getvalue("crawlparent", "InitTruncate", "true"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい

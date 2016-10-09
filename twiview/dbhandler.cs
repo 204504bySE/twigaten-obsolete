@@ -446,11 +446,11 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
         public enum TweetOrder { New, Featured }
         public SimilarMediaTweet[] SimilarMediaFeatured(int SimilarLimit, DateTimeOffset begin, DateTimeOffset end, TweetOrder Order)
         {
-            int ThreadCount = Environment.ProcessorCount;
-            DataTable[] Table = new DataTable[ThreadCount];
+            int RangeCount = Math.Max(24, Environment.ProcessorCount);
+            DataTable[] Table = new DataTable[RangeCount];
             DataTable retTable = null;
             long QueryTime = begin.ToUnixTimeSeconds();
-            int QueryRangeSeconds = (int)(end - begin).TotalSeconds / ThreadCount;
+            int QueryRangeSeconds = (int)(end - begin).TotalSeconds / RangeCount;
 
             string QueryText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (PRIMARY)
@@ -462,6 +462,7 @@ OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN @begin AND @end
 AND (o.favorite_count >= 250 AND o.retweet_count >= 250)
 AND ou.isprotected = 0
+/*
 AND NOT EXISTS (SELECT *
 FROM media mm
 INNER JOIN tweet_media tt ON mm.media_id = tt.media_id
@@ -484,9 +485,12 @@ AND oo.tweet_id BETWEEN @begin AND @end
 AND oou.isprotected = 0
 AND oo.favorite_count + oo.retweet_count > o.favorite_count + o.retweet_count
 )
+*/
 ORDER BY (o.favorite_count + o.retweet_count) DESC
 LIMIT 50;";
-            Parallel.For(0, ThreadCount, (int i) =>
+            Parallel.For(0, RangeCount,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                (int i) =>
             {
                 using (MySqlCommand cmd = new MySqlCommand(QueryText))
                 {
@@ -496,7 +500,7 @@ LIMIT 50;";
                 }
             });
             retTable = Table[0];
-            for (int i = 1; i < ThreadCount; i++)
+            for (int i = 1; i < RangeCount; i++)
             {
                 foreach (DataRow row in Table[i].Rows)
                 {
@@ -566,19 +570,19 @@ m.media_id, m.media_url, m.type, m.downloaded_at,
             {
                 SimilarMediaTweet rettmp = new SimilarMediaTweet();
                 rettmp.tweet.user.user_id = Table.Rows[i].Field<long>(0);
-            rettmp.tweet.user.name = Table.Rows[i].Field<string>(1);
+                rettmp.tweet.user.name = Table.Rows[i].Field<string>(1);
                 rettmp.tweet.user.screen_name = Table.Rows[i].Field<string>(2);
-                //アイコンがローカルにあれば鯖内の絶対パス なければhttpの方のURL
                 rettmp.tweet.user.profile_image_url = Table.Rows[i].Field<string>(3);
                 rettmp.tweet.user.isprotected = Table.Rows[i].Field<bool?>(5) ?? Table.Rows[i].Field<sbyte>(5) != 0;
                 rettmp.tweet.tweet_id = Table.Rows[i].Field<long>(6);
                 rettmp.tweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(7));
                 rettmp.tweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(8));
-            rettmp.tweet.favorite_count = Table.Rows[i].Field<int>(9);
+                rettmp.tweet.favorite_count = Table.Rows[i].Field<int>(9);
                 rettmp.tweet.retweet_count = Table.Rows[i].Field<int>(10);
 
+                //アイコンが鯖内にあればそれの絶対パスに差し替える
                 rettmp.tweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.user, !Table.Rows[i].IsNull(4));
-                if (!Table.Rows[i].IsNull(11)) //今はちゃんとretweetがnullになってくれる
+                if (!Table.Rows[i].IsNull(11)) //RTなら元ツイートが入っている
                 {
                     rettmp.tweet.retweet = new TweetData._tweet();
                     rettmp.tweet.retweet.user.user_id = Table.Rows[i].Field<long>(12);
