@@ -23,74 +23,38 @@ namespace twidownparent
             if (config.crawlparent.InitTruncate)
             {
                 db.initTruncate();
-                users = db.SelectAlltoken();
-                if (users.Length > 0) { Console.WriteLine("{0} Assigning {1} accounts.", DateTime.Now, users.Length); }
-
-                for (int i = 0; i <= users.Length / config.crawlparent.AccountLimit;)   //i++はここではやらない
-                {
-                    int cpu = (config.crawlparent.ChildSingleThread ? i % Environment.ProcessorCount : -1);
-                    int pid = ch.StartChild(cpu);
-                    if (pid >= 0)
-                    {
-                        db.Insertpid(pid, cpu);
-                        for (int j = 0; j < config.crawlparent.AccountLimit && usersIndex < users.Length; j++, usersIndex++)
-                        {
-                            db.Assigntoken(users[usersIndex], pid);
-                        }
-                        i++;
-                    }
-                }
-            }
-
-            for (;;)
-            {
-                int ForceNewChild = db.DeleteDeadpid();
+                ch.StartChild("/REST");
                 users = db.SelectNewToken();
-                if(users.Length > 0) { Console.WriteLine("{0} Assigning {1} accounts.", DateTime.Now, users.Length); }
-                usersIndex = 0;
-                if (ForceNewChild > 0)
+                for (int i = 0; i <= users.Length / config.crawlparent.AccountLimit; i++)
                 {
-                    for (int i = 0; i < ForceNewChild && usersIndex < users.Length;)   //i++はここではやらない
-                    {
-                        int cpu = db.SelectBestCPU();
-                        int newpid = ch.StartChild(cpu);
-                        if (newpid >= 0)
-                        {
-                            db.Insertpid(newpid, cpu);
-                            for (int j = 0; j < config.crawlparent.AccountLimit && usersIndex < users.Length; j++, usersIndex++)
-                            {
-                                db.Assigntoken(users[usersIndex], newpid);
-                            }
-                            i++;
-                        }
-                    }
+                    int newpid = ch.StartChild();
+                    if (newpid < 0) { continue; }    //雑すぎるエラー処理
+                    db.Insertpid(newpid);
                 }
+            } else { db.DeleteDeadpid(); users = db.SelectNewToken(); }
+
+            while (true)
+            {
                 if (users.Length > 0)
                 {
-                    KeyValuePair<int, int> BestpidInfo = db.SelectBestpid();
-                    int pid = BestpidInfo.Key;
-                    int count = BestpidInfo.Value;
+                    usersIndex = 0;
+                    Console.WriteLine("{0} Assigning {1} accounts.", DateTime.Now, users.Length);
                     for (; usersIndex < users.Length; usersIndex++)
                     {
+                        int pid = db.SelectBestpid();
                         if (pid < 0)
                         {
-                            int cpu = db.SelectBestCPU();
-                            int newpid = ch.StartChild(cpu);
+                            int newpid = ch.StartChild();
                             if (newpid < 0) { continue; }    //雑すぎるエラー処理
-                            pid = newpid; count = 0;
-                            db.Insertpid(pid, cpu);
+                            pid = newpid;
+                            db.Insertpid(pid);
                         }
                         db.Assigntoken(users[usersIndex], pid);
-                        count++;
-                        if (count >= config.crawlparent.AccountLimit)
-                        {
-                            BestpidInfo = db.SelectBestpid();
-                            pid = BestpidInfo.Key;
-                            count = BestpidInfo.Value;
-                        }
                     }
                 }
                 Thread.Sleep(60000);
+                db.DeleteDeadpid();
+                users = db.SelectNewToken();
             }
         }
 

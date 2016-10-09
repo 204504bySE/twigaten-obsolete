@@ -15,7 +15,7 @@ namespace twidown
         //singletonはこれでインスタンスを取得して使う
         public static StreamerLocker Instance { get { return _Locker; } }
 
-        dbhandlerlock db = dbhandlerlock.Instance;
+        DBHandlerLock db = DBHandlerLock.Instance;
 
         //storetweet用
         ConcurrentDictionary<long, byte> LockedTweets = new ConcurrentDictionary<long, byte>();

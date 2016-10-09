@@ -23,25 +23,22 @@ namespace twidown
         DBHandler db = DBHandler.Instance;
         StreamerLocker Locker = StreamerLocker.Instance;
 
-        public UserStreamerManager() { }
-        public UserStreamerManager(Tokens t) { Add(t); }
+        public UserStreamerManager() {  }
+        public UserStreamerManager(Tokens t) : this() { Add(t); }
+        public UserStreamerManager(Tokens[] t) : this() { AddAll(t); }
 
-        public UserStreamerManager(Tokens[] t, ref TickCount watcher) { AddAll(t, ref watcher); }
-        public void AddAll(Tokens[] t, ref TickCount watcher)
+        public void AddAll(Tokens[] t)
         {
-            watcher.update();
             setMaxConnections(false, t.Length);
-            bool RestConnected = config.crawl.RestConnected || Streamers.Count != 0;
             Console.WriteLine("{0} App: {1} tokens loaded.", DateTime.Now, t.Length);
             foreach (Tokens tt in t)
             {
-                Add(tt, RestConnected);
-                watcher.update();
+                Add(tt);
             }
             setMaxConnections(true);
         }
 
-        bool Add(Tokens t, bool RestConnected = true)
+        bool Add(Tokens t)
         {
             if (t == null) { return false; }
             if (Streamers.ContainsKey(t.UserId))
@@ -53,74 +50,58 @@ namespace twidown
             {
                 Console.WriteLine("{0} {1}: Assigned.", DateTime.Now, t.UserId);
                 UserStreamer s = new UserStreamer(t);
-                if (Streamers.TryAdd(t.UserId, s))
-                {
-                    try
-                    {
-                        if (s.Connect() == UserStreamer.ConnectResult.Success)
-                        {
-                            s.RecieveRestTimeline();
-                            s.RecieveStream();
-                            if (RestConnected)
-                            {
-                                s.RestMyTweet();
-                                s.RestBlock();
-                            }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("{0} App:\n{1}", DateTime.Now, e);
-                    }
-                    return true;
-                }
-                return false;
+                return Streamers.TryAdd(t.UserId, s);
             }
         }
 
-        public int Count()
+        public int Count
         {
-            return Streamers.Count;
+            get
+            {
+                return Streamers.Count;
+            }
         }
 
         //これを定期的に呼んで再接続やFriendの取得をやらせる
-        public int ConnectStreamers(ref TickCount LastProcessTick)
+        public int ConnectStreamers()
         {
-            LastProcessTick.update();
-            int ActiveStreams = 0;  //再接続が不要だったやつの数
-            foreach (KeyValuePair<long, UserStreamer> s in Streamers)
+            SemaphoreSlim RestSemaphore = new SemaphoreSlim(config.crawl.RestThreads);
+            int ActiveStreamers = 0;  //再接続が不要だったやつの数
+            foreach(KeyValuePair<long, UserStreamer> s in Streamers)
             {
                 if (s.Value.NeedRetry())
                 {
-                    switch (s.Value.Connect())
+                    s.Value.RecieveStream();    //Tokenの有効性確認を待たずに呼んでしまう
+                    switch (s.Value.RecieveRestTimeline())
                     {
-                        case UserStreamer.ConnectResult.Success:
-                            s.Value.RecieveStream();
-                            s.Value.RecieveRestTimeline();
-                            s.Value.RestMyTweet();
-                            s.Value.RestBlock();
+                        case UserStreamer.TokenStatus.Success:
+                            db.StoreRestNeedtoken(s.Key);
                             break;
-                        case UserStreamer.ConnectResult.Revoked:
-                            lock (RevokeRetryUserID)
+                        case UserStreamer.TokenStatus.Locked:
+                            s.Value.PostponeRetry();
+                            break;
+                        case UserStreamer.TokenStatus.Revoked:
+                            if (s.Value.VerifyCredentials() == UserStreamer.TokenStatus.Revoked)
                             {
-                                if (RevokeRetryUserID.Contains(s.Key))
+                                lock (RevokeRetryUserID)
                                 {
-                                    db.DeleteToken(s.Key);
-                                    RevokeRetryUserID.Remove(s.Key);
-                                    UserStreamer_Finish(s.Value);
-                                }
-                                else
-                                {
-                                    RevokeRetryUserID.Add(s.Key);
+                                    if (RevokeRetryUserID.Contains(s.Key))
+                                    {
+                                        db.DeleteToken(s.Key);
+                                        RevokeRetryUserID.Remove(s.Key);
+                                        UserStreamer_Finish(s.Value);
+                                    }
+                                    else { RevokeRetryUserID.Add(s.Key); }
                                 }
                             }
                             break;
+                        case UserStreamer.TokenStatus.Failure:
+                            break;  //何もしない
                     }
                 }
-                else { ActiveStreams++; }
-                LastProcessTick.update();
+                else { ActiveStreamers++; }
             }
-            return ActiveStreams;
+            return ActiveStreamers;
         }
 
         void UserStreamer_Finish(UserStreamer set)

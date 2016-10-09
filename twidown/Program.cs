@@ -14,57 +14,49 @@ namespace twidown
     {
         static void Main(string[] args)
         {
-            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            Config config = Config.Instance;
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-
-            DBHandler db = DBHandler.Instance;
             Thread.Sleep(10000);
-            LastConnectProcessTick.update();
-            Task.Factory.StartNew(() => IntervalProcess());
-            Task.Factory.StartNew(() => WatchConnect());
-            UserStreamerManager manager = new UserStreamerManager(db.SelectAlltoken(), ref LastConnectProcessTick);
-            Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
-            manager.AddAll(db.SelectAlltoken(), ref LastConnectProcessTick);
 
-            for (;;)
+            Task.Factory.StartNew(() => IntervalProcess());
+            
+            if (args.Length >= 1 && args[0] == "/REST")
             {
-                int Connected = manager.ConnectStreamers(ref LastConnectProcessTick);
-                Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count());
-                LastConnectProcessTick.update(60000) ; //Sleep中に自殺するのを防ぐチート
+                Console.WriteLine("{0} App: Running in REST mode.", DateTime.Now);
+                RestManager Rest = new RestManager();
+                while (true)
+                {
+                    if(Rest.Proceed() == 0) { Thread.Sleep(10000); }
+                }
+            }
+            
+            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
+            Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
+
+            Config config = Config.Instance;
+            DBHandler db = DBHandler.Instance;
+            UserStreamerManager manager = new UserStreamerManager(db.SelectAlltoken());
+            manager.AddAll(db.SelectAlltoken());
+            while (true)
+            {
+                int Connected = manager.ConnectStreamers();
+                Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
                 Thread.Sleep(60000);
-                LastConnectProcessTick.update();
-                manager.AddAll(db.SelectAlltoken(), ref LastConnectProcessTick);
+                manager.AddAll(db.SelectAlltoken());
             }
         }
-        
+
         //StreamerLockerのアンロックはここでやる
         static void IntervalProcess()
         {
+            Config config = Config.Instance;
             StreamerLocker Locker = StreamerLocker.Instance;
-            Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
-            for (;;)
+            Thread.CurrentThread.Priority = ThreadPriority.Highest;
+            while (true)
             {
                 Thread.Sleep(60000);
                 Locker.ActualUnlockAll();
                 GC.Collect();
-            }
-        }
-
-        //詰まって再接続もできないなら自殺ってやつ
-        static TickCount LastConnectProcessTick = new TickCount();
-        static void WatchConnect()
-        {
-            Config config = Config.Instance;
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;
-            for (;;)
-            {
-                //1アカウントの接続処理がStreamersConnectTimeoutよりかかったらアウト
-                //ActualUnlockAllも監視してる
-                if (LastConnectProcessTick.Elasped  > config.crawl.StreamersConnectTimeout * 1000)
-                { LogFailure.Write(string.Format("{0}\t{1}", DateTime.Now, LastConnectProcessTick.Elasped)); Environment.Exit(1); }
-                Thread.Sleep(60000);
             }
         }
     }

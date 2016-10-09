@@ -26,8 +26,7 @@ namespace twidown
         IObservable<StreamingMessage> UserStream;
         IDisposable StreamDisposable = null;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
-        DateTimeOffset LatestTweetTime = DateTimeOffset.Now;
-        ConcurrentQueue<DateTimeOffset> TweetTimeQueue = new ConcurrentQueue<DateTimeOffset>();
+        TweetTimeList TweetTime = new TweetTimeList();
         DateTimeOffset nulloffset;  //outで捨てる用
         bool isAttemptingConnect = false;
         StreamerLocker Locker = StreamerLocker.Instance;
@@ -40,9 +39,44 @@ namespace twidown
             Token.ConnectionOptions.UseCompressionOnStreaming = true;
         }
 
+        //最近受信したツイートの時刻を一定数保持する
+        //Userstreamの場合は実際に受信した時刻を使う
+        class TweetTimeList
+        {
+            SortedSet<DateTimeOffset> TweetTime = new SortedSet<DateTimeOffset>();
+            Config config = Config.Instance;
+            public void Add(DateTimeOffset Time)
+            {
+                lock (TweetTime)
+                {
+                    TweetTime.Add(Time);
+                    while (TweetTime.Count > config.crawl.UserStreamTimeoutTweets)
+                    {
+                        TweetTime.Remove(TweetTime.Min);
+                    }
+                }
+            }
+            //config.crawl.UserStreamTimeoutTweets個前のツイートの時刻を返すってわけ
+            public DateTimeOffset GetMin()
+            {
+                if(TweetTime.Count > 0) { return TweetTime.Min; }
+                else { return DateTimeOffset.Now; }
+            }
+        }
+
+        DateTimeOffset? PostponedTime = null;   //ロックされたアカウントはしばらく接続しない
+        public void PostponeRetry()
+        {
+            PostponedTime = DateTimeOffset.Now;
+        }
         //これを外部から叩いてtrueなら再接続
         public bool NeedRetry()
         {
+            if (PostponedTime != null)
+            {
+                if ((DateTimeOffset.Now - (DateTimeOffset)PostponedTime).TotalSeconds < config.crawl.LockedTokenPostpone) { return false; }
+                else { PostponedTime = null; }
+            }
             if (e != null || (!isAttemptingConnect && StreamDisposable == null))
             {
                 if (e != null)
@@ -58,10 +92,8 @@ namespace twidown
                 }
                 return true;
             }
-            DateTimeOffset TimeoutTweetTime;
-            if (!TweetTimeQueue.TryPeek(out TimeoutTweetTime)) { TimeoutTweetTime = DateTime.Now; }
             if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
-                > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TimeoutTweetTime).TotalSeconds))
+                > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.GetMin()).TotalSeconds))
             {
                 Console.WriteLine("{0} {1}: No streaming message for {2} sec.", DateTime.Now, Token.UserId, (DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds);
                 return true;
@@ -69,35 +101,37 @@ namespace twidown
             return false;
         }
 
-        public enum ConnectResult { Success, Failure, Revoked }
-        public ConnectResult Connect()
+        //tokenの有効性を確認して自身のプロフィールも取得
+        //Revokeの可能性があるときだけ呼ぶ
+        public enum TokenStatus { Success, Failure, Revoked, Locked }
+        public TokenStatus VerifyCredentials()
         {
             try
             {
                 isAttemptingConnect = true;
                 if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
-                Console.WriteLine("{0} {1}: Attempting to connect", DateTime.Now, Token.UserId);
+                Console.WriteLine("{0} {1}: Verifying token", DateTime.Now, Token.UserId);
                 db.StoreUserProfile(Token.Account.VerifyCredentials());
                 Console.WriteLine("{0} {1}: Token verification success", DateTime.Now, Token.UserId);
-                return ConnectResult.Success;
+                return TokenStatus.Success;
             }
             catch (TwitterException ex)
             {
                 if (ex.Status == HttpStatusCode.Unauthorized)
                 {
                     Console.WriteLine("{0} {1}: Unauthorized", DateTime.Now, Token.UserId);
-                    return ConnectResult.Revoked;
+                    return TokenStatus.Revoked;
                 }
                 else
                 {
                     Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
-                    return ConnectResult.Failure;
+                    return TokenStatus.Failure;
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
-                return ConnectResult.Failure;
+                return TokenStatus.Failure;
             }
             finally { isAttemptingConnect = false; }
         }
@@ -107,66 +141,75 @@ namespace twidown
             if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
 
             LastStreamingMessageTime = DateTimeOffset.Now;
+            TweetTime.Add(LastStreamingMessageTime);
             UserStream = Token.Streaming.UserAsObservable();
             StreamDisposable = UserStream.Subscribe(
                 (StreamingMessage m) =>
                 {
                     DateTimeOffset now = DateTimeOffset.Now;
                     LastStreamingMessageTime = now;
-                    if (m.Type == MessageType.Create)
-                    {
-                        LatestTweetTime = now;
-                        TweetTimeQueue.Enqueue(now);
-                        while (TweetTimeQueue.Count > config.crawl.UserStreamTimeoutTweets
-                            && TweetTimeQueue.TryDequeue(out nulloffset)) { }
-                    }
+                    if (m.Type == MessageType.Create) { TweetTime.Add(now); }
                     HandleStreamingMessage(m);
                 },
                 (Exception ex) => {
                     Console.WriteLine("{0} {1}:\n{2}",DateTime.Now, Token.UserId, ex);
-                    StreamDisposable.Dispose(); StreamDisposable = null; e = ex; },
-                () => {
-                    StreamDisposable.Dispose(); StreamDisposable = null;  //接続中のRevokeはこれ
+                    e = ex; },
+                () => { //接続中のRevokeはこれ
                     e = new Exception("UserAsObservable unexpectedly finished.");
                 }
                 );
         }
-
-        public void RecieveRestTimeline()
+        
+        public TokenStatus RecieveRestTimeline()
         {
-            DateTimeOffset[] RestTweetTime = RestTimeline();
-            for (int i = Math.Max(0, RestTweetTime.Length - config.crawl.UserStreamTimeoutTweets); i < RestTweetTime.Length; i++)
+            //RESTで取得してツイートをDBに突っ込む
+            //各ツイートの時刻をTweetTimeに格納
+            try
             {
-                TweetTimeQueue.Enqueue(RestTweetTime[i]);
-                while (TweetTimeQueue.Count > config.crawl.UserStreamTimeoutTweets
-                    && TweetTimeQueue.TryDequeue(out nulloffset)) { }
+                CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
+                Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
+                DateTimeOffset[] RestTweetTime = new DateTimeOffset[Timeline.Count];
+                for (int i = 0; i < Timeline.Count; i++)
+                {
+                    HandleTweet(Timeline[i], false);
+                    RestTweetTime[i] = Timeline[i].CreatedAt;
+                }
+                for (int i = Math.Max(0, RestTweetTime.Length - config.crawl.UserStreamTimeoutTweets); i < RestTweetTime.Length; i++)
+                {
+                    TweetTime.Add(RestTweetTime[i]);
+                }
+                Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
+                return TokenStatus.Success;
+            }
+            catch (TwitterException ex)
+            {
+                if (ex.Status == HttpStatusCode.Unauthorized)
+                {
+                    Console.WriteLine("{0} {1}: Unauthorized", DateTime.Now, Token.UserId);
+                    return TokenStatus.Revoked;
+                }
+                else if (ex.Status == HttpStatusCode.Forbidden)
+                {
+                    Console.WriteLine("{0} {1}: Locked", DateTime.Now, Token.UserId);
+                    return TokenStatus.Locked;
+                }
+                else
+                {
+                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                    return TokenStatus.Failure;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                return TokenStatus.Failure;
             }
         }
-
+        
         //----------------------------------------
         // ここから下はUtility Classだったやつ
         // つまり具体的な処理が多い(適当
         //----------------------------------------
-
-        public void RestMyTweet()
-        {
-            //RESTで取得してツイートをDBに突っ込む
-            try
-            {
-                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
-
-                Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
-                foreach (Status s in Tweets)
-                {   //ここでRESTをDBに突っ込む
-                    HandleTweet(s, false);
-                }
-                Console.WriteLine("{0} {1}: REST tweets success", DateTime.Now, Token.UserId);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("{0} {1}: REST tweets failed:\n{2}", DateTime.Now, Token.UserId, e);
-            }
-        }
 
         void HandleStreamingMessage(StreamingMessage x)
         {
@@ -226,7 +269,26 @@ namespace twidown
                 return new DateTimeOffset[0];
             }
         }
+        
+        public void RestMyTweet()
+        {
+            //RESTで取得してツイートをDBに突っ込む
+            try
+            {
+                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
 
+                Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
+                foreach (Status s in Tweets)
+                {   //ここでRESTをDBに突っ込む
+                    HandleTweet(s, false);
+                }
+                Console.WriteLine("{0} {1}: REST tweets success", DateTime.Now, Token.UserId);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("{0} {1}: REST tweets failed:\n{2}", DateTime.Now, Token.UserId, e);
+            }
+        }
 
         public void RestBlock()
         {
@@ -279,7 +341,7 @@ namespace twidown
             if (Locker.LockUser(x.User.Id))
             {
                 if (update) { db.StoreUser(x, DownloadProfileImage(x)); }
-                else { db.StoreUser(x); }
+                else { db.StoreUser(x, false, false); }
             }
             int ret2;
             if ((ret2 = db.StoreTweet(x, update)) > 0 && x.RetweetedStatus == null) { DownloadMedia(x); }
@@ -308,7 +370,6 @@ namespace twidown
                     if (downloadFile(x.User.ProfileImageUrl, LocalPathnoExt + newext, StatusUrl(x)))
                     {
                         if (oldext != null && oldext != newext) { File.Delete(LocalPathnoExt + oldext); }
-                        //if (OldImageUrl != null && OldImageUrl.IndexOf("default_profile_images") < 0) { File.Delete(string.Format(@"{0}\{1}", config.crawl.PictPathProfileImage, localstrs.localmediapath(OldImageUrl))); }
                         return true;
                     }
                 }

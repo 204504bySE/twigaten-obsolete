@@ -13,7 +13,7 @@ namespace twidownparent
     {
         Config config = Config.Instance;
 
-        public int StartChild(int cpu)
+        public int StartChild(string args = "")
         {
             Config config = Config.Instance;
             try
@@ -21,8 +21,8 @@ namespace twidownparent
                 ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.ChildPath);
                 info.WorkingDirectory = Path.GetDirectoryName(config.crawlparent.ChildPath);
                 info.WindowStyle = ProcessWindowStyle.Minimized;
+                info.Arguments = args;
                 Process retProcess = Process.Start(info);
-                if (cpu >= 0) { retProcess.ProcessorAffinity = (IntPtr)(1 << cpu); }  //1プロセス1CPUコア
                 return retProcess.Id;
             }
             catch { return -1; }

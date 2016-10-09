@@ -51,60 +51,37 @@ WHERE NOT EXISTS (SELECT * FROM crawlprocess WHERE user_id = token.user_id);"))
         public int Assigntoken(long user_id, int pid)
         {
             //Console.WriteLine("{0} Assign: {1} to {2}", DateTime.Now, user_id, pid);
-            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO crawlprocess VALUES(@user_id, @pid)");
+            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO crawlprocess (user_id, pid) VALUES(@user_id, @pid)");
             cmd.Parameters.AddWithValue("@user_id", user_id);
             cmd.Parameters.AddWithValue("@pid", pid);
             return ExecuteNonQuery(cmd);
         }
 
 
-        public KeyValuePair<int, int> SelectBestpid()
+        public int SelectBestpid()
         {
-            //(pid, アカウント数)
             //一番空いてる子プロセスってわけ 全滅なら負数を返すからつまり新プロセスが必要
 
             DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT pid, COUNT(user_id) FROM crawlprocess
-GROUP BY pid HAVING COUNT(user_id) < @count ORDER BY COUNT(user_id) LIMIT 1;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT pid.pid, c FROM
+pid LEFT JOIN (SELECT pid, COUNT(user_id) as c FROM crawlprocess
+GROUP BY pid HAVING COUNT(user_id)) cp ON pid.pid = cp.pid
+ORDER BY c LIMIT 1;"))
             {
                 cmd.Parameters.AddWithValue("@count", config.crawlparent.AccountLimit);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
             }
-            if (Table == null || Table.Rows.Count < 1) { return new KeyValuePair<int, int>(-1, 0); }
-            return new KeyValuePair<int, int>(Table.Rows[0].Field<int>(0), (int)Table.Rows[0].Field<long>(1));
+            if (Table == null || Table.Rows.Count < 1
+                || (Table.Rows[0].Field<long?>(1) ?? 0) > config.crawlparent.AccountLimit) { return -1; }
+            return Table.Rows[0].Field<int>(0);
         }
 
-        public int SelectBestCPU()
+        public int Insertpid(int pid)
         {
-            if (!config.crawlparent.ChildSingleThread) { return -1; }   //CPUコアを制限しない場合用
-            //一番空いてるCPUコア
-            int CPUCount = Environment.ProcessorCount;
-            int ret = 0;
-            long retcount = long.MaxValue;  //retのCPUを使ってるプロセス数
-            for (int i = 0; i < CPUCount; i++)
-            {
-                using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(pid) FROM pid WHERE cpu = @cpu;"))
-                {
-                    cmd.Parameters.AddWithValue("@cpu", i);
-                    long tmpcount = SelectCount(cmd, IsolationLevel.ReadCommitted, true);
-                    if (retcount > tmpcount)
-                    {
-                        ret = i;
-                        retcount = tmpcount;
-                    }
-                }
-            }
-            return ret;
-        }
-
-        public int Insertpid(int pid, int cpu)
-        {
-            if (config.crawlparent.ChildSingleThread) { Console.WriteLine("{0} New PID {1} on CPU {2}", DateTime.Now, pid, cpu); }
-            else { Console.WriteLine("{0} New PID {1}", DateTime.Now, pid); }
-            using (MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO pid VALUES(@pid, @cpu)"))
+            Console.WriteLine("{0} New PID {1}", DateTime.Now, pid); 
+            using (MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO pid VALUES(@pid)"))
             {
                 cmd.Parameters.AddWithValue("@pid", pid);
-                cmd.Parameters.AddWithValue("@cpu", cpu);
                 return ExecuteNonQuery(cmd);
             }
         }

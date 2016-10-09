@@ -15,7 +15,7 @@ namespace twidown
     class DBHandler : twitenlib.DBHandler
     {
         readonly int pid;
-        private DBHandler() : base("crawl", "", Config.Instance.database.Address, 20, (uint)Config.Instance.crawl.MaxDBConnections)
+        private DBHandler() : base("crawl", "", Config.Instance.database.Address, 20, Math.Max(1, (uint)(Config.Instance.crawl.MaxDBConnections - (Config.Instance.crawl.MaxDBConnections >> 2))) )
         {
             pid = System.Diagnostics.Process.GetCurrentProcess().Id;
         }
@@ -50,6 +50,53 @@ namespace twidown
                     Table.Rows[i].Field<long>(0)));
             }
             return ret;
+        }
+
+        public Tokens[] SelectResttoken()
+        //<summary>
+        //REST待ちのTokenを返す
+        //</summary>
+        {
+            DataTable Table;
+            Tokens[] ret;
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+user_id, token, token_secret
+FROM token
+NATURAL JOIN crawlprocess
+WHERE rest_needed IS TRUE;"))
+            {
+                cmd.Parameters.AddWithValue("@pid", Selfpid);
+                Table = SelectTable(cmd);
+            }
+            if (Table == null) { return new Tokens[0]; }
+            ret = new Tokens[Table.Rows.Count];
+            for (int i = 0; i < Table.Rows.Count; i++)
+            {
+                ret[i] = (Tokens.Create(config.token.ConsumerKey,
+                    config.token.ConsumerSecret,
+                    Table.Rows[i].Field<string>(1),
+                    Table.Rows[i].Field<string>(2),
+                    Table.Rows[i].Field<long>(0)));
+            }
+            return ret;
+        }
+
+        public int StoreRestNeedtoken(long user_id)
+        {
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = TRUE WHERE user_id = @user_id;"))
+            {
+                cmd.Parameters.AddWithValue("@user_id", user_id);
+                return ExecuteNonQuery(cmd);
+            }
+        }
+
+        public int StoreRestDonetoken(long user_id)
+        {
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = FALSE WHERE user_id = @user_id;"))
+            {
+                cmd.Parameters.AddWithValue("@user_id", user_id);
+                return ExecuteNonQuery(cmd);
+            }
         }
 
         public int DeleteToken(long user_id)
@@ -129,7 +176,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         //DBにユーザーを入れる RTは先にやらないとキー制約が
         //UpdateProfileImageを入れるとprofile_image_urlを更新する
         //</summary>
-        public int StoreUser(Status x, bool UpdateProfileImage = false)
+        public int StoreUser(Status x, bool UpdateProfileImage, bool update = true)
         {
             if (x.Entities.Media == null) { return 0; }    //画像なしツイートは捨てる
             using (MySqlCommand cmd = new MySqlCommand())
@@ -141,7 +188,7 @@ INTO user (user_id, name, screen_name, isprotected, profile_image_url, updated_a
 VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @updated_at, @location, @description)
 ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, profile_image_url=@profile_image_url, updated_at=@updated_at, location=@location, description=@description;";
                 }
-                else
+                else if (update)
                 {
                     //updateはよくやる, insertは未保存アカウントかつアイコン取得失敗時のみ
                     cmd.CommandText = @"INSERT
@@ -153,6 +200,13 @@ WHEN updated_at IS NOT NULL THEN @updated_at
 ELSE NULL
 END)
 ,location=@location, description=@description;";
+                }
+                else
+                {
+                    //RESTで取得した場合はアイコンが変わらない限り何も更新したくない
+                    cmd.CommandText = @"INSERT IGNORE
+INTO user (user_id, name, screen_name, isprotected, profile_image_url, location, description)
+VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @location, @description);";
                 }
                 cmd.Parameters.AddWithValue("@user_id", x.User.Id);
                 cmd.Parameters.AddWithValue("@name", x.User.Name);
@@ -224,7 +278,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         {
             const int BulkUnit = 1000;
             const string head = @"INSERT IGNORE INTO friend (user_id, friend_id) VALUES";
-            List<MySqlCommand> cmdList = new List<MySqlCommand>(x.Length);
+            List<MySqlCommand> cmdList = new List<MySqlCommand>();
             MySqlCommand cmdtmp;
             int i, j;
 
@@ -267,7 +321,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         {
             const int BulkUnit = 1000;
             const string head = @"INSERT IGNORE INTO block (user_id, target_id) VALUES";
-            List<MySqlCommand> cmdList = new List<MySqlCommand>(x.Length);
+            List<MySqlCommand> cmdList = new List<MySqlCommand>();
             MySqlCommand cmdtmp;
             int i, j;
 
@@ -325,7 +379,6 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         //source_tweet_idを更新するためだけ
         public int UpdateMedia_source_tweet_id(MediaEntity m, Status x)
         {
-
             using (MySqlCommand cmd = new MySqlCommand(@"UPDATE IGNORE media SET
 source_tweet_id = if (EXISTS (SELECT * FROM tweet WHERE tweet_id = @source_tweet_id), @source_tweet_id, source_tweet_id)
 WHERE media_id = @media_id;"))
@@ -401,16 +454,16 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
         }
     }
 
-    class dbhandlerlock : twitenlib.DBHandler
+    class DBHandlerLock : twitenlib.DBHandler
     {
         readonly int pid;
-        private dbhandlerlock() : base("crawl", "", Config.Instance.database.AddressLock, 5, (uint)Config.Instance.crawl.MaxDBConnections)
+        private DBHandlerLock() : base("crawl", "", Config.Instance.database.AddressLock, 2, Math.Max(1, (uint)Config.Instance.crawl.MaxDBConnections  >> 2))
         {
             pid = System.Diagnostics.Process.GetCurrentProcess().Id;
         }
-        private static dbhandlerlock _db = new dbhandlerlock();
+        private static DBHandlerLock _db = new DBHandlerLock();
         //singletonはこれでインスタンスを取得して使う
-        public static dbhandlerlock Instance
+        public static DBHandlerLock Instance
         {
             get { return _db; }
         }
