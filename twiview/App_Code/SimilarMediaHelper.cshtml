@@ -15,10 +15,6 @@
 
 @helper SimilarMedia(SimilarMediaTweet Tweet, int SeeMoreButton)
 {
-// たとえば、ヘルパーにはコードまたはマークアップ (あるいはその両方) を使用できます。
-// var msg = "ハロー " + name;
-// <p>@msg</p>
-// 詳細については、http://go.microsoft.com/fwlink/?LinkID=204658 を参照してください
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContext);
     <div id= "@(Tweet.media.media_id)" class="well well-sm" style="width:100%">
@@ -55,7 +51,7 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
                     @(ScriptHelper.FavoriteIntent(Tweet.tweet.retweet.tweet_id)) @(Tweet.tweet.retweet.favorite_count)
                     @(TextHelper.GoogleMediaLink(Tweet.media))
                 </p>
-                <p class="twigaten-tweettext">@html.Raw(@Tweet.tweet.retweet.text))</p>
+                <p class="twigaten-tweettext">@(html.Raw(@Tweet.tweet.retweet.text))</p>
                 <p>
                     @(TextHelper.UserIcon(Tweet.tweet.user))
                     <span class="glyphicon glyphicon-retweet"></span>
