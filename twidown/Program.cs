@@ -26,21 +26,20 @@ namespace twidown
                 RestManager Rest = new RestManager();
                 while (true)
                 {
-                    if(Rest.Proceed() == 0) { Thread.Sleep(10000); }
+                    if(Rest.Proceed() == 0) { GC.Collect(); Thread.Sleep(10000); }
                 }
             }
-            
-            GCSettings.LatencyMode = GCLatencyMode.SustainedLowLatency;
-            Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
 
             Config config = Config.Instance;
             DBHandler db = DBHandler.Instance;
+            
             UserStreamerManager manager = new UserStreamerManager(db.SelectAlltoken());
             manager.AddAll(db.SelectAlltoken());
             while (true)
             {
                 int Connected = manager.ConnectStreamers();
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, false, true);
                 Thread.Sleep(60000);
                 manager.AddAll(db.SelectAlltoken());
             }
@@ -56,7 +55,6 @@ namespace twidown
             {
                 Thread.Sleep(60000);
                 Locker.ActualUnlockAll();
-                GC.Collect();
             }
         }
     }

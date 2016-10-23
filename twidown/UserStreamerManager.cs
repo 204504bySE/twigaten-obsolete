@@ -71,28 +71,26 @@ namespace twidown
             {
                 if (s.Value.NeedRetry())
                 {
-                    s.Value.RecieveStream();    //Tokenの有効性確認を待たずに呼んでしまう
-                    switch (s.Value.RecieveRestTimeline())
+                    switch (s.Value.VerifyCredentials())
                     {
                         case UserStreamer.TokenStatus.Success:
+                            s.Value.RecieveStream();
+                            //s.Value.RecieveRestTimeline();
                             db.StoreRestNeedtoken(s.Key);
                             break;
                         case UserStreamer.TokenStatus.Locked:
                             s.Value.PostponeRetry();
                             break;
                         case UserStreamer.TokenStatus.Revoked:
-                            if (s.Value.VerifyCredentials() == UserStreamer.TokenStatus.Revoked)
+                            lock (RevokeRetryUserID)
                             {
-                                lock (RevokeRetryUserID)
+                                if (RevokeRetryUserID.Contains(s.Key))
                                 {
-                                    if (RevokeRetryUserID.Contains(s.Key))
-                                    {
-                                        db.DeleteToken(s.Key);
-                                        RevokeRetryUserID.Remove(s.Key);
-                                        UserStreamer_Finish(s.Value);
-                                    }
-                                    else { RevokeRetryUserID.Add(s.Key); }
+                                    db.DeleteToken(s.Key);
+                                    RevokeRetryUserID.Remove(s.Key);
+                                    UserStreamer_Finish(s.Value);
                                 }
+                                else { RevokeRetryUserID.Add(s.Key); }
                             }
                             break;
                         case UserStreamer.TokenStatus.Failure:
@@ -115,9 +113,9 @@ namespace twidown
             Console.WriteLine("{0} {1}: Streamer removed", DateTime.Now, set.Token.UserId);
         }
 
-        private void setMaxConnections(bool Force = false, int? basecount = null)
+        private void setMaxConnections(bool Force = false, int basecount = 0)
         {
-            int MaxConnections = (basecount ?? Streamers.Count) * config.crawl.ConnectionCountFactor + config.crawl.DefaultConnections;
+            int MaxConnections = Math.Max(basecount, Streamers.Count) * config.crawl.ConnectionCountFactor + config.crawl.DefaultConnections;
             if (Force || ServicePointManager.DefaultConnectionLimit < MaxConnections)
             {
                 ServicePointManager.DefaultConnectionLimit = MaxConnections;

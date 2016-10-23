@@ -32,7 +32,7 @@ namespace twidown
             {
                 UserStreamer s = new UserStreamer(t);
                 s.RestBlock();
-                //s.RecieveRestTimeline();
+                s.RecieveRestTimeline();
                 s.RestMyTweet();
                 db.StoreRestDonetoken(t.UserId);
             });

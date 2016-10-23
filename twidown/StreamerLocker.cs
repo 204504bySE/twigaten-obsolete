@@ -19,9 +19,9 @@ namespace twidown
 
         //storetweet用
         ConcurrentDictionary<long, byte> LockedTweets = new ConcurrentDictionary<long, byte>();
-        ConcurrentQueue<long> dbUnlockTweets = new ConcurrentQueue<long>();
         public bool LockTweet(long Id) { return LockedTweets.TryAdd(Id, 0) && db.LockTweet(Id); }
-        public void UnlockTweet(long Id) { dbUnlockTweets.Enqueue(Id); }
+        ConcurrentQueue<long> UnlockTweets = new ConcurrentQueue<long>();
+        public void UnlockTweet(long Id) { UnlockTweets.Enqueue(Id); }
 
         //↓はUnlockはActualUnlockAllでやっちゃうからUnlockメソッドはない
         //storeuser用
@@ -38,16 +38,16 @@ namespace twidown
         //こいつを外から呼ぶと実際にロックが解除される
         public void ActualUnlockAll()
         {
-            LockedTweets.Clear();
             LockedUsers.Clear();
             LockedDeletes.Clear();
             LockedProfileImages.Clear();
 
-            //DBからは1周遅れでロック解除する
+            //UnlockTweetID, DBのtweetlockは1周遅れでロック解除する
             db.UnlockTweet(UnlockTweetID);
+            foreach(long Id in UnlockTweetID) { byte z; LockedTweets.TryRemove(Id, out z); }
             UnlockTweetID.Clear();
             long tmp;
-            while (dbUnlockTweets.TryDequeue(out tmp)) { UnlockTweetID.Add(tmp); }
+            while (UnlockTweets.TryDequeue(out tmp)) { UnlockTweetID.Add(tmp); }
         }
     }
 }

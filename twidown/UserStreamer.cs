@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using System.Reactive.Linq;
+using System.Reactive.Concurrency;
 using CoreTweet;
 using CoreTweet.Streaming;
 using System.IO;
@@ -27,7 +28,6 @@ namespace twidown
         IDisposable StreamDisposable = null;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
         TweetTimeList TweetTime = new TweetTimeList();
-        DateTimeOffset nulloffset;  //outで捨てる用
         bool isAttemptingConnect = false;
         StreamerLocker Locker = StreamerLocker.Instance;
 
@@ -57,10 +57,16 @@ namespace twidown
                 }
             }
             //config.crawl.UserStreamTimeoutTweets個前のツイートの時刻を返すってわけ
-            public DateTimeOffset GetMin()
+            public DateTimeOffset Min
             {
-                if(TweetTime.Count > 0) { return TweetTime.Min; }
-                else { return DateTimeOffset.Now; }
+                get
+                {
+                    lock (TweetTime)
+                    {
+                        if (TweetTime.Count > 0) { return TweetTime.Min; }
+                        else { return DateTimeOffset.Now; }
+                    }
+                }
             }
         }
 
@@ -93,7 +99,7 @@ namespace twidown
                 return true;
             }
             if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
-                > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.GetMin()).TotalSeconds))
+                > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.Min).TotalSeconds))
             {
                 Console.WriteLine("{0} {1}: No streaming message for {2} sec.", DateTime.Now, Token.UserId, (DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds);
                 return true;
@@ -178,6 +184,7 @@ namespace twidown
                 {
                     TweetTime.Add(RestTweetTime[i]);
                 }
+                if(Timeline.Count == 0) { TweetTime.Add(DateTimeOffset.Now); }
                 Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
                 return TokenStatus.Success;
             }

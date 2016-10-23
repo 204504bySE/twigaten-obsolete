@@ -159,10 +159,10 @@ namespace twihash
             int ret = 0;
             int dbcount = 0;
             int dbthreads = 0;
-
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = Environment.ProcessorCount;
-            Parallel.For(0, basemedia.Count, op, (int i) =>
+            
+            Parallel.For(0, basemedia.Count,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                (int i) =>
               {
                   long maskedhash_i = basemedia.Hashes[i] & fullmask;
                   for (int j = i + 1; j < basemedia.Count; j++)

@@ -406,7 +406,6 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
                 cmd.Parameters.AddWithValue("@media_url", m.MediaUrl);
                 cmd.Parameters.AddWithValue("@dcthash", hash);
                 cmd.Parameters.AddWithValue("@downloaded_at", (DateTimeOffset.UtcNow.ToUnixTimeSeconds() as long?));
-
                 int ret = ExecuteNonQuery(cmd, true);
                 return ret + Storetweet_media(x.Id, m.Id);
             }
