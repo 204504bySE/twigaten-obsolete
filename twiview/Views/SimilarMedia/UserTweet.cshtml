@@ -1,32 +1,30 @@
-﻿@model twiview.Models.SimilarMediaModelUserTweet
+﻿@using twiview.Locale;
+@model twiview.Models.SimilarMediaModelUserTweet
 @{
     if (Model.TargetUser != null)
     {
-        if (Model.isLatest)
-        {
-            ViewBag.Title = string.Format("{0} のツイートと類似画像", Model.TargetUser.screen_name);
-        }
+        string datestr;
+        if (Model.isLatest) { datestr = ""; }
         else
         {
-            string datestr;
             switch (Model.Before)
             {
                 case true:
-                    datestr = "~" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss");
+                    datestr = "(~" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + ")";
                     break;
                 case false:
-                    datestr = Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "~";
+                    datestr = "(" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "~)";
                     break;
                 default:
-                    datestr = "~" + Model.Date.ToString("yyyy/MM/dd");
+                    datestr = "(~" + Model.Date.ToString("yyyy/MM/dd") + ")";
                     break;
             }
-            ViewBag.Title = string.Format("{0} のツイートと類似画像({1})", Model.TargetUser.screen_name, datestr);
         }
+        ViewBag.Title = string.Format(Locale.Title_UserTweet, Model.TargetUser.screen_name, datestr);
     }
     else
     {
-        ViewBag.title = "ユーザーが見つかりませんでした";
+        ViewBag.title = Locale.Title_UserNotFound;
     }
 }
 @section TwitterCard{@TextHelper.TwitterCardDefault()}
@@ -44,36 +42,36 @@
             @switch (Model.Before)
             {
                 case true:
-                    <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを表示", "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを除く", "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
+                    <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
+                    <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
                     break;
                 case false:
-                    <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを表示", "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを除く", "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
+                    <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
+                    <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
                     break;
                 default:
-                    <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを表示", "UserTweet", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = true })</li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink("RTを除く", "UserTweet", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = false })</li>
+                    <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "UserTweet", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = true })</li>
+                    <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "UserTweet", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = false })</li>
                     break;
             }
         </ul>
         <ul class="pagination">
-            <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink("最新", "UserTweet", new { UserID = Model.TargetUser.user_id })</li>
+            <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, "UserTweet", new { UserID = Model.TargetUser.user_id })</li>
             @if (Model.NextNew == null)
             {
-                <li class="disabled"><a>« 新しい</a></li>
+                <li class="disabled"><a>@Locale.Pager_Newer</a></li>
             }
             else
             {
-                <li>@Html.ActionLink("« 新しい", "UserTweet", new { UserID = Model.TargetUser.user_id, After = ((DateTimeOffset)Model.NextNew).ToUnixTimeSeconds() })</li>
+                <li>@Html.ActionLink(Locale.Pager_Newer, "UserTweet", new { UserID = Model.TargetUser.user_id, After = ((DateTimeOffset)Model.NextNew).ToUnixTimeSeconds() })</li>
             }
             @if (Model.NextOld == null)
             {
-                <li class="disabled"><a>古い »</a></li>
+                <li class="disabled"><a>@Locale.Pager_Older</a></li>
             }
             else
             {
-                <li>@Html.ActionLink("古い »", "UserTweet", new { UserID = Model.TargetUser.user_id, Before = ((DateTimeOffset)Model.NextOld).ToUnixTimeSeconds() })</li>
+                <li>@Html.ActionLink(Locale.Pager_Older, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = ((DateTimeOffset)Model.NextOld).ToUnixTimeSeconds() })</li>
             }
         </ul>
     </div>
@@ -82,7 +80,7 @@
     <div>
         <form method="get" class="form-inline" style="display:inline-block">
             <div class="form-group">
-                表示件数
+                @Locale.Pager_ResultsPerPage
                 <select class="form-control" name="Count" onchange="this.form.submit()">
                     <option value="10"@(Model.TweetCount == 10 ? " selected" : "")>10</option>
                     <option value="20"@(Model.TweetCount == 20 ? " selected" : "")>20</option>
@@ -105,7 +103,7 @@
         </form>
         <form method="get" class="form-inline" style="display:inline-block">
             <div class="form-group">
-                日付指定
+                @Locale.Pager_Datetimepicker
                 <div class='input-group date' id='datetimepicker_similarmedia'>
                     <input name="Date" type='text' class="form-control" />
                     <span class="input-group-addon">
@@ -120,8 +118,8 @@
 }
 @{if (Model.TargetUser != null)
     {
-        @(pager(true))
-        <h2>@@@(Model.TargetUser.screen_name) のツイート</h2>
+        @pager(true)
+        <h2>@string.Format(Locale.Headline_UserTweet, Model.TargetUser.screen_name)</h2>
         switch (Model.Before)
         {
             case null:
@@ -151,25 +149,14 @@
     }
     else
     {
-        <h2>ユーザーが見つかりませんでした</h2>
+        <h2>@Locale.Headline_UserNotFound</h2>
     }
-    <p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
+    <p>@(Locale.Headline_TimeToSearch): @(Model.QueryElapsedMilliseconds)ms</p>
 }
 @if (Model.Tweets.Length > 0)
 {
-    DateTimeOffset LastTweetDate = Model.Tweets[0].tweet.created_at.ToLocalTime();
-    <h3>@(LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd"))</h3>
-    foreach (SimilarMediaTweet Tweet in Model.Tweets)
-    {
-        DateTimeOffset ThisTweetDate = Tweet.tweet.created_at.ToLocalTime();
-        if (LastTweetDate.Year != ThisTweetDate.Year || LastTweetDate.Month != ThisTweetDate.Month || LastTweetDate.Day != ThisTweetDate.Day)
-        {
-            <h3>@(Tweet.tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd"))</h3>
-        }
-        LastTweetDate = ThisTweetDate;
-        @(SimilarMediaHelper.SimilarMedia(Tweet, Model.SimilarLimit))
-    }
-    @(pager())
+    @SimilarMediaHelper.SimilarMediaAll(Model.Tweets, Model.SimilarLimit, true)
+    @pager()
 }
 else
 {

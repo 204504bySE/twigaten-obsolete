@@ -12,45 +12,39 @@ namespace twiview
 {
     public static class LocalText
     {
-        static Regex LinkRegex = new Regex(@"https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+", RegexOptions.Compiled);
-        static Regex HashtagRegex = new Regex(@"(^|.*?[\s　>])(?<hashtag>[#＃][a-z0-9_À-ÖØ-öø-ÿĀ-ɏɓ-ɔɖ-ɗəɛɣɨɯɲʉʋʻ̀-ͯḀ-ỿЀ-ӿԀ-ԧⷠ-ⷿꙀ-֑ꚟ-ֿׁ-ׂׄ-ׇׅא-תװ-״﬒-ﬨשׁ-זּטּ-לּמּנּ-סּףּ-פּצּ-ﭏؐ-ؚؠ-ٟٮ-ۓە-ۜ۞-۪ۨ-ۯۺ-ۼۿݐ-ݿࢠࢢ-ࢬࣤ-ࣾﭐ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼ‌ก-ฺเ-๎ᄀ-ᇿ㄰-ㆅꥠ-꥿가-힯ힰ-퟿ﾡ-ￜァ-ヺー-ヾｦ-ﾟｰ０-９Ａ-Ｚａ-ｚぁ-ゖ゙-ゞ㐀-䶿一-鿿꜀-뜿띀-렟-﨟〃々〻]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex UrlRegex = new Regex(@"https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+", RegexOptions.Compiled);
+        static readonly Regex HashtagRegex = new Regex(@"(^|.*?[\s　>])(?<hashtag>[#＃][a-z0-9_À-ÖØ-öø-ÿĀ-ɏɓ-ɔɖ-ɗəɛɣɨɯɲʉʋʻ̀-ͯḀ-ỿЀ-ӿԀ-ԧⷠ-ⷿꙀ-֑ꚟ-ֿׁ-ׂׄ-ׇׅא-תװ-״﬒-ﬨשׁ-זּטּ-לּמּנּ-סּףּ-פּצּ-ﭏؐ-ؚؠ-ٟٮ-ۓە-ۜ۞-۪ۨ-ۯۺ-ۼۿݐ-ݿࢠࢢ-ࢬࣤ-ࣾﭐ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼ‌ก-ฺเ-๎ᄀ-ᇿ㄰-ㆅꥠ-꥿가-힯ힰ-퟿ﾡ-ￜァ-ヺー-ヾｦ-ﾟｰ０-９Ａ-Ｚａ-ｚぁ-ゖ゙-ゞ㐀-䶿一-鿿꜀-뜿띀-렟-﨟〃々〻]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         public static string TextToLink(string Text)
         {
             //URLとハッシュタグをリンクにする rel="nofollow" 付き
             if (Text == null) { return null; }
 
-            StringBuilder Builder = new StringBuilder(Text);
-            Builder.Replace("<", "&lt;");
-            Builder.Replace(">", "&gt;");
-            Builder.Replace("\n", "<br />");
+            StringBuilder Builder = new StringBuilder(Text)
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\n", "<br />");
 
-            MatchCollection Matches = LinkRegex.Matches(Builder.ToString());
-            int IndexOffset = 0;
-            foreach (Match m in Matches)
+            MatchCollection m = UrlRegex.Matches(Builder.ToString());
+            for (int i = m.Count - 1; 0 <= i; i--)
             {
                 //後ろから順に挿入する
-                Builder.Insert(m.Index + IndexOffset + m.Length, "</a>");
-                Builder.Insert(m.Index + IndexOffset, @""" rel=""nofollow"">");
-                Builder.Insert(m.Index + IndexOffset, m.Value);
-                Builder.Insert(m.Index + IndexOffset, @"<a href=""");
-
-                IndexOffset += m.Length + 30;  //即値でInsertした字数も足す
+                Builder.Insert(m[i].Index + m[i].Length, "</a>")
+                    .Insert(m[i].Index, @""" rel=""nofollow"">")
+                    .Insert(m[i].Index, m[i].Value)
+                    .Insert(m[i].Index, @"<a href=""");
             }
 
-            Matches = HashtagRegex.Matches(Builder.ToString());
-            IndexOffset = 0;
-            foreach (Match m in Matches)
+            m = HashtagRegex.Matches(Builder.ToString());
+            for (int i = m.Count - 1; 0 <= i; i--)
             {
-                Group g = m.Groups["hashtag"];
+                Group g = m[i].Groups["hashtag"];
                 string HashtagEncoded = HttpUtility.UrlEncode(g.Value.Substring(1));
 
                 //後ろから順に挿入する
-                Builder.Insert(g.Index + IndexOffset + g.Length, "</a>");
-                Builder.Insert(g.Index + IndexOffset, @""" rel=""nofollow"">");
-                Builder.Insert(g.Index + IndexOffset, HashtagEncoded);
-                Builder.Insert(g.Index + IndexOffset, @"<a href=""https://twitter.com/hashtag/");
-
-                IndexOffset += HashtagEncoded.Length + 58;  //即値でInsertした字数も足す
+                Builder.Insert(g.Index + g.Length, "</a>")
+                    .Insert(g.Index, @""" rel=""nofollow"">")
+                    .Insert(g.Index, HashtagEncoded)
+                    .Insert(g.Index, @"<a href=""https://twitter.com/hashtag/");
             }
             return Builder.ToString();
         }

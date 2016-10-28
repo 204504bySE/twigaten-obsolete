@@ -1,4 +1,5 @@
-﻿<!DOCTYPE html>
+﻿@using twiview.Locale;
+<!DOCTYPE html>
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
@@ -21,22 +22,22 @@
                 <ul class="nav navbar-nav">
                     @if (Session["LoginUserID"] == null)
                     {
-                        <li>@Html.ActionLink("Twitterアカウントでログイン", "Twitter", "Auth")</li>
+                        <li>@Html.ActionLink(Locale.Menu_Login, "Twitter", "Auth")</li>
                     }
                     else
                     {
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@@@(Session["LoginUserScreenName"].ToString())<span class="caret"></span></a>
                             <ul class="dropdown-menu" role="menu">
-                                <li>@Html.ActionLink("自分のツイート", "UserTweet", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
-                                <li>@Html.ActionLink("タイムライン", "Timeline", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
+                                <li>@Html.ActionLink(Locale.Menu_MyTweet, "UserTweet", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
+                                <li>@Html.ActionLink(Locale.Menu_Timeline, "Timeline", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
                                 <li class="divider"></li>
-                                <li>@Html.ActionLink("ログアウト", "Logout", "Auth")</li>
+                                <li>@Html.ActionLink(Locale.Menu_Logout, "Logout", "Auth")</li>
                             </ul>
                         </li>
                     }
-                    <li>@Html.ActionLink("人気のツイート", "Featured", "SimilarMedia", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") }, null)</li>
-                    <li>@Html.ActionLink("このサイトについて", "About", "Home")</li>
+                    <li>@Html.ActionLink(Locale.Menu_Featured, "Featured", "SimilarMedia", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") }, null)</li>
+                    <li>@Html.ActionLink(Locale.Menu_About, "About", "Home")</li>
                 </ul>
                 <form action=@(Url.RouteUrl(new { controller = "Search", action = "Index" })) method="get" class="navbar-form navbar-right">
                     <div class="form-group">

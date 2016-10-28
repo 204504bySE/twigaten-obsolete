@@ -1,4 +1,5 @@
-﻿@helper TweetButton()
+﻿@using twiview.Locale;
+@helper TweetButton()
 {
     <span><a href="https://twitter.com/share" class="twitter-share-button" data-lang="ja" data-size="large">ツイート</a></span>
 }
@@ -9,7 +10,7 @@
 }
 
 @helper TweetButton(string RouteUrl, string Title)
-{
+{   //LazyLoadするぞ
     string hash = RouteUrl.GetHashCode().ToString("x8");
     <span><a id="twbid@(hash)" data-lazy-widget="twb@(hash)" href="https://twitter.com/share" data-url="@(Request.Url.GetLeftPart(UriPartial.Authority))@(RouteUrl)" data-text="@(Title)" data-lang="ja" data-size="large">ツイート</a></span>
     <span id="twb@(hash)"><!--<script type="text/javascript">var e=document.getElementById('twbid@(hash)');e.className='twitter-share-button';twttr.widgets.load(e);</script>--></span>

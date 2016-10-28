@@ -97,8 +97,8 @@ namespace twitenlib
             public int UserStreamTimeout { get; }
             public int UserStreamTimeoutTweets { get; }
             public int DefaultConnections { get; }
-            public int ConnectionCountFactor { get; }
             public int MaxDBConnections { get; }
+            public int MediaKeepAlive { get; }
             public int RestThreads { get; }
             public int LockedTokenPostpone { get; }
             public _crawl(IniFileHandler ini)
@@ -107,9 +107,9 @@ namespace twitenlib
                 PictPaththumb = ini.getvalue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb");
                 UserStreamTimeout = int.Parse(ini.getvalue("crawl", "UserStreamTimeout", "180"));
                 UserStreamTimeoutTweets = int.Parse(ini.getvalue("crawl", "UserStreamTimeoutTweets", "50"));
-                DefaultConnections = int.Parse(ini.getvalue("crawl", "DefaultConnections", "10"));
-                ConnectionCountFactor = int.Parse(ini.getvalue("crawl", "ConnectionCountFactor", "3"));
+                DefaultConnections = int.Parse(ini.getvalue("crawl", "DefaultConnections", "100"));
                 MaxDBConnections = int.Parse(ini.getvalue("crawl", "MaxDBConnections", "10"));
+                MediaKeepAlive = int.Parse(ini.getvalue("crawl", "MediaKeepAlive", "30")) * 1000;
                 RestThreads = int.Parse(ini.getvalue("crawl", "RestThreads", Environment.ProcessorCount.ToString()));
                 LockedTokenPostpone = int.Parse(ini.getvalue("crawl", "LockedTokenPostpone", "86400"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
@@ -178,16 +178,33 @@ namespace twitenlib
 
         public class _bot
         {
+            IniFileHandler ini;
             public string ConsumerKey { get; }
             public string ConsumerSecret { get; }
             public string AccessToken { get; }
             public string AccessTokenSecret { get; }
+
+            public long LastTweetTime { get; }
+            public long LastPakurierTime { get; }
+
             public _bot(IniFileHandler ini)
             {
+                this.ini = ini;
                 ConsumerKey = ini.getvalue("bot", "ConsumerKey","");
                 ConsumerSecret = ini.getvalue("bot", "ConsumerSecret", "");
                 AccessToken = ini.getvalue("bot", "AccessToken", "");
                 AccessTokenSecret = ini.getvalue("bot", "AccessTokenSecret", "");
+                LastTweetTime = int.Parse(ini.getvalue("bot", "LastTweetTime", "0"));
+                LastPakurierTime = int.Parse(ini.getvalue("bot", "LastPakurierTime", "0"));
+            }
+
+            public void NewLastTweetTime(long time)
+            {
+                ini.setvalue("bot", "LastTweetTime", time.ToString());
+            }
+            public void NewLastPakurierTime(long time)
+            {
+                ini.setvalue("bot", "LastPakurierTime", time.ToString());
             }
         }
         public _bot bot;
@@ -239,16 +256,16 @@ namespace twitenlib
                 BulkCmd.Append("(@");
                 for (int j = 0; j < unit - 1; j++)
                 {
-                    BulkCmd.Append(Convert.ToChar(0x61 + j));
-                    BulkCmd.Append(i);
-                    BulkCmd.Append(",@");
+                    BulkCmd.Append(Convert.ToChar(0x61 + j))
+                        .Append(i)
+                        .Append(",@");
                 }
-                BulkCmd.Append(Convert.ToChar(0x61 + unit - 1));
-                BulkCmd.Append(i);
-                BulkCmd.Append("),");
+                BulkCmd.Append(Convert.ToChar(0x61 + unit - 1))
+                    .Append(i)
+                    .Append("),");
             }
-            BulkCmd.Remove(BulkCmd.Length - 1, 1);
-            BulkCmd.Append(";");
+            BulkCmd.Remove(BulkCmd.Length - 1, 1)
+                .Append(";");
             return BulkCmd.ToString();
         }
 
@@ -259,11 +276,11 @@ namespace twitenlib
             BulkCmd.Append("(@");
             for (int i = 0; i < count; i++)
             {
-               BulkCmd.Append(i);
-                BulkCmd.Append(",@");
+                BulkCmd.Append(i)
+                    .Append(",@");
             }
-            BulkCmd.Remove(BulkCmd.Length - 2, 2);
-            BulkCmd.Append(");");
+            BulkCmd.Remove(BulkCmd.Length - 2, 2)
+                .Append(");");
             return BulkCmd.ToString();
         }
 
@@ -299,7 +316,7 @@ namespace twitenlib
 
         protected long SelectCount(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
         {
-            //SELECT COUNT(*) 用
+            //SELECT COUNT() 用
             if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)) { return -1; }
             long ret;
             try
@@ -357,7 +374,7 @@ namespace twitenlib
                 {
                     //Console.WriteLine("\n{0}\n{1}", DateTime.Now, e);
                     tran.Rollback();
-                    ret = 0;
+                    ret = -1;
                 }
                 finally
                 {
@@ -371,6 +388,15 @@ namespace twitenlib
             finally { ConnectionSemaphore.Release(); }
             return ret;
         }
+
+        //時刻→SnowFlake Larger→時刻じゃないビットを1で埋める
+        protected long TimeinSnowFlake(long UnixTimeSeconds, bool Larger)
+        {
+            const long TwEpoch = 1288834974657L;
+            if (Larger) { return (UnixTimeSeconds * 1000 + 999 - TwEpoch) << 22 | 0x3FFFFFL; }
+            else { return (UnixTimeSeconds * 1000 - TwEpoch) << 22; }
+        }
+        protected const long msinSnowFlake = 0x400000L;   //1msはこれだ
     }
     
     static class CharCodes

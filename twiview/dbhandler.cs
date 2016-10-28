@@ -258,7 +258,14 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
                 {
                     cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
                     cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
-                    if (SelectCount(cmd) == 0) { return new SimilarMediaTweet[0]; }
+                    switch (SelectCount(cmd))
+                    {
+                        case 0:
+                            return new SimilarMediaTweet[0];
+                        case -1:
+                            throw new Exception("SelectCount() failed.");
+                        //それ以外は↓の処理を続行する
+                    }
                 }
             }
 
@@ -433,15 +440,6 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
             if (Before) { return TableToTweet(Table, login_user_id, SimilarLimit); }
             else { return TableToTweet(Table, login_user_id, SimilarLimit).Reverse().ToArray(); }
         }
-
-        //時刻→SnowFlake Larger→時刻じゃないビットを1で埋める
-        long TimeinSnowFlake(long UnixTimeSeconds, bool Larger)
-        {
-            const long TwEpoch = 1288834974657L;
-            if (Larger) { return (UnixTimeSeconds * 1000 + 999 - TwEpoch) << 22 | 0x3FFFFFL; }
-            else { return (UnixTimeSeconds * 1000 - TwEpoch) << 22; }
-        }
-        const long msinSnowFlake = 0x400000L;   //1msはこれだ
 
         public enum TweetOrder { New, Featured }
         public SimilarMediaTweet[] SimilarMediaFeatured(int SimilarLimit, DateTimeOffset begin, DateTimeOffset end, TweetOrder Order)
