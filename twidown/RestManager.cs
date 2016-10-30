@@ -25,16 +25,22 @@ namespace twidown
 
         public int Proceed()
         {
-            Tokens[] tokens = db.SelectResttoken();
+            KeyValuePair<Tokens, bool>[] tokens = db.SelectResttoken();
+            if (tokens.Length > 0) { Console.WriteLine("{0} App: {1} Accounts to REST", DateTime.Now, tokens.Length); }
             Parallel.ForEach(tokens,
                 new ParallelOptions { MaxDegreeOfParallelism = config.crawl.RestThreads },
-                (Tokens t) => 
+                (KeyValuePair<Tokens, bool> t) => 
             {
-                UserStreamer s = new UserStreamer(t);
+                ThreadPriority priviousePrio = Thread.CurrentThread.Priority;
+                Thread.CurrentThread.Priority = ThreadPriority.Lowest;
+
+                UserStreamer s = new UserStreamer(t.Key);
                 s.RestBlock();
-                s.RecieveRestTimeline();
+                if (t.Value) { s.RecieveRestTimeline(); }
                 s.RestMyTweet();
-                db.StoreRestDonetoken(t.UserId);
+                db.StoreRestDonetoken(t.Key.UserId);
+
+                Thread.CurrentThread.Priority = priviousePrio;
             });
             return tokens.Length;
         }

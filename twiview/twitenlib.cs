@@ -287,59 +287,52 @@ namespace twitenlib
         protected DataTable SelectTable(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
         {
             if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)){ return null; }
-            DataTable ret = new DataTable();
             try
             {
-                MySqlConnection conn = NewConnection();
-                conn.Open();
-                MySqlTransaction tran = conn.BeginTransaction(IsolationLevel);
-                try
+                DataTable ret;
+                using (MySqlConnection conn = NewConnection())
                 {
-                    cmd.Connection = conn;
-                    cmd.Transaction = tran;
-                    using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                    conn.Open();
+                    using (MySqlTransaction tran = conn.BeginTransaction(IsolationLevel))
                     {
-                        adapter.Fill(ret);
+                        cmd.Connection = conn;
+                        cmd.Transaction = tran;
+                        using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
+                        {
+                            ret = new DataTable();
+                            adapter.Fill(ret);
+                        }
+                        tran.Commit();
                     }
-                    tran.Commit();
                 }
-                catch { tran.Rollback(); ret = null; }
-                finally
-                {
-                    conn.Close();
-                }
+                return ret;
             }
-            catch { ret = null; }
+            catch { return null; }
             finally { ConnectionSemaphore.Release(); }
-            return ret;
         }
 
         protected long SelectCount(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
         {
             //SELECT COUNT() 用
             if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)) { return -1; }
-            long ret;
             try
             {
-                MySqlConnection conn = NewConnection();
-                conn.Open();
-                MySqlTransaction tran = conn.BeginTransaction(IsolationLevel);
-                try
+                long ret;
+                using (MySqlConnection conn = NewConnection())
                 {
-                    cmd.Connection = conn;
-                    cmd.Transaction = tran;
-                    ret = (long)cmd.ExecuteScalar();
-                    tran.Commit();
+                    conn.Open();
+                    using (MySqlTransaction tran = conn.BeginTransaction(IsolationLevel))
+                    {
+                        cmd.Connection = conn;
+                        cmd.Transaction = tran;
+                        ret = (long)cmd.ExecuteScalar();
+                        tran.Commit();
+                    }
                 }
-                catch { tran.Rollback(); ret = -1; }
-                finally
-                {
-                    conn.Close();
-                }
+                return ret;
             }
-            catch { ret = -1; }
+            catch { return -1; }
             finally { ConnectionSemaphore.Release(); }
-            return ret;
         }
 
         protected int ExecuteNonQuery(MySqlCommand cmd, bool NeverSemaphoreTimeout = false)
@@ -353,40 +346,28 @@ namespace twitenlib
             //MysqlConnectionとMySQLTransactionを張ってcmdを実行する
             //戻り値はDBの変更された行数
             //</summary>
-            if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)) { return 0; }
-            int ret = 0;
+            if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)) { return -1; }
             try
             {
-                MySqlConnection conn = NewConnection();
-                conn.Open();
-                MySqlTransaction tran = conn.BeginTransaction(IsolationLevel.ReadUncommitted);
-                try
+                int ret = 0;
+                using (MySqlConnection conn = NewConnection())
                 {
-                    foreach (MySqlCommand c in cmd)
+                    conn.Open();
+                    using (MySqlTransaction tran = conn.BeginTransaction(IsolationLevel.ReadUncommitted))
                     {
-                        c.Connection = conn;
-                        c.Transaction = tran;
-                        ret += c.ExecuteNonQuery();
+                        foreach (MySqlCommand c in cmd)
+                        {
+                            c.Connection = conn;
+                            c.Transaction = tran;
+                            ret += c.ExecuteNonQuery();
+                        }
+                        tran.Commit();
                     }
-                    tran.Commit();
                 }
-                catch
-                {
-                    //Console.WriteLine("\n{0}\n{1}", DateTime.Now, e);
-                    tran.Rollback();
-                    ret = -1;
-                }
-                finally
-                {
-                    conn.Close();
-                }
+                return ret;
             }
-            catch
-            {
-                //Console.WriteLine("\n{0}\n{1}", DateTime.Now, e);
-            }
+            catch { return -1; }
             finally { ConnectionSemaphore.Release(); }
-            return ret;
         }
 
         //時刻→SnowFlake Larger→時刻じゃないビットを1で埋める

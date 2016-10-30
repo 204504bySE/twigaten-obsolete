@@ -43,9 +43,11 @@ namespace twidown
             LockedProfileImages.Clear();
 
             //UnlockTweetID, DBのtweetlockは1周遅れでロック解除する
-            db.UnlockTweet(UnlockTweetID);
-            foreach(long Id in UnlockTweetID) { byte z; LockedTweets.TryRemove(Id, out z); }
-            UnlockTweetID.Clear();
+            if (db.UnlockTweet(UnlockTweetID) > 0)
+            {
+                foreach (long Id in UnlockTweetID) { byte z; LockedTweets.TryRemove(Id, out z); }
+                UnlockTweetID.Clear();
+            }
             long tmp;
             while (UnlockTweets.TryDequeue(out tmp)) { UnlockTweetID.Add(tmp); }
         }

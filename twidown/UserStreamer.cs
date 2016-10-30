@@ -9,6 +9,7 @@ using CoreTweet;
 using CoreTweet.Streaming;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
@@ -24,6 +25,7 @@ namespace twidown
         public Tokens Token { get; }
         Config config = Config.Instance;
         DBHandler db = DBHandler.Instance;
+        Counter counter = Counter.Instance;
         IObservable<StreamingMessage> UserStream;
         IDisposable StreamDisposable = null;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
@@ -75,8 +77,9 @@ namespace twidown
         {
             PostponedTime = DateTimeOffset.Now;
         }
-        //これを外部から叩いてtrueなら再接続
-        public bool NeedRetry()
+        //これを外部から叩いて再接続の必要性を確認
+        //false:不要 true:必要 null:タイムラインの取得もstreamerで行う
+        public bool? NeedRetry()
         {
             if (PostponedTime != null)
             {
@@ -102,7 +105,7 @@ namespace twidown
                 > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.Min).TotalSeconds))
             {
                 Console.WriteLine("{0} {1}: No streaming message for {2} sec.", DateTime.Now, Token.UserId, (DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds);
-                return true;
+                return null;    //これをnullにしたぞ
             }
             return false;
         }
@@ -116,7 +119,7 @@ namespace twidown
             {
                 isAttemptingConnect = true;
                 if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
-                Console.WriteLine("{0} {1}: Verifying token", DateTime.Now, Token.UserId);
+                //Console.WriteLine("{0} {1}: Verifying token", DateTime.Now, Token.UserId);
                 db.StoreUserProfile(Token.Account.VerifyCredentials());
                 Console.WriteLine("{0} {1}: Token verification success", DateTime.Now, Token.UserId);
                 return TokenStatus.Success;
@@ -157,15 +160,18 @@ namespace twidown
                     if (m.Type == MessageType.Create) { TweetTime.Add(now); }
                     HandleStreamingMessage(m);
                 },
-                (Exception ex) => {
-                    Console.WriteLine("{0} {1}:\n{2}",DateTime.Now, Token.UserId, ex);
-                    e = ex; },
-                () => { //接続中のRevokeはこれ
+                (Exception ex) =>
+                {
+                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                    e = ex;
+                },
+                () =>
+                { //接続中のRevokeはこれ
                     e = new Exception("UserAsObservable unexpectedly finished.");
                 }
                 );
         }
-        
+
         public TokenStatus RecieveRestTimeline()
         {
             //RESTで取得してツイートをDBに突っ込む
@@ -173,7 +179,7 @@ namespace twidown
             try
             {
                 CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
-                Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
+                //Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
                 DateTimeOffset[] RestTweetTime = new DateTimeOffset[Timeline.Count];
                 for (int i = 0; i < Timeline.Count; i++)
                 {
@@ -184,8 +190,8 @@ namespace twidown
                 {
                     TweetTime.Add(RestTweetTime[i]);
                 }
-                if(Timeline.Count == 0) { TweetTime.Add(DateTimeOffset.Now); }
-                Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
+                if (Timeline.Count == 0) { TweetTime.Add(DateTimeOffset.Now); }
+                //Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
                 return TokenStatus.Success;
             }
             catch (TwitterException ex)
@@ -212,7 +218,7 @@ namespace twidown
                 return TokenStatus.Failure;
             }
         }
-        
+
         //----------------------------------------
         // ここから下はUtility Classだったやつ
         // つまり具体的な処理が多い(適当
@@ -259,14 +265,14 @@ namespace twidown
             try
             {
                 CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
-                Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
+                //Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
                 DateTimeOffset[] ret = new DateTimeOffset[Timeline.Count];
                 for (int i = 0; i < Timeline.Count; i++)
                 {
                     HandleTweet(Timeline[i], false);
                     ret[i] = Timeline[i].CreatedAt;
                 }
-                Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
+                //Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
                 if (ret.Length == 0) { return new DateTimeOffset[] { DateTimeOffset.UtcNow }; }
                 else { return ret; }
             }
@@ -276,7 +282,7 @@ namespace twidown
                 return new DateTimeOffset[0];
             }
         }
-        
+
         public void RestMyTweet()
         {
             //RESTで取得してツイートをDBに突っ込む
@@ -284,12 +290,12 @@ namespace twidown
             {
                 CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
 
-                Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
+                //Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
                 foreach (Status s in Tweets)
                 {   //ここでRESTをDBに突っ込む
                     HandleTweet(s, false);
                 }
-                Console.WriteLine("{0} {1}: REST tweets success", DateTime.Now, Token.UserId);
+                //Console.WriteLine("{0} {1}: REST tweets success", DateTime.Now, Token.UserId);
             }
             catch (Exception e)
             {
@@ -303,7 +309,7 @@ namespace twidown
             if (blocks != null)
             {
                 db.StoreBlocks(blocks, Token.UserId);
-                Console.WriteLine("{0} {1}: REST blocks success", DateTime.Now, Token.UserId);
+                //Console.WriteLine("{0} {1}: REST blocks success", DateTime.Now, Token.UserId);
             }
             else { Console.WriteLine("{0} {1}: REST blocks failed", DateTime.Now, Token.UserId); }
         }
@@ -347,41 +353,18 @@ namespace twidown
             if (x.RetweetedStatus != null) { ret += HandleTweet(x.RetweetedStatus, update); }
             if (Locker.LockUser(x.User.Id))
             {
-                if (update) { db.StoreUser(x, DownloadProfileImage(x)); }
+                if (update) { DownloadStoreProfileImage(x); }
                 else { db.StoreUser(x, false, false); }
             }
             int ret2;
-            if ((ret2 = db.StoreTweet(x, update)) > 0 && x.RetweetedStatus == null) { DownloadMedia(x); }
+            counter.TweetToStore.Increment();
+            if ((ret2 = db.StoreTweet(x, update)) > 0)
+            {
+                counter.TweetStored.Increment();
+                if (x.RetweetedStatus == null) { DownloadStoreMedia(x); }
+            }
             if (!locked) { Locker.UnlockTweet(x.Id); }
             return ret + ret2;
-        }
-
-        bool DownloadProfileImage(Status x)
-        {
-            //<summary>
-            //アイコンが更新または未保存ならダウンロードする
-            //RTは自動でやらない
-            //成功したらtrue, 失敗またはダウンロード不要ならfalse
-            //(古い奴のURLがDBにあれば古いままになる)
-            //</summary>
-            if (x.User.Id == null) { return false; }
-            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage((long)x.User.Id, x.User.ProfileImageUrl);
-            if (d.Key)
-            {
-                if (Locker.LockProfileImage((long)x.User.Id))
-                {
-                    //string NewImageLocalPath = string.Format(@"{0}\{1}", config.crawl.PictPathProfileImage, localstrs.localmediapath(x.User.ProfileImageUrl));
-                    string oldext = Path.GetExtension(d.Value);
-                    string newext = Path.GetExtension(x.User.ProfileImageUrl);
-                    string LocalPathnoExt = config.crawl.PictPathProfileImage + @"\" + x.User.Id.ToString();
-                    if (downloadFile(x.User.ProfileImageUrl, LocalPathnoExt + newext, StatusUrl(x)))
-                    {
-                        if (oldext != null && oldext != newext) { File.Delete(LocalPathnoExt + oldext); }
-                        return true;
-                    }
-                }
-            }
-            return false;
         }
 
         DateTimeOffset? OneTweetReset;
@@ -401,11 +384,42 @@ namespace twidown
             finally { Locker.UnlockTweet(StatusId); }
         }
 
-        void DownloadMedia(Status x)
+        async void DownloadStoreProfileImage(Status x)
         {
-            if (x.RetweetedStatus != null) { DownloadMedia(x.RetweetedStatus); }
+            //<summary>
+            //アイコンが更新または未保存ならダウンロードする
+            //RTは自動でやらない
+            //ダウンロード成功してもしなくてもそれなりにDBに反映する
+            //(古い奴のURLがDBにあれば古いままになる)
+            //</summary>
+            if (x.User.Id == null) { return; }
+            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage((long)x.User.Id, x.User.ProfileImageUrl);
+            if (!d.Key || !Locker.LockProfileImage((long)x.User.Id)) { return; }
+            string oldext = Path.GetExtension(d.Value);
+            string newext = Path.GetExtension(x.User.ProfileImageUrl);
+            string LocalPathnoExt = config.crawl.PictPathProfileImage + @"\" + x.User.Id.ToString();
+
+            try
+            {
+                HttpWebRequest req = WebRequest.Create(x.User.ProfileImageUrl) as HttpWebRequest;
+                req.Referer = StatusUrl(x);
+                using (WebResponse res = await req.GetResponseAsync())
+                using (FileStream file = File.Create(LocalPathnoExt + newext))
+                {
+                    await res.GetResponseStream().CopyToAsync(file);
+                }
+                if (oldext != null && oldext != newext) { File.Delete(LocalPathnoExt + oldext); }
+                db.StoreUser(x, true);
+            }
+            catch { db.StoreUser(x, false); }
+        }
+
+        async void DownloadStoreMedia(Status x)
+        {
+            if (x.RetweetedStatus != null) { DownloadStoreMedia(x.RetweetedStatus); }
             foreach (MediaEntity m in x.ExtendedEntities.Media)
             {
+                counter.MediaTotal.Increment();
                 if (m.SourceStatusId != null && m.SourceStatusId != x.Id)
                 {
                     DownloadOneTweet((long)m.SourceStatusId);
@@ -424,29 +438,31 @@ namespace twidown
                 //ハッシュがない時だけ落とす
                 string LocalPaththumb = config.crawl.PictPaththumb + @"\" + m.Id.ToString() + Path.GetExtension(m.MediaUrl);  //m.Urlとm.MediaUrlは違う
                 string uri = m.MediaUrl.ToString() + (m.MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
+
                 try
                 {
-                    HttpWebRequest req = (HttpWebRequest)WebRequest.Create(uri);
+                    HttpWebRequest req = WebRequest.Create(uri) as HttpWebRequest;
                     req.Referer = StatusUrl(x);
-                    WebResponse res = req.GetResponse();
-                    using (Stream httpStream = res.GetResponseStream())
                     using (MemoryStream mem = new MemoryStream())
-                    {
-                        httpStream.CopyTo(mem); //MemoryStreamはFlush不要(FlushはNOP)
-                        mem.Position = 0;
+                    { 
+                        using (WebResponse res = await req.GetResponseAsync())
+                        {
+                            await res.GetResponseStream().CopyToAsync(mem);
+                        }
                         long? dcthash = PictHash.dcthash(mem);
                         if (dcthash != null && (db.StoreMedia(m, x, (long)dcthash)) > 0)
                         {
-                            using (FileStream fileStream = File.Create(LocalPaththumb))
+                            using (FileStream file = File.Create(LocalPaththumb))
                             {
-                                mem.WriteTo(fileStream);
-                                fileStream.Flush();
+                                mem.Position = 0;   //こいつは必要だった
+                                await mem.CopyToAsync(file);
                             }
+                            counter.MediaSuccess.Increment();
                         }
                     }
                 }
                 catch { }
-
+                counter.MediaToStore.Increment();
                 //URL転載元もペアを記録する
                 if (m.SourceStatusId != null && m.SourceStatusId != x.Id)
                 {
@@ -463,27 +479,6 @@ namespace twidown
             builder.Append("/status/");
             builder.Append(x.Id);
             return builder.ToString();
-        }
-
-        //とりあえずここに置くやつ
-        //WebRequestを使うと勝手にプールしてくれるらしい
-        bool downloadFile(string uri, string outputPath, string referer = null)
-        {
-            try
-            {
-                HttpWebRequest req = WebRequest.Create(uri) as HttpWebRequest;
-                if (referer != null) { req.Referer = referer; }
-                WebResponse res = req.GetResponse();
-
-                using (FileStream fileStream = File.Create(outputPath))
-                using (Stream httpStream = res.GetResponseStream())
-                {
-                    httpStream.CopyTo(fileStream);
-                    fileStream.Flush();
-                }
-            }
-            catch { return false; }
-            return true;
         }
 
         void HandleEventMessage(EventMessage x)

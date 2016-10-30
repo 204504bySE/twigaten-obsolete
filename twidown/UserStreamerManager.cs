@@ -48,7 +48,7 @@ namespace twidown
             }
             else
             {
-                Console.WriteLine("{0} {1}: Assigned.", DateTime.Now, t.UserId);
+                //Console.WriteLine("{0} {1}: Assigned.", DateTime.Now, t.UserId);
                 UserStreamer s = new UserStreamer(t);
                 return Streamers.TryAdd(t.UserId, s);
             }
@@ -69,14 +69,19 @@ namespace twidown
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
             foreach(KeyValuePair<long, UserStreamer> s in Streamers)
             {
-                if (s.Value.NeedRetry())
+                bool? NeedRetry = s.Value.NeedRetry();
+                if (NeedRetry != false)
                 {
                     switch (s.Value.VerifyCredentials())
                     {
                         case UserStreamer.TokenStatus.Success:
                             s.Value.RecieveStream();
-                            //s.Value.RecieveRestTimeline();
-                            db.StoreRestNeedtoken(s.Key);
+                            //TLが遅すぎた時はこっちでTLを取得する
+                            if (NeedRetry == null) {
+                                s.Value.RecieveRestTimeline();
+                                db.StoreRestNeedtoken(s.Key, false);
+                            }
+                            db.StoreRestNeedtoken(s.Key, true);
                             break;
                         case UserStreamer.TokenStatus.Locked:
                             s.Value.PostponeRetry();
@@ -115,7 +120,7 @@ namespace twidown
 
         private void setMaxConnections(bool Force = false, int basecount = 0)
         {
-            int MaxConnections = Math.Max(basecount, Streamers.Count) * config.crawl.ConnectionCountFactor + config.crawl.DefaultConnections;
+            int MaxConnections = Math.Max(basecount, Streamers.Count) + config.crawl.DefaultConnections;
             if (Force || ServicePointManager.DefaultConnectionLimit < MaxConnections)
             {
                 ServicePointManager.DefaultConnectionLimit = MaxConnections;

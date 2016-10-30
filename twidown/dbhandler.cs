@@ -15,7 +15,8 @@ namespace twidown
     class DBHandler : twitenlib.DBHandler
     {
         readonly int pid;
-        private DBHandler() : base("crawl", "", Config.Instance.database.Address, 20, Math.Max(1, (uint)(Config.Instance.crawl.MaxDBConnections - (Config.Instance.crawl.MaxDBConnections >> 2))) )
+        //private DBHandler() : base("crawl", "", Config.Instance.database.Address, 20, Math.Max(1, (uint)(Config.Instance.crawl.MaxDBConnections - (Config.Instance.crawl.MaxDBConnections >> 2))) )
+        private DBHandler() : base("crawl", "", Config.Instance.database.Address, 5, (uint)Config.Instance.crawl.MaxDBConnections)
         {
             pid = System.Diagnostics.Process.GetCurrentProcess().Id;
         }
@@ -37,7 +38,7 @@ namespace twidown
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id, token, token_secret FROM token NATURAL JOIN crawlprocess WHERE pid = @pid;"))
             {
                 cmd.Parameters.AddWithValue("@pid", Selfpid);
-                Table = SelectTable(cmd);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
             if (Table == null) { return new Tokens[0]; }
             ret = new Tokens[Table.Rows.Count];
@@ -52,47 +53,52 @@ namespace twidown
             return ret;
         }
 
-        public Tokens[] SelectResttoken()
+        public KeyValuePair<Tokens, bool>[] SelectResttoken()
         //<summary>
         //REST待ちのTokenを返す
+        //valueがtrueならタイムラインも取得
         //</summary>
         {
             DataTable Table;
-            Tokens[] ret;
+            KeyValuePair<Tokens, bool>[] ret;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, token, token_secret
+user_id, token, token_secret, rest_needed
 FROM token
 NATURAL JOIN crawlprocess
-WHERE rest_needed IS TRUE;"))
+WHERE rest_needed != 0;"))
             {
                 cmd.Parameters.AddWithValue("@pid", Selfpid);
-                Table = SelectTable(cmd);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
-            if (Table == null) { return new Tokens[0]; }
-            ret = new Tokens[Table.Rows.Count];
+            if (Table == null) { return new KeyValuePair<Tokens, bool>[0]; }
+            ret = new KeyValuePair<Tokens, bool>[Table.Rows.Count];
             for (int i = 0; i < Table.Rows.Count; i++)
             {
-                ret[i] = (Tokens.Create(config.token.ConsumerKey,
-                    config.token.ConsumerSecret,
-                    Table.Rows[i].Field<string>(1),
-                    Table.Rows[i].Field<string>(2),
-                    Table.Rows[i].Field<long>(0)));
+                ret[i] = new KeyValuePair<Tokens, bool>(
+                    Tokens.Create(config.token.ConsumerKey,
+                        config.token.ConsumerSecret,
+                        Table.Rows[i].Field<string>(1),
+                        Table.Rows[i].Field<string>(2),
+                        Table.Rows[i].Field<long>(0)),
+                    Table.Rows[i].Field<sbyte>(3) == 1);
             }
             return ret;
         }
 
-        public int StoreRestNeedtoken(long user_id)
+        public int StoreRestNeedtoken(long user_id, bool RestTimeline)
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = TRUE WHERE user_id = @user_id;"))
+            //REST用プロセスでタイムラインを取得する必要があるかどうかを与える
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = @mode WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
+                cmd.Parameters.AddWithValue("@mode", RestTimeline ? 1 : 2);
                 return ExecuteNonQuery(cmd);
             }
         }
 
         public int StoreRestDonetoken(long user_id)
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = FALSE WHERE user_id = @user_id;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = 0 WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
                 return ExecuteNonQuery(cmd);
@@ -164,7 +170,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT profile_image_url, updated_at FROM user WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
             if (Table == null || Table.Rows.Count < 1) { return new KeyValuePair<bool, string>(true, null); }
             else if (Table.Rows[0].IsNull(1) || Table.Rows[0].Field<string>(0) != NewProfileImageUrl)
@@ -218,7 +224,7 @@ VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @locati
                 cmd.Parameters.AddWithValue("@location", x.User.Location);
                 cmd.Parameters.AddWithValue("@description", x.User.Description);
 
-                return ExecuteNonQuery(cmd, UpdateProfileImage);
+                return ExecuteNonQuery(cmd);
             }
         }
 
@@ -359,7 +365,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(tweet_id) FROM tweet WHERE tweet_id = @tweet_id;"))
             {
                 cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
-                if (SelectCount(cmd, IsolationLevel.ReadUncommitted, true) >= 1) { return true; } else { return false; }
+                if (SelectCount(cmd, IsolationLevel.ReadUncommitted) >= 1) { return true; } else { return false; }
             }
         }
 
@@ -370,7 +376,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT source_tweet_id FROM media WHERE media_id = @media_id;"))
             {
                 cmd.Parameters.AddWithValue("@media_id", media_id);
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
             if (Table == null || Table.Rows.Count < 1) { return false; }
             if (Table.Rows[0].IsNull(0)) { return null; } else { return true; }
@@ -386,7 +392,7 @@ WHERE media_id = @media_id;"))
                 cmd.Parameters.AddWithValue("@media_id", m.Id);
                 cmd.Parameters.AddWithValue("@source_tweet_id", m.SourceStatusId ?? x.Id);
 
-                return ExecuteNonQuery(cmd, true);
+                return ExecuteNonQuery(cmd);
             }
         }
 
@@ -406,7 +412,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
                 cmd.Parameters.AddWithValue("@media_url", m.MediaUrl);
                 cmd.Parameters.AddWithValue("@dcthash", hash);
                 cmd.Parameters.AddWithValue("@downloaded_at", (DateTimeOffset.UtcNow.ToUnixTimeSeconds() as long?));
-                int ret = ExecuteNonQuery(cmd, true);
+                int ret = ExecuteNonQuery(cmd);
                 return ret + Storetweet_media(x.Id, m.Id);
             }
         }
@@ -417,7 +423,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
             {
                 cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
                 cmd.Parameters.AddWithValue("@media_id", media_id);
-                return ExecuteNonQuery(cmd, true);
+                return ExecuteNonQuery(cmd);
             }
         }
 
@@ -456,7 +462,8 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
     class DBHandlerLock : twitenlib.DBHandler
     {
         readonly int pid;
-        private DBHandlerLock() : base("crawl", "", Config.Instance.database.AddressLock, 2, Math.Max(1, (uint)Config.Instance.crawl.MaxDBConnections  >> 2))
+        //private DBHandlerLock() : base("crawl", "", Config.Instance.database.AddressLock, 2, Math.Max(1, (uint)Config.Instance.crawl.MaxDBConnections  >> 2))
+        private DBHandlerLock() : base("crawl", "", Config.Instance.database.Address, 5, (uint)Config.Instance.crawl.MaxDBConnections)
         {
             pid = System.Diagnostics.Process.GetCurrentProcess().Id;
         }
@@ -481,7 +488,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
         {
             const int BulkUnit = 1000;
             const string head = @"DELETE FROM tweetlock WHERE tweet_id IN";
-            List<MySqlCommand> cmdList = new List<MySqlCommand>(tweet_id.Count);
+            List<MySqlCommand> cmdList = new List<MySqlCommand>();
             MySqlCommand cmdtmp;
             int i, j;
 

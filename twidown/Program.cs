@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 
 using System.IO;
 using System.Net;
-using System.Runtime;
 using twitenlib;
 
 namespace twidown
@@ -26,10 +25,18 @@ namespace twidown
                 RestManager Rest = new RestManager();
                 while (true)
                 {
-                    if(Rest.Proceed() == 0) { GC.Collect(); Thread.Sleep(10000); }
+                    if(Rest.Proceed() == 0)
+                    {
+                        Thread.Sleep(5000);
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        GC.Collect();
+                        Thread.Sleep(5000);
+                    }
                 }
             }
 
+            Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
             Config config = Config.Instance;
             DBHandler db = DBHandler.Instance;
             
@@ -48,13 +55,14 @@ namespace twidown
         //StreamerLockerのアンロックはここでやる
         static void IntervalProcess()
         {
-            Config config = Config.Instance;
             StreamerLocker Locker = StreamerLocker.Instance;
+            Counter counter = Counter.Instance;
             Thread.CurrentThread.Priority = ThreadPriority.Highest;
             while (true)
             {
                 Thread.Sleep(60000);
                 Locker.ActualUnlockAll();
+                counter.PrintReset();
             }
         }
     }

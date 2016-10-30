@@ -120,6 +120,7 @@
     <Compile Include="..\twiview\twitenlib.cs">
       <Link>twitenlib.cs</Link>
     </Compile>
+    <Compile Include="Counter.cs" />
     <Compile Include="RestManager.cs" />
     <Compile Include="UserStreamer.cs" />
     <Compile Include="UserStreamerManager.cs" />
