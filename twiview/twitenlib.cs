@@ -219,8 +219,6 @@ namespace twitenlib
     public class DBHandler
     {
         protected Config config = Config.Instance;
-        readonly SemaphoreSlim ConnectionSemaphore;
-        readonly int ConnectionSemaphoreTimeout;
         readonly string ConnectionStr;
         public DBHandler(string user, string pass, string server ="localhost", uint timeout = 20, uint poolsize = 40, uint lifetime = 3600)
         {
@@ -235,10 +233,7 @@ namespace twitenlib
             builder.ConnectionLifeTime = lifetime;
             builder.CharacterSet = "utf8mb4";
             builder.DefaultCommandTimeout = timeout;    //デフォルトは20(秒
-            ConnectionStr = builder.ToString();
-
-            ConnectionSemaphore = new SemaphoreSlim((int)poolsize);
-            ConnectionSemaphoreTimeout = (int)timeout * 1000;
+            ConnectionStr = builder.ToString();            
         }
         MySqlConnection NewConnection()
         {
@@ -286,7 +281,6 @@ namespace twitenlib
 
         protected DataTable SelectTable(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
         {
-            if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)){ return null; }
             try
             {
                 DataTable ret;
@@ -308,13 +302,11 @@ namespace twitenlib
                 return ret;
             }
             catch { return null; }
-            finally { ConnectionSemaphore.Release(); }
         }
 
         protected long SelectCount(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
         {
             //SELECT COUNT() 用
-            if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)) { return -1; }
             try
             {
                 long ret;
@@ -332,7 +324,6 @@ namespace twitenlib
                 return ret;
             }
             catch { return -1; }
-            finally { ConnectionSemaphore.Release(); }
         }
 
         protected int ExecuteNonQuery(MySqlCommand cmd, bool NeverSemaphoreTimeout = false)
@@ -346,7 +337,6 @@ namespace twitenlib
             //MysqlConnectionとMySQLTransactionを張ってcmdを実行する
             //戻り値はDBの変更された行数
             //</summary>
-            if (!ConnectionSemaphore.Wait(NeverSemaphoreTimeout ? -1 : ConnectionSemaphoreTimeout)) { return -1; }
             try
             {
                 int ret = 0;
@@ -367,7 +357,6 @@ namespace twitenlib
                 return ret;
             }
             catch { return -1; }
-            finally { ConnectionSemaphore.Release(); }
         }
 
         //時刻→SnowFlake Larger→時刻じゃないビットを1で埋める
