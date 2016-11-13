@@ -14,6 +14,7 @@ namespace twiview.Controllers
             return View();
         }
 
+        [Route("about")]
         public ActionResult About()
         {
             //ViewBag.Message = "Your application description page.";

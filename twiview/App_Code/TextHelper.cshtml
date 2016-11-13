@@ -1,6 +1,7 @@
 ﻿@using System.Text.RegularExpressions;
 @using System.Web.Mvc.Html
 @using twiview;
+@using twiview.Locale;
 
 @helper TwitterCardDefault()
 {
@@ -20,18 +21,18 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 if (Tweet.user.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy-MM-dd"))">@@@(Tweet.user.screen_name)</a>
 }
 
-@helper DateTweetLink(TweetData._tweet Tweet)
+@helper DateOneTweetLink(TweetData._tweet Tweet)
 {
-    <a href="https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)">@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</a>
+    <a href="/tweet/@(Tweet.tweet_id)">@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</a>
 }
 
 @helper OneTweetLinkButton(SimilarMediaTweet Tweet)
 {
-    <a href="/tweet/@(Tweet.tweet.retweet == null ? Tweet.tweet.tweet_id : Tweet.tweet.retweet.tweet_id)#@(Tweet.media.media_id)" class="btn btn-default">別ページで見る</a>
+    <a href="/tweet/@(Tweet.tweet.retweet == null ? Tweet.tweet.tweet_id : Tweet.tweet.retweet.tweet_id)?More=True#@(Tweet.media.media_id)" class="btn btn-default">@Locale.SimilarMedia_SeparatePage</a>
 }
-@helper OneTweetLinkButtonSeeMore(SimilarMediaTweet Tweet)
+@helper OneTweetLinkButtonViewMore(SimilarMediaTweet Tweet)
 {
-    <a href="/tweet/@(Tweet.tweet.retweet == null ? Tweet.tweet.tweet_id : Tweet.tweet.retweet.tweet_id)#@(Tweet.media.media_id)" class="btn btn-primary">もっと見る</a>
+    <a href="/tweet/@(Tweet.tweet.retweet == null ? Tweet.tweet.tweet_id : Tweet.tweet.retweet.tweet_id)?More=True#@(Tweet.media.media_id)" class="btn btn-primary">@Locale.SimilarMedia_ViewMore</a>
 }
 
 @helper OneTweetButtonTweet(SimilarMediaTweet Tweet)
@@ -40,9 +41,9 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.t
     @ScriptHelper.TweetButton(@"/tweet/" + LinkTweet.tweet_id + "#" + Tweet.media.media_id, string.Format("{0} のツイートと類似画像({1}) - TwiGaTen", LinkTweet.user.screen_name, LinkTweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")))
 }
 
-@helper OneTweetMediaLink(TweetData._tweet Tweet, TweetData._media Media)
+@helper MediaThumb(TweetData._tweet Tweet, TweetData._media Media)
 {
-    <a href="/tweet/@(Tweet.tweet_id)"><img class="twigaten-thumb" src="/Content/Images/dummy/150.png" data-src="@(Media.media_url)" /></a>
+    <img class="twigaten-thumb" src="/Content/Images/dummy/150.png" data-src="@(Media.media_url)" />
 }
 
 @helper GoogleMediaLink(TweetData._media Media)
@@ -57,7 +58,7 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.t
     {
         mediaurl = Media.orig_media_url;
     }
-    <a class="btn btn-default btn-xs" href="https://www.google.co.jp/searchbyimage?image_url=@(url.Encode(mediaurl))"><span class="glyphicon glyphicon-search"></span>画像でググる</a>
+    <a class="btn btn-default btn-xs" href="https://www.google.co.jp/searchbyimage?image_url=@(url.Encode(mediaurl))"><span class="glyphicon glyphicon-search"></span>@Locale.SimilarMedia_GoogleImage</a>
 }
 
 @helper UserLink(TweetData._user User)

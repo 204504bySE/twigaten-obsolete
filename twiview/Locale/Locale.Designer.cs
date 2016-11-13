@@ -61,7 +61,16 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Oops, something went wrong. に類似しているローカライズされた文字列を検索します。
+        ///   « トップページに戻る に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string Auth_BackTop {
+            get {
+                return ResourceManager.GetString("Auth_BackTop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   おやっ、何かがおかしいです。 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Error_Title {
             get {
@@ -70,7 +79,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Popular Tweets に類似しているローカライズされた文字列を検索します。
+        ///   人気のツイート に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_Featured {
             get {
@@ -79,7 +88,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Tweet&lt;small&gt;({0})&lt;/small&gt;Not Found に類似しているローカライズされた文字列を検索します。
+        ///   ツイート&lt;small&gt;({0})&lt;/small&gt;が見つかりませんでした に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_NoTweetToShow_HTML {
             get {
@@ -88,7 +97,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Timeline of @{0} に類似しているローカライズされた文字列を検索します。
+        ///   @{0} のタイムライン に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_Timeline {
             get {
@@ -97,7 +106,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   The time taken to search に類似しているローカライズされた文字列を検索します。
+        ///   検索にかかった時間 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_TimeToSearch {
             get {
@@ -106,7 +115,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   User Not Found に類似しているローカライズされた文字列を検索します。
+        ///   ユーザーが見つかりませんでした に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_UserNotFound {
             get {
@@ -115,7 +124,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Tweets of @{0} に類似しているローカライズされた文字列を検索します。
+        ///   @{0} のツイート に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_UserTweet {
             get {
@@ -124,7 +133,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   About に類似しているローカライズされた文字列を検索します。
+        ///   このサイトについて に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_About {
             get {
@@ -133,7 +142,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Popular Tweets に類似しているローカライズされた文字列を検索します。
+        ///   人気のツイート に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_Featured {
             get {
@@ -142,7 +151,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Sign in with Twitter に類似しているローカライズされた文字列を検索します。
+        ///   Twitterアカウントでログイン に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_Login {
             get {
@@ -151,7 +160,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Sign out に類似しているローカライズされた文字列を検索します。
+        ///   ログアウト に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_Logout {
             get {
@@ -160,7 +169,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   My Tweets に類似しているローカライズされた文字列を検索します。
+        ///   自分のツイート に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_MyTweet {
             get {
@@ -169,7 +178,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Timeline に類似しているローカライズされた文字列を検索します。
+        ///   タイムライン に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_Timeline {
             get {
@@ -178,7 +187,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Popularity に類似しているローカライズされた文字列を検索します。
+        ///   人気順 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Order_Featured {
             get {
@@ -187,7 +196,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Time に類似しているローカライズされた文字列を検索します。
+        ///   時刻順 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Order_New {
             get {
@@ -196,7 +205,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Specify date に類似しているローカライズされた文字列を検索します。
+        ///   日付指定 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_Datetimepicker {
             get {
@@ -205,7 +214,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Latest に類似しているローカライズされた文字列を検索します。
+        ///   最新 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_Latest {
             get {
@@ -214,7 +223,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   « Newer に類似しているローカライズされた文字列を検索します。
+        ///   « 新しい に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_Newer {
             get {
@@ -223,7 +232,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   « Next day に類似しているローカライズされた文字列を検索します。
+        ///   « 次の日 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_NextDay {
             get {
@@ -232,7 +241,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Hide RT に類似しているローカライズされた文字列を検索します。
+        ///   RTを除く に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_NoRT {
             get {
@@ -241,7 +250,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Older » に類似しているローカライズされた文字列を検索します。
+        ///   古い » に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_Older {
             get {
@@ -250,7 +259,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Previous day » に類似しているローカライズされた文字列を検索します。
+        ///   前の日 » に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_PreviousDay {
             get {
@@ -259,7 +268,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Results per page に類似しているローカライズされた文字列を検索します。
+        ///   表示件数 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_ResultsPerPage {
             get {
@@ -268,7 +277,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Today に類似しているローカライズされた文字列を検索します。
+        ///   今日 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_Today {
             get {
@@ -277,7 +286,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Show RT に類似しているローカライズされた文字列を検索します。
+        ///   RTを表示 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_WithRT {
             get {
@@ -286,7 +295,43 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Popular Tweets Having Similar Images({0}) に類似しているローカライズされた文字列を検索します。
+        ///   画像でググる に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string SimilarMedia_GoogleImage {
+            get {
+                return ResourceManager.GetString("SimilarMedia_GoogleImage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   全{0}件 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string SimilarMedia_ResultCount {
+            get {
+                return ResourceManager.GetString("SimilarMedia_ResultCount", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   別ページで見る に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string SimilarMedia_SeparatePage {
+            get {
+                return ResourceManager.GetString("SimilarMedia_SeparatePage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   もっと見る に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string SimilarMedia_ViewMore {
+            get {
+                return ResourceManager.GetString("SimilarMedia_ViewMore", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   人気のツイートと類似画像({0}) に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_Featured {
             get {
@@ -295,7 +340,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Tweet({0}) Not Found に類似しているローカライズされた文字列を検索します。
+        ///   ツイート({0})が見つかりませんでした に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_NoTweetToShow {
             get {
@@ -304,7 +349,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Tweet of @{0} Having Similar Images({1}) に類似しているローカライズされた文字列を検索します。
+        ///   @{0} のツイートと類似画像({1}) に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_OneTweet {
             get {
@@ -313,7 +358,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Timeline of @{0} Having Similar Images{1} に類似しているローカライズされた文字列を検索します。
+        ///   @{0} のタイムライン上の類似画像{1} に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_Timeline {
             get {
@@ -322,7 +367,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   User Not Found に類似しているローカライズされた文字列を検索します。
+        ///   ユーザーが見つかりませんでした に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_UserNotFound {
             get {
@@ -331,11 +376,29 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Tweets of @{0} Having Similar Images{1} に類似しているローカライズされた文字列を検索します。
+        ///   @{0} のツイートと類似画像{1} に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_UserTweet {
             get {
                 return ResourceManager.GetString("Title_UserTweet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   ja に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string TweetButton_Lang {
+            get {
+                return ResourceManager.GetString("TweetButton_Lang", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   ツイート に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string TweetButton_Tweet {
+            get {
+                return ResourceManager.GetString("TweetButton_Tweet", resourceCulture);
             }
         }
     }

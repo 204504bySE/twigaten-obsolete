@@ -1,5 +1,6 @@
 ﻿@using System.Web.Mvc.Html
 @using twiview;
+@using twiview.Locale;
 @helper NoTweetToShow()
 {
     <div>
@@ -13,118 +14,119 @@
     </div>
 }
 
-@helper SimilarMediaAll(SimilarMediaTweet[] Tweets, int SeeMoreButton, bool ShowDate)
+@helper SimilarMediaAll(SimilarMediaTweet[] Tweets, int ViewMoreButton, bool ShowDate)
 {
 DateTimeOffset LastTweetDate = Tweets[0].tweet.created_at.ToLocalTime();
-    if (ShowDate) {<h3>@(LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd"))</h3>}
+bool AdFlag = true;
+if (ShowDate) {<h3>@LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd")</h3>}
     foreach (SimilarMediaTweet Tweet in Tweets)
     {
         DateTimeOffset ThisTweetDate = Tweet.tweet.created_at.ToLocalTime();
         if (ShowDate && (LastTweetDate.Year != ThisTweetDate.Year || LastTweetDate.Month != ThisTweetDate.Month || LastTweetDate.Day != ThisTweetDate.Day))
-        {
-            <h3>@(Tweet.tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd"))</h3>
-        }
+        { <h3>@Tweet.tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd")</h3> }
         LastTweetDate = ThisTweetDate;
-        @(SimilarMedia(Tweet, SeeMoreButton))
+        @SimilarMedia(Tweet, ViewMoreButton)
+    if (AdFlag) { AdFlag = false; @AdHelper.AdArticle() }
     }
 }
 
-@helper SimilarMedia(SimilarMediaTweet Tweet, int SeeMoreButton)
+@helper SimilarMedia(SimilarMediaTweet Tweet, int ViewMoreButton)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContext);
-    <div id= "@(Tweet.media.media_id)" class="well well-sm" style="width:100%">
+    <div class="well well-sm" style="width:100%">
+        <a class="anchor" id="@(Tweet.media.media_id)"></a>
         <div class="panel twigaten-media">
             @if (Tweet.tweet.retweet == null)
         {
-                <div class="text-center" style="margin:4px">@(TextHelper.OneTweetMediaLink(Tweet.tweet, Tweet.media))</div>
-                @(TextHelper.MediaTypeGlyphIcon(Tweet.media))
+                <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(Tweet.tweet, Tweet.media)</div>
+                @TextHelper.MediaTypeGlyphIcon(Tweet.media)
                 <p>
-                    @(TextHelper.UserIcon(Tweet.tweet.user))
-                    @(TextHelper.UserTweetLink(Tweet.tweet)) @(TextHelper.UserLink(Tweet.tweet.user))<br />
-                    @(Tweet.tweet.user.name)
+                    @TextHelper.UserIcon(Tweet.tweet.user)
+                    @TextHelper.UserTweetLink(Tweet.tweet) @TextHelper.UserLink(Tweet.tweet.user)<br />
+                    @Tweet.tweet.user.name)
                 </p>
-                <p>@(TextHelper.DateTweetLink(Tweet.tweet))</p>
+                <p>@TextHelper.DateOneTweetLink(Tweet.tweet)</p>
                 <p>
-                    @(ScriptHelper.RetweetIntent(Tweet.tweet.tweet_id))@(Tweet.tweet.retweet_count)
-                    @(ScriptHelper.FavoriteIntent(Tweet.tweet.tweet_id))@(Tweet.tweet.favorite_count)
-                    @(TextHelper.GoogleMediaLink(Tweet.media))
+                    @ScriptHelper.RetweetIntent(Tweet.tweet.tweet_id)@Tweet.tweet.retweet_count
+                    @ScriptHelper.FavoriteIntent(Tweet.tweet.tweet_id)@Tweet.tweet.favorite_count
+                    @TextHelper.GoogleMediaLink(Tweet.media)
                 </p>
                 <p class="twigaten-tweettext">@(html.Raw(Tweet.tweet.text))</p>
                 }
                 else
                 {
-                <div class="text-center" style="margin:4px">@(TextHelper.OneTweetMediaLink(Tweet.tweet.retweet, Tweet.media))</div>
+                <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(Tweet.tweet.retweet, Tweet.media)</div>
                 @(TextHelper.MediaTypeGlyphIcon(Tweet.media))
                 <p>
-                    @(TextHelper.UserIcon(Tweet.tweet.retweet.user))
-                    @(TextHelper.UserTweetLink(Tweet.tweet.retweet)) @(TextHelper.UserLink(Tweet.tweet.retweet.user))<br />
-                    @(Tweet.tweet.retweet.user.name)
+                    @TextHelper.UserIcon(Tweet.tweet.retweet.user)
+                    @TextHelper.UserTweetLink(Tweet.tweet.retweet) @TextHelper.UserLink(Tweet.tweet.retweet.user)<br />
+                    @Tweet.tweet.retweet.user.name
                 </p>
-                <p>@(TextHelper.DateTweetLink(Tweet.tweet.retweet))</p>
+                <p>@TextHelper.DateOneTweetLink(Tweet.tweet.retweet)</p>
                 <p>
-                    @(ScriptHelper.RetweetIntent(Tweet.tweet.retweet.tweet_id)) @(Tweet.tweet.retweet.retweet_count)
-                    @(ScriptHelper.FavoriteIntent(Tweet.tweet.retweet.tweet_id)) @(Tweet.tweet.retweet.favorite_count)
-                    @(TextHelper.GoogleMediaLink(Tweet.media))
+                    @ScriptHelper.RetweetIntent(Tweet.tweet.retweet.tweet_id) @Tweet.tweet.retweet.retweet_count
+                    @ScriptHelper.FavoriteIntent(Tweet.tweet.retweet.tweet_id) @Tweet.tweet.retweet.favorite_count
+                    @TextHelper.GoogleMediaLink(Tweet.media)
                 </p>
-                <p class="twigaten-tweettext">@(html.Raw(@Tweet.tweet.retweet.text))</p>
+                <p class="twigaten-tweettext">@html.Raw(@Tweet.tweet.retweet.text)</p>
                 <p>
-                    @(TextHelper.UserIcon(Tweet.tweet.user))
+                    @TextHelper.UserIcon(Tweet.tweet.user)
                     <span class="glyphicon glyphicon-retweet"></span>
-                    @(TextHelper.UserTweetLink(Tweet.tweet))<br />
-                    @(Tweet.tweet.user.name)
+                    @TextHelper.UserTweetLink(Tweet.tweet)<br />
+                    @Tweet.tweet.user.name
                 </p>
-                <p>@(TextHelper.DateTweetLink(Tweet.tweet))</p>
+                <p>@TextHelper.DateOneTweetLink(Tweet.tweet)</p>
                 if (Tweet.tweet.text != null)
                 {
-                <p class="twigaten-tweettext">@(html.Raw(Tweet.tweet.text))</p>
+                <p class="twigaten-tweettext">@html.Raw(Tweet.tweet.text)</p>
                 }
                 }
             </div>
         @foreach (SimilarMediaTweet Similar in Tweet.Similars)
         {
             <div class="twigaten-media twigaten-similarmedia">
-                <div class="text-center" style="margin:4px">@(TextHelper.OneTweetMediaLink(Similar.tweet, Similar.media))</div>
-                @(TextHelper.MediaTypeGlyphIcon(Similar.media))
+                <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(Similar.tweet, Similar.media)</div>
+                @TextHelper.MediaTypeGlyphIcon(Similar.media)
                 <p>
-                    @(TextHelper.UserIcon(Similar.tweet.user))
-                    @(TextHelper.UserTweetLink(Similar.tweet)) @(TextHelper.UserLink(Similar.tweet.user))<br />
-                    @(Similar.tweet.user.name)</p>
+                    @TextHelper.UserIcon(Similar.tweet.user)
+                    @TextHelper.UserTweetLink(Similar.tweet) @TextHelper.UserLink(Similar.tweet.user)<br />
+                    @Similar.tweet.user.name</p>
                 @{
                     if (Tweet.tweet.retweet == null)
                     {
                         if (Similar.tweet.created_at < Tweet.tweet.created_at)
-                        { <p><strong>@(TextHelper.DateTweetLink(Similar.tweet))</strong></p> }
+                        { <p><strong>@TextHelper.DateOneTweetLink(Similar.tweet)</strong></p> }
                         else
-                        { <p>@(TextHelper.DateTweetLink(Similar.tweet)) </p> }
+                        { <p>@TextHelper.DateOneTweetLink(Similar.tweet) </p> }
                     }
                     else
                     {
                         if (Similar.tweet.created_at < Tweet.tweet.retweet.created_at)
-                        { <p><strong>@(TextHelper.DateTweetLink(Similar.tweet))</strong></p> }
+                        { <p><strong>@TextHelper.DateOneTweetLink(Similar.tweet)</strong></p> }
                         else
-                        { <p>@(TextHelper.DateTweetLink(Similar.tweet)) </p> }
-                        }
+                        { <p>@TextHelper.DateOneTweetLink(Similar.tweet) </p> }
+                    }
                 }
                 <p>
-                    @(ScriptHelper.RetweetIntent(Similar.tweet.tweet_id))@(Similar.tweet.retweet_count)
-                    @(ScriptHelper.FavoriteIntent(Similar.tweet.tweet_id))@(Similar.tweet.favorite_count)
-                    @(TextHelper.GoogleMediaLink(Tweet.media))
+                    @ScriptHelper.RetweetIntent(Similar.tweet.tweet_id)@Similar.tweet.retweet_count
+                    @ScriptHelper.FavoriteIntent(Similar.tweet.tweet_id)@Similar.tweet.favorite_count
+                    @TextHelper.GoogleMediaLink(Tweet.media)
                 </p>
-                <p class="twigaten-tweettext">@(html.Raw(Similar.tweet.text))</p>
+                <p class="twigaten-tweettext">@html.Raw(Similar.tweet.text)</p>
             </div>
         }
-        @if (SeeMoreButton > 0)
+        @if (ViewMoreButton > 0)
         {
             <p>
-                @if (Tweet.SimilarMediaCount > SeeMoreButton) {
-                <strong>全@(Tweet.SimilarMediaCount)件</strong>@(TextHelper.OneTweetLinkButtonSeeMore(Tweet)) }
-                else { <span>全@(Tweet.SimilarMediaCount)件</span>@(TextHelper.OneTweetLinkButton(Tweet)) }
-                @(TextHelper.OneTweetButtonTweet(Tweet))
+                @if (Tweet.SimilarMediaCount > ViewMoreButton) {
+                <strong>@string.Format(Locale.SimilarMedia_ResultCount, Tweet.SimilarMediaCount)</strong>@TextHelper.OneTweetLinkButtonViewMore(Tweet) }
+                else { <span>@string.Format(Locale.SimilarMedia_ResultCount, Tweet.SimilarMediaCount)</span>@TextHelper.OneTweetLinkButton(Tweet) }
+                @TextHelper.OneTweetButtonTweet(Tweet)
             </p>
         }
         else
-        { <p>全@(Tweet.SimilarMediaCount)件</p> }
+        { <p>@string.Format(Locale.SimilarMedia_ResultCount, Tweet.SimilarMediaCount)</p> }
 </div>
 }
 

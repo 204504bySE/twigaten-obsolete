@@ -6,6 +6,7 @@ using System.Web;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using twitenlib;
 
 namespace twiview
@@ -72,6 +73,14 @@ namespace twiview
             if (IsCached) { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
             else if (User.profile_image_url.IndexOf("twimg.com/") >= 0) { return User.profile_image_url.Replace("http://", "https://"); }
             else { return User.profile_image_url; }
+        }
+
+        static int seed = Environment.TickCount;
+        static readonly ThreadLocal<Random> rand = new ThreadLocal<Random>(() => 
+            { return new Random(Interlocked.Increment(ref seed)); });
+        public static string RandomHash()
+        {
+            return rand.Value.Next().ToString("x8");
         }
     }
 }

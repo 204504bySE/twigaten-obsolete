@@ -118,96 +118,117 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="Error_Title" xml:space="preserve">
-    <value>Oops, something went wrong.</value>
+    <value>おやっ、何かがおかしいです。</value>
   </data>
   <data name="Headline_Featured" xml:space="preserve">
-    <value>Popular Tweets</value>
+    <value>人気のツイート</value>
   </data>
   <data name="Headline_NoTweetToShow_HTML" xml:space="preserve">
-    <value>Tweet&lt;small&gt;({0})&lt;/small&gt;Not Found</value>
+    <value>ツイート&lt;small&gt;({0})&lt;/small&gt;が見つかりませんでした</value>
   </data>
   <data name="Headline_Timeline" xml:space="preserve">
-    <value>Timeline of @{0}</value>
+    <value>@{0} のタイムライン</value>
   </data>
   <data name="Headline_TimeToSearch" xml:space="preserve">
-    <value>The time taken to search</value>
+    <value>検索にかかった時間</value>
   </data>
   <data name="Headline_UserNotFound" xml:space="preserve">
-    <value>User Not Found</value>
+    <value>ユーザーが見つかりませんでした</value>
   </data>
   <data name="Headline_UserTweet" xml:space="preserve">
-    <value>Tweets of @{0}</value>
+    <value>@{0} のツイート</value>
   </data>
   <data name="Menu_About" xml:space="preserve">
-    <value>About</value>
+    <value>このサイトについて</value>
   </data>
   <data name="Menu_Featured" xml:space="preserve">
-    <value>Popular Tweets</value>
+    <value>人気のツイート</value>
   </data>
   <data name="Menu_Login" xml:space="preserve">
-    <value>Sign in with Twitter</value>
+    <value>Twitterアカウントでログイン</value>
   </data>
   <data name="Menu_Logout" xml:space="preserve">
-    <value>Sign out</value>
+    <value>ログアウト</value>
   </data>
   <data name="Menu_MyTweet" xml:space="preserve">
-    <value>My Tweets</value>
+    <value>自分のツイート</value>
   </data>
   <data name="Menu_Timeline" xml:space="preserve">
-    <value>Timeline</value>
+    <value>タイムライン</value>
   </data>
   <data name="Order_Featured" xml:space="preserve">
-    <value>Popularity</value>
+    <value>人気順</value>
   </data>
   <data name="Order_New" xml:space="preserve">
-    <value>Time</value>
+    <value>時刻順</value>
   </data>
   <data name="Pager_Datetimepicker" xml:space="preserve">
-    <value>Specify date</value>
+    <value>日付指定</value>
   </data>
   <data name="Pager_Latest" xml:space="preserve">
-    <value>Latest</value>
+    <value>最新</value>
   </data>
   <data name="Pager_Newer" xml:space="preserve">
-    <value>« Newer</value>
+    <value>« 新しい</value>
   </data>
   <data name="Pager_NextDay" xml:space="preserve">
-    <value>« Next day</value>
+    <value>« 次の日</value>
   </data>
   <data name="Pager_NoRT" xml:space="preserve">
-    <value>Hide RT</value>
+    <value>RTを除く</value>
   </data>
   <data name="Pager_Older" xml:space="preserve">
-    <value>Older »</value>
+    <value>古い »</value>
   </data>
   <data name="Pager_PreviousDay" xml:space="preserve">
-    <value>Previous day »</value>
+    <value>前の日 »</value>
   </data>
   <data name="Pager_ResultsPerPage" xml:space="preserve">
-    <value>Results per page</value>
+    <value>表示件数</value>
   </data>
   <data name="Pager_Today" xml:space="preserve">
-    <value>Today</value>
+    <value>今日</value>
   </data>
   <data name="Pager_WithRT" xml:space="preserve">
-    <value>Show RT</value>
+    <value>RTを表示</value>
   </data>
   <data name="Title_Featured" xml:space="preserve">
-    <value>Popular Tweets Having Similar Images({0})</value>
+    <value>人気のツイートと類似画像({0})</value>
   </data>
   <data name="Title_NoTweetToShow" xml:space="preserve">
-    <value>Tweet({0}) Not Found</value>
+    <value>ツイート({0})が見つかりませんでした</value>
   </data>
   <data name="Title_OneTweet" xml:space="preserve">
-    <value>Tweet of @{0} Having Similar Images({1})</value>
+    <value>@{0} のツイートと類似画像({1})</value>
   </data>
   <data name="Title_Timeline" xml:space="preserve">
-    <value>Timeline of @{0} Having Similar Images{1}</value>
+    <value>@{0} のタイムライン上の類似画像{1}</value>
   </data>
   <data name="Title_UserNotFound" xml:space="preserve">
-    <value>User Not Found</value>
+    <value>ユーザーが見つかりませんでした</value>
   </data>
   <data name="Title_UserTweet" xml:space="preserve">
-    <value>Tweets of @{0} Having Similar Images{1}</value>
+    <value>@{0} のツイートと類似画像{1}</value>
+  </data>
+  <data name="Auth_BackTop" xml:space="preserve">
+    <value>« トップページに戻る</value>
+  </data>
+  <data name="SimilarMedia_GoogleImage" xml:space="preserve">
+    <value>画像でググる</value>
+  </data>
+  <data name="SimilarMedia_ResultCount" xml:space="preserve">
+    <value>全{0}件</value>
+  </data>
+  <data name="SimilarMedia_SeparatePage" xml:space="preserve">
+    <value>別ページで見る</value>
+  </data>
+  <data name="SimilarMedia_ViewMore" xml:space="preserve">
+    <value>もっと見る</value>
+  </data>
+  <data name="TweetButton_Lang" xml:space="preserve">
+    <value>ja</value>
+  </data>
+  <data name="TweetButton_Tweet" xml:space="preserve">
+    <value>ツイート</value>
   </data>
 </root>

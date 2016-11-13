@@ -35,11 +35,13 @@ namespace twiview.Models
     public class SimilarMediaModelOneTweet : SimilarMediaModel
     {
         public long TargetTweetID;
-        public SimilarMediaModelOneTweet(long tweet_id, long? login_user_id, int SimilarLimit)
+        public bool ViewMoreButton;
+        public SimilarMediaModelOneTweet(long tweet_id, long? login_user_id, int SimilarLimit, bool ViewMoreButton)
         {
             sw.Start();
             TargetTweetID = tweet_id;
             this.SimilarLimit = SimilarLimit;
+            this.ViewMoreButton = ViewMoreButton;
             Tweets = db.SimilarMediaTweet(tweet_id, login_user_id, SimilarLimit);
 
             sw.Stop();

@@ -167,11 +167,9 @@ namespace twitenlib
         public class _database
         {
             public string Address { get; }
-            public string AddressLock { get; }
             public _database(IniFileHandler ini)
             {
                 Address = ini.getvalue("database", "Address", "localhost");
-                AddressLock = ini.getvalue("database", "AddressLock", "localhost");
             }
         }
         public _database database;

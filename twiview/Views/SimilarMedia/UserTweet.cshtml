@@ -157,6 +157,7 @@
 {
     @SimilarMediaHelper.SimilarMediaAll(Model.Tweets, Model.SimilarLimit, true)
     @pager()
+    if (Model.Tweets.Length > 2) { @AdHelper.AdFooter() }
 }
 else
 {

@@ -150,8 +150,8 @@
     <Compile Include="App_Start\FilterConfig.cs" />
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Controllers\SearchController.cs" />
-    <Compile Include="Locale\Locale.ja.Designer.cs">
-      <DependentUpon>Locale.ja.resx</DependentUpon>
+    <Compile Include="Locale\Locale.Designer.cs">
+      <DependentUpon>Locale.resx</DependentUpon>
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
     </Compile>
@@ -171,10 +171,10 @@
     <Compile Include="Models\SimilarMediaModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="config.cs" />
-    <Compile Include="Locale\Locale.Designer.cs">
+    <Compile Include="Locale\Locale.en.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
-      <DependentUpon>Locale.resx</DependentUpon>
+      <DependentUpon>Locale.en.resx</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -263,14 +263,18 @@
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Locale\Locale.ja.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Locale.ja.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
     <EmbeddedResource Include="Locale\Locale.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Locale.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
+    <EmbeddedResource Include="Locale\Locale.en.resx">
+      <Generator>PublicResXFileCodeGenerator</Generator>
+      <LastGenOutput>Locale.en.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

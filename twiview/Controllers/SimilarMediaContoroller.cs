@@ -24,10 +24,11 @@ namespace twiview.Controllers
         }
 
         [Route("tweet/{TweetID:long}")]
-        public ActionResult OneTweet(long TweetID)
+        public ActionResult OneTweet(long TweetID, bool? More)
         {
             Login = new LoginHandler(Session, Request, Response);
-            return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100));
+            if (More ?? false) { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100, false)); }
+            else { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 3, true)); }
         }
 
         [Route("timeline/{UserID:long?}")]

@@ -12,14 +12,15 @@ namespace twiview.Controllers
     public class SearchController : Controller
     {
         DBHandlerView db = new DBHandlerView();
+        Regex StatusRegex = new Regex(@"twitter\.com\/.+?\/status(es)?\/(?<status_id>[0-9]+)", RegexOptions.Compiled);
 
-        // GET: UserSearch
         public ActionResult Index(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Show, bool Direct = true)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
             string QueryStr = twitenlib.CharCodes.KillNonASCII(Str);
             if (Str == null || Str == "") { return View(); }
-            Regex StatusRegex = new Regex(@"twitter\.com\/.+?\/status(es)?\/(?<status_id>[0-9]+)", RegexOptions.Compiled);
+
+            //ツイートのURLっぽいならそのツイートのページに飛ばす
             if (StatusRegex.IsMatch(QueryStr))
             {
                 return RedirectToRoute(new
@@ -30,7 +31,7 @@ namespace twiview.Controllers
                 });
             }
             else
-            {
+            {   //ツイートのURLっぽくなければユーザー名検索とみなす
                 if (Direct)
                 {
                     long? TargetUserID = db.SelectID_Unique_screen_name(QueryStr.Trim().Replace("@", "").Replace("%", ""));
