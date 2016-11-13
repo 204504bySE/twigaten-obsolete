@@ -31,14 +31,16 @@ namespace twidown
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
         TweetTimeList TweetTime = new TweetTimeList();
         bool isAttemptingConnect = false;
-        StreamerLocker Locker = StreamerLocker.Instance;
+        UserStreamerManager.StreamerLocker Locker;
 
-        public UserStreamer(Tokens t)
+        public UserStreamer(Tokens t, UserStreamerManager.StreamerLocker l)
         {
             Token = t;
             Token.ConnectionOptions.DisableKeepAlive = false;
             Token.ConnectionOptions.UseCompression = true;
             Token.ConnectionOptions.UseCompressionOnStreaming = true;
+
+            Locker = l;
         }
 
         //最近受信したツイートの時刻を一定数保持する
@@ -88,12 +90,7 @@ namespace twidown
             }
             if (e != null || (!isAttemptingConnect && StreamDisposable == null))
             {
-                if (e != null)
-                {
-                    //Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, e);
-                    if (e is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
-                    e = null;
-                }
+                e = null;
                 if (StreamDisposable != null)
                 {
                     StreamDisposable.Dispose();
@@ -133,13 +130,13 @@ namespace twidown
                 }
                 else
                 {
-                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                    Console.WriteLine("{0} {1}: {2} {3}", DateTime.Now, Token.UserId, ex.Status, ex.Message);
                     return TokenStatus.Failure;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
                 return TokenStatus.Failure;
             }
             finally { isAttemptingConnect = false; }
@@ -162,7 +159,8 @@ namespace twidown
                 },
                 (Exception ex) =>
                 {
-                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                    if (ex is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
+                    Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
                     e = ex;
                 },
                 () =>
@@ -208,13 +206,13 @@ namespace twidown
                 }
                 else
                 {
-                    Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                    Console.WriteLine("{0} {1}: {2} {3}", DateTime.Now, Token.UserId, ex.Status, ex.Message);
                     return TokenStatus.Failure;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("{0} {1}:\n{2}", DateTime.Now, Token.UserId, ex);
+                Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
                 return TokenStatus.Failure;
             }
         }
@@ -278,7 +276,7 @@ namespace twidown
             }
             catch (Exception e)
             {
-                Console.WriteLine("{0} {1}: REST timeline failed:\n{2}", DateTime.Now, Token.UserId, e);
+                Console.WriteLine("{0} {1}: REST timeline failed: {2}", DateTime.Now, Token.UserId, e.Message);
                 return new DateTimeOffset[0];
             }
         }
@@ -299,7 +297,7 @@ namespace twidown
             }
             catch (Exception e)
             {
-                Console.WriteLine("{0} {1}: REST tweets failed:\n{2}", DateTime.Now, Token.UserId, e);
+                Console.WriteLine("{0} {1}: REST tweets failed: {2}", DateTime.Now, Token.UserId, e.Message);
             }
         }
 
@@ -317,7 +315,6 @@ namespace twidown
         enum RestCursorMode { Friend, Block }
         long[] RestCursored(RestCursorMode Mode)
         {
-            Cursored<long> CursoredUsers = new Cursored<long>();
             try
             {
                 switch (Mode)
@@ -330,14 +327,14 @@ namespace twidown
             }
             catch (Exception e)
             {
-                Console.WriteLine("{0} {1}: REST {2}s failed:\n{2}", DateTime.Now, Token.UserId, e, Mode.ToString());
+                Console.WriteLine("{0} {1}: REST {2}s failed: {3}", DateTime.Now, Token.UserId, Mode.ToString(), e.Message);
             }
             return null;
         }
 
         void HandleTweet(DeleteMessage x)
         {
-            if (Locker.LockDelete(x.Id)) { db.StoreTweet(x); }
+            Locker.LockDelete(x.Id);    //ここでは削除しないで後でLocker側で消す
         }
 
 
@@ -353,7 +350,7 @@ namespace twidown
             if (x.RetweetedStatus != null) { ret += HandleTweet(x.RetweetedStatus, update); }
             if (Locker.LockUser(x.User.Id))
             {
-                if (update) { DownloadStoreProfileImage(x); }
+                if (update) { DownloadStoreProfileImage(x).Wait(); }
                 else { db.StoreUser(x, false, false); }
             }
             int ret2;
@@ -384,7 +381,7 @@ namespace twidown
             finally { Locker.UnlockTweet(StatusId); }
         }
 
-        async void DownloadStoreProfileImage(Status x)
+        async Task DownloadStoreProfileImage(Status x)
         {
             //<summary>
             //アイコンが更新または未保存ならダウンロードする
@@ -414,9 +411,13 @@ namespace twidown
             catch { db.StoreUser(x, false); }
         }
 
-        async void DownloadStoreMedia(Status x)
+        async Task DownloadStoreMedia(Status x)
         {
-            if (x.RetweetedStatus != null) { DownloadStoreMedia(x.RetweetedStatus); }
+            if (x.RetweetedStatus != null)
+            {   //そもそもRTに対してこれを呼ぶべきではない
+                await DownloadStoreMedia(x.RetweetedStatus);
+                return;
+            }
             foreach (MediaEntity m in x.ExtendedEntities.Media)
             {
                 counter.MediaTotal.Increment();

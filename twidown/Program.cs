@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 
 using System.IO;
 using System.Net;
+using System.Diagnostics;
 using twitenlib;
 
 namespace twidown
@@ -16,12 +17,11 @@ namespace twidown
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             Thread.Sleep(10000);
-
-            Task.Factory.StartNew(() => IntervalProcess());
-            
+          
             if (args.Length >= 1 && args[0] == "/REST")
             {
                 Console.WriteLine("{0} App: Running in REST mode.", DateTime.Now);
+                Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.Idle;
                 RestManager Rest = new RestManager();
                 while (true)
                 {
@@ -49,20 +49,6 @@ namespace twidown
                 GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, false, true);
                 Thread.Sleep(60000);
                 manager.AddAll(db.SelectAlltoken());
-            }
-        }
-
-        //StreamerLockerのアンロックはここでやる
-        static void IntervalProcess()
-        {
-            StreamerLocker Locker = StreamerLocker.Instance;
-            Counter counter = Counter.Instance;
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;
-            while (true)
-            {
-                Thread.Sleep(60000);
-                Locker.ActualUnlockAll();
-                counter.PrintReset();
             }
         }
     }

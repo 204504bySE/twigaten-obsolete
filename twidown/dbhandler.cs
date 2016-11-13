@@ -14,12 +14,9 @@ namespace twidown
 {
     class DBHandler : twitenlib.DBHandler
     {
-        readonly int pid;
-        //private DBHandler() : base("crawl", "", Config.Instance.database.Address, 20, Math.Max(1, (uint)(Config.Instance.crawl.MaxDBConnections - (Config.Instance.crawl.MaxDBConnections >> 2))) )
-        private DBHandler() : base("crawl", "", Config.Instance.database.Address, 5, (uint)Config.Instance.crawl.MaxDBConnections)
-        {
-            pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-        }
+        readonly int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        private DBHandler() : base("crawl", "", Config.Instance.database.Address, 10, (uint)Config.Instance.crawl.MaxDBConnections) { }
         private static DBHandler _db = new DBHandler();
         //singletonはこれでインスタンスを取得して使う
         public static DBHandler Instance
@@ -160,9 +157,9 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
 
         //<summary>
         //アイコンを取得する必要があるかどうか返す
-        //「保存されている」アイコンの元URLとNewProfileImageUrlが一致しない
-        //updated_at IS NULL (アイコンが保存されていない)
-        //そもそもアカウントの情報が保存されていない
+        //  「保存されている」アイコンの元URLとNewProfileImageUrlが一致しない
+        //  updated_at IS NULL (アイコンが保存されていない)
+        //  そもそもアカウントの情報が保存されていない
         //</summary>
         public KeyValuePair<bool, string> NeedtoDownloadProfileImage(long user_id, string NewProfileImageUrl)
         {
@@ -172,7 +169,8 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
                 cmd.Parameters.AddWithValue("@user_id", user_id);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
-            if (Table == null || Table.Rows.Count < 1) { return new KeyValuePair<bool, string>(true, null); }
+            if(Table == null) { return new KeyValuePair<bool, string>(false, null); } 
+            else if (Table.Rows.Count < 1) { return new KeyValuePair<bool, string>(true, null); }
             else if (Table.Rows[0].IsNull(1) || Table.Rows[0].Field<string>(0) != NewProfileImageUrl)
             { return new KeyValuePair<bool, string>(true, Table.Rows[0].Field<string>(0)); }
             else { return new KeyValuePair<bool, string>(false, null); }
@@ -263,13 +261,38 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         //<summary>
         //消されたツイートをDBから消す
         //</summary>
-        public int StoreTweet(DeleteMessage x)
+        public int StoreDelete(long[] DeleteID)
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"DELETE IGNORE FROM tweet WHERE tweet_id = @tweet_id;"))
+            if(DeleteID == null || DeleteID.Length == 0) { return 0; }
+            const int BulkUnit = 1000;
+            const string head = @"DELETE IGNORE FROM tweet WHERE tweet_id IN";
+            List<MySqlCommand> cmdList = new List<MySqlCommand>();
+            MySqlCommand cmdtmp;
+            int i, j;
+            string BulkInsertCmdFull = "";
+
+            Array.Sort(DeleteID);
+
+            for (i = 0; i < DeleteID.Length / BulkUnit; i++)
             {
-                cmd.Parameters.AddWithValue("@tweet_id", x.Id);
-                return ExecuteNonQuery(cmd);
+                if (i == 0) { BulkInsertCmdFull = BulkCmdStrIn(BulkUnit, head); }
+                cmdtmp = new MySqlCommand(BulkInsertCmdFull);
+                for (j = 0; j < BulkUnit; j++)
+                {
+                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
+                }
+                cmdList.Add(cmdtmp);
             }
+            if (DeleteID.Length % BulkUnit != 0)
+            {
+                cmdtmp = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head));
+                for (j = 0; j < DeleteID.Length % BulkUnit; j++)
+                {
+                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
+                }
+                cmdList.Add(cmdtmp);
+            }
+            return ExecuteNonQuery(cmdList);
         }
 
         public int StoreFriends(FriendsMessage x, long UserID)
@@ -378,7 +401,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                 cmd.Parameters.AddWithValue("@media_id", media_id);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
-            if (Table == null || Table.Rows.Count < 1) { return false; }
+            if (Table == null || Table.Rows.Count < 1) { return false; }    //DBが詰まるとあああ
             if (Table.Rows[0].IsNull(0)) { return null; } else { return true; }
         }
 
@@ -404,7 +427,7 @@ INTO media (media_id, source_tweet_id, type, media_url, dcthash, downloaded_at)
 VALUES(@media_id, @source_tweet_id, @type, @media_url, @dcthash, @downloaded_at) 
 ON DUPLICATE KEY UPDATE
 source_tweet_id = if (EXISTS (SELECT * FROM tweet WHERE tweet_id = @source_tweet_id), @source_tweet_id, source_tweet_id),
-dcthash = @dcthash, downloaded_at = @downloaded_at;"))
+dcthash = @dcthash;"))
             {
                 cmd.Parameters.AddWithValue("@media_id", m.Id);
                 cmd.Parameters.AddWithValue("@source_tweet_id", m.SourceStatusId ?? x.Id);
@@ -457,22 +480,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
             }
             return ExecuteNonQuery(cmdList);
         }
-    }
-
-    class DBHandlerLock : twitenlib.DBHandler
-    {
-        readonly int pid;
-        //private DBHandlerLock() : base("crawl", "", Config.Instance.database.AddressLock, 2, Math.Max(1, (uint)Config.Instance.crawl.MaxDBConnections  >> 2))
-        private DBHandlerLock() : base("crawl", "", Config.Instance.database.Address, 5, (uint)Config.Instance.crawl.MaxDBConnections)
-        {
-            pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-        }
-        private static DBHandlerLock _db = new DBHandlerLock();
-        //singletonはこれでインスタンスを取得して使う
-        public static DBHandlerLock Instance
-        {
-            get { return _db; }
-        }
+        
         //プロセスを跨いだ排他制御用
         public bool LockTweet(long tweet_id)
         {
@@ -499,7 +507,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
                 cmdtmp = new MySqlCommand(BulkCmdFull);
                 for (j = 0; j < BulkUnit; j++)
                 {
-                    cmdtmp.Parameters.AddWithValue("@" + j.ToString(), tweet_id[BulkUnit * i + j]);
+                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), tweet_id[BulkUnit * i + j]);
                 }
                 cmdList.Add(cmdtmp);
             }
@@ -508,7 +516,7 @@ dcthash = @dcthash, downloaded_at = @downloaded_at;"))
                 cmdtmp = new MySqlCommand(BulkCmdStrIn(tweet_id.Count % BulkUnit, head));
                 for (j = 0; j < tweet_id.Count % BulkUnit; j++)
                 {
-                    cmdtmp.Parameters.AddWithValue("@" + j.ToString(), tweet_id[BulkUnit * i + j]);
+                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), tweet_id[BulkUnit * i + j]);
                 }
                 cmdList.Add(cmdtmp);
             }

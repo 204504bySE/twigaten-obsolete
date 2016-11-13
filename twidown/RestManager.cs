@@ -16,7 +16,7 @@ namespace twidown
     {
         Config config = Config.Instance;
         DBHandler db = DBHandler.Instance;
-        StreamerLocker Locker = StreamerLocker.Instance;
+        UserStreamerManager.StreamerLocker Locker = new UserStreamerManager.StreamerLocker();
 
         public RestManager()
         {
@@ -34,7 +34,7 @@ namespace twidown
                 ThreadPriority priviousePrio = Thread.CurrentThread.Priority;
                 Thread.CurrentThread.Priority = ThreadPriority.Lowest;
 
-                UserStreamer s = new UserStreamer(t.Key);
+                UserStreamer s = new UserStreamer(t.Key, Locker);
                 s.RestBlock();
                 if (t.Value) { s.RecieveRestTimeline(); }
                 s.RestMyTweet();

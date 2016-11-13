@@ -19,6 +19,7 @@ namespace twidownparent
             ChildProcessHandler ch = new ChildProcessHandler();
             long[] users;
             int usersIndex = 0;
+            int ForceNewChild = 0;
 
             if (config.crawlparent.InitTruncate)
             {
@@ -33,8 +34,18 @@ namespace twidownparent
                 }
             } else { db.DeleteDeadpid(); users = db.SelectNewToken(); }
 
+
+
             while (true)
             {
+                //子プロセスが死んだならその分だけ先に起動する
+                for (int i = 0; i < ForceNewChild; i++)
+                {
+                    int newpid = ch.StartChild();
+                    if (newpid < 0) { continue; }    //雑すぎるエラー処理
+                    db.Insertpid(newpid);
+                }
+
                 if (users.Length > 0)
                 {
                     usersIndex = 0;
@@ -53,7 +64,7 @@ namespace twidownparent
                     }
                 }
                 Thread.Sleep(60000);
-                db.DeleteDeadpid();
+                ForceNewChild = db.DeleteDeadpid();
                 users = db.SelectNewToken();
             }
         }
