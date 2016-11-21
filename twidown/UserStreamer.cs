@@ -31,9 +31,9 @@ namespace twidown
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
         TweetTimeList TweetTime = new TweetTimeList();
         bool isAttemptingConnect = false;
-        UserStreamerManager.StreamerLocker Locker;
+        StreamerLocker Locker;
 
-        public UserStreamer(Tokens t, UserStreamerManager.StreamerLocker l)
+        public UserStreamer(Tokens t, StreamerLocker l)
         {
             Token = t;
             Token.ConnectionOptions.DisableKeepAlive = false;

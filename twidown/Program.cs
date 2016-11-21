@@ -27,11 +27,8 @@ namespace twidown
                 {
                     if(Rest.Proceed() == 0)
                     {
-                        Thread.Sleep(5000);
+                        Thread.Sleep(10000);
                         GC.Collect();
-                        GC.WaitForPendingFinalizers();
-                        GC.Collect();
-                        Thread.Sleep(5000);
                     }
                 }
             }
@@ -54,28 +51,13 @@ namespace twidown
     }
 
     //ある処理と現在時刻との差を把握する奴
+    //stopwatchほどの精度はいらない時用
     struct TickCount
     {
         public int Tick { get; private set; }
-        public TickCount(int Offset = 0)
-        {
-            Tick = unchecked(Environment.TickCount + Offset);
-        }
-        public void update()
-        {
-            Tick = Environment.TickCount;
-        }
-        public void update(int Offset)
-        {
-            Tick = unchecked(Environment.TickCount + Offset);
-        }
-        public int Elasped
-        {
-            get
-            {
-                return unchecked(Environment.TickCount - Tick);
-            }
-        }
+        public TickCount(int Offset) : this() { Update(Offset); }        
+        public int Elasped { get { return unchecked(Environment.TickCount - Tick); } }
+        public void Update(int Offset = 0) { Tick = unchecked(Environment.TickCount + Offset); }
     }
 
     static class LogFailure

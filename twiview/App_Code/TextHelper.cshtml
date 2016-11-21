@@ -6,7 +6,7 @@
 @helper TwitterCardDefault()
 {
     <meta name="twitter:description" content="TwiGaTenは、Twitter上の画像付きツイートから、画像転載と思われるツイートを検索できるWebサイトです。" />
-    <meta name="twitter:image" content="@(Request.Url.GetLeftPart(UriPartial.Authority))/Content/Images/ten120.png" />
+    <meta name="twitter:image" content="@(Request.Url.GetLeftPart(UriPartial.Authority))/Content/images/ten120.png" />
 }
 
 @helper UserTweetLink(TweetData._user User)
@@ -43,7 +43,7 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.t
 
 @helper MediaThumb(TweetData._tweet Tweet, TweetData._media Media)
 {
-    <img class="twigaten-thumb" src="/Content/Images/dummy/150.png" data-src="@(Media.media_url)" />
+    <img class="twigaten-thumb" src="/Content/images/dummy/150.png" data-src="@(Media.media_url)" />
 }
 
 @helper GoogleMediaLink(TweetData._media Media)
@@ -63,15 +63,15 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.t
 
 @helper UserLink(TweetData._user User)
 {
-    <a href="https://twitter.com/@(User.screen_name)"><img src="/Content/Images/Twitter_bird_logo_2012.svg" width="16" height="16" /></a>
+    <a href="https://twitter.com/@(User.screen_name)"><img src="/Content/images/Twitter_bird_logo_2012.svg" width="16" height="16" /></a>
 }
 
 @helper UserIcon(TweetData._user User)
 {
 if(User.profile_image_url != null) {
-    <img src="/Content/Images/dummy/48.png" data-src="@(User.profile_image_url)" class="pull-left twigaten-icon" />
+    <img src="/Content/images/dummy/48.png" data-src="@(User.profile_image_url)" class="pull-left twigaten-icon" />
 }
-else { <img src="/Content/Images/dummy/48.png" class="pull-left twigaten-icon" /> }
+else { <img src="/Content/images/dummy/48.png" class="pull-left twigaten-icon" /> }
 }
 @helper TweetPermalink(TweetData._tweet Tweet)
 {

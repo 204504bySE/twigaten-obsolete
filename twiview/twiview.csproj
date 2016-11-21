@@ -184,10 +184,13 @@
     <Content Include="Content\bootstrap-theme.min.css" />
     <Content Include="Content\bootstrap.css" />
     <Content Include="Content\bootstrap.min.css" />
-    <Content Include="Content\Images\dummy\150.png" />
-    <Content Include="Content\Images\dummy\48.png" />
-    <Content Include="Content\Images\ten120.png" />
-    <Content Include="Content\Images\Twitter_bird_logo_2012.svg" />
+    <Content Include="Content\images\dummy\150.png" />
+    <Content Include="Content\images\dummy\48.png" />
+    <Content Include="Content\images\ten120.png" />
+    <Content Include="Content\images\Twitter_bird_logo_2012.svg" />
+    <Content Include="Content\passback\header.js" />
+    <Content Include="Content\passback\footer.js" />
+    <Content Include="Content\passback\article.js" />
     <Content Include="favicon.ico" />
     <Content Include="fonts\glyphicons-halflings-regular.svg" />
     <Content Include="Global.asax" />

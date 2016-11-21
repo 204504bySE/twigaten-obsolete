@@ -63,11 +63,15 @@ namespace twidown
         }
 
         //これを定期的に呼んで再接続やFriendの取得をやらせる
+        //StreamerLockerのロック解除もここでやる
         public int ConnectStreamers()
         {
             SemaphoreSlim RestSemaphore = new SemaphoreSlim(config.crawl.RestThreads);
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
-            foreach(KeyValuePair<long, UserStreamer> s in Streamers)
+            Locker.ActualUnlockAll();
+            TickCount Tick = new TickCount(0);
+
+            foreach (KeyValuePair<long, UserStreamer> s in Streamers)
             {
                 bool? NeedRetry = s.Value.NeedRetry();
                 if (NeedRetry != false)
@@ -103,6 +107,8 @@ namespace twidown
                     }
                 }
                 else { ActiveStreamers++; }
+
+                if(Tick.Elasped >= 60000) { Locker.ActualUnlockAll(); Tick.Update(); }
             }
             return ActiveStreamers;
         }
@@ -126,81 +132,5 @@ namespace twidown
                 ServicePointManager.DefaultConnectionLimit = MaxConnections;
             }
         }
-
-        //全UserStreamerで共有するもの
-        public class StreamerLocker
-        {
-            DBHandler db = DBHandler.Instance;
-
-            public StreamerLocker() { BeginIntervalProcess(); }
-
-            //storetweet用
-            ConcurrentDictionary<long, byte> LockedTweets = new ConcurrentDictionary<long, byte>();
-            public bool LockTweet(long Id) { return LockedTweets.TryAdd(Id, 0) && db.LockTweet(Id); }
-            ConcurrentQueue<long> UnlockTweets = new ConcurrentQueue<long>();
-            public void UnlockTweet(long Id) { UnlockTweets.Enqueue(Id); }
-
-            //↓はUnlockはActualUnlockAllでやっちゃうからUnlockメソッドはない
-            //storeuser用
-            ConcurrentDictionary<long, byte> LockedUsers = new ConcurrentDictionary<long, byte>();
-            public bool LockUser(long? Id) { return Id != null && LockedUsers.TryAdd((long)Id, 0); }
-            //storedelete用
-            ConcurrentDictionary<long, byte> LockedDeletes = new ConcurrentDictionary<long, byte>();
-            public bool LockDelete(long Id) { return LockedDeletes.TryAdd(Id, 0); }
-
-            //ツイ消しはここでDBに投げることにした
-            void UnlockDelete()
-            {
-                long[] toDelete = LockedDeletes.Keys.ToArray(); //スナップショットが作成される
-                int DeletedCount = db.StoreDelete(toDelete);
-                if (DeletedCount >= 0)
-                {
-                    foreach (long d in toDelete)
-                    {
-                        byte tmp;
-                        LockedDeletes.TryRemove(d, out tmp);
-                    }
-                }
-                if(toDelete.Length > 0) { Console.WriteLine("{0} App: {1} / {2} Tweets Removed", DateTime.Now, DeletedCount, toDelete.Length); }
-            }
-
-            //DownloadProfileImage用
-            ConcurrentDictionary<long, byte> LockedProfileImages = new ConcurrentDictionary<long, byte>();
-            public bool LockProfileImage(long Id) { return LockedProfileImages.TryAdd(Id, 0); }
-
-            List<long> UnlockTweetID = new List<long>();
-
-            //これでUnlockをまとめて呼ぶ
-            void ActualUnlockAll()
-            {
-                LockedUsers.Clear();
-                LockedProfileImages.Clear();
-                UnlockDelete();
-
-                //UnlockTweetID, DBのtweetlockは1周遅れでロック解除する
-                if (db.UnlockTweet(UnlockTweetID) > 0)
-                {
-                    foreach (long Id in UnlockTweetID) { byte z; LockedTweets.TryRemove(Id, out z); }
-                    UnlockTweetID.Clear();
-                }
-                long tmp;
-                while (UnlockTweets.TryDequeue(out tmp)) { UnlockTweetID.Add(tmp); }
-            }
-
-            //StreamerLockerのアンロックはここでやる
-            void BeginIntervalProcess() { Task.Factory.StartNew(() => IntervalProcess(), TaskCreationOptions.LongRunning); }
-            void IntervalProcess()
-            {
-                Counter counter = Counter.Instance;
-                Thread.CurrentThread.Priority = ThreadPriority.Highest;
-                while (true)
-                {
-                    Thread.Sleep(60000);
-                    ActualUnlockAll();
-                    counter.PrintReset();
-                }
-            }
-        }
-
     }
 }

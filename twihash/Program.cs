@@ -48,7 +48,7 @@ namespace twihash
             Hashes = new long[Length];
             NeedstoInsert = new bool[Length];
             this.Length = Length;
-            AutoReadAll();
+            if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
         public int Count = 0;  //実際に使ってる個数
         public bool EnableAutoRead = true;

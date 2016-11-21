@@ -8,6 +8,7 @@ using System.Text;
 using System.Data;
 using System.Threading;
 using System.IO;
+using System.Diagnostics;
 
 namespace twitenlib
 {
@@ -144,6 +145,7 @@ namespace twitenlib
             public long LastUpdate { get; }
             public int LastHashCount { get; }
             public int HashCountOffset { get; }
+            public bool KeepDataRAM { get; }
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
@@ -152,6 +154,7 @@ namespace twitenlib
                 LastUpdate = long.Parse(ini.getvalue("hash", "LastUpdate", "0"));
                 LastHashCount = int.Parse(ini.getvalue("hash", "LastHashCount", "0"));
                 HashCountOffset = int.Parse(ini.getvalue("hash", "HashCountOffset", "5000000"));
+                KeepDataRAM = bool.Parse(ini.getvalue("hash", "KeepDataRAM", "false"));
             }
             public void NewLastUpdate(long time)
             {
@@ -422,4 +425,23 @@ namespace twitenlib
             return buf.ToString();
         }
     }
+
+    static class CheckOldProcess
+    {
+        public static void CheckandExit()
+        {   //同名のプロセスがすでに動いていたら終了する
+            Process CurrentProc = Process.GetCurrentProcess();
+            Process[] proc = Process.GetProcessesByName(CurrentProc.ProcessName);
+            foreach (Process p in proc)
+            {
+                if (p.Id != CurrentProc.Id)
+                {
+                    Console.WriteLine("{0} Another Instance of {1} is Runnning.", DateTime.Now, CurrentProc.ProcessName);
+                    Thread.Sleep(5000);
+                    Environment.Exit(1);
+                }
+            }
+        }
+    }
+
 }

@@ -105,7 +105,7 @@ namespace twihash
 dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE
 FROM media
 WHERE dcthash BETWEEN @begin AND @end
-GROUP BY dcthash ORDER BY dcthash;"))
+GROUP BY dcthash;"))
                     {
                         Cmd.Parameters.AddWithValue("@lastupdate", config.hash.LastUpdate);
                         Cmd.Parameters.AddWithValue("@begin", i << HashUnitBits);

@@ -9,13 +9,12 @@ using System.IO;
 using System.Data;
 using System.Text.RegularExpressions;
 using MySql.Data.MySqlClient;
-using System.Data.HashFunction;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
-using System.Diagnostics;
 
 using CoreTweet;
 using twidown;
+using twitenlib;
 
 namespace twitool
 {
@@ -23,27 +22,24 @@ namespace twitool
     {
         static void Main(string[] args)
         {
-            twitenlib.Config config = twitenlib.Config.Instance;
+            Config config = Config.Instance;
             DBHandler db = new DBHandler();
-/*            
+            
+            Console.WriteLine("{0} Media removed", db.RemoveOrphanMedia());
+            return;
+            
+            CheckOldProcess.CheckandExit();
             db.RemoveOldMedia();
             db.RemoveOldProfileImage();
             Thread.Sleep(3000);
             return;
-            */
-            //Console.WriteLine("{0} Tweets fixed", db.FixOrphanTweets());
-            Console.WriteLine("{0} Media removed", db.RemoveOrphanMedia());
-            //Console.WriteLine("{0} Tweets removed", db.RemoveOrphanTweet());
-            //Console.WriteLine("{0} Users removed", db.RemoveOrphanUser());
-            //Console.WriteLine("{0} Pakuriers stored", db.FindPakurier());
-            Thread.Sleep(3000);
         }
     }
 
 
     public class DBHandler : twitenlib.DBHandler
     {
-        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address, 60) { }
+        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address, 600) { }
 
         //ツイートが削除されて参照されなくなった画像を消す
         public int RemoveOrphanMedia()
@@ -51,16 +47,9 @@ namespace twitool
             int i = 0;
             const int BulkUnit = 1000;
             const string head = @"DELETE FROM media WHERE media_id IN";
-/*
-            const string head_tweet = @"DELETE FROM tweet WHERE tweet_id IN(
-SELECT tweet_id FROM tweet_media
-WHERE media_id IN";
-*/
+
             DataTable Table;
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = 8;
             string BulkDeleteCmd = BulkCmdStrIn(BulkUnit, head);
-            //string BulkDeleteCmd_tweet = RemoveOrphanMediaCmd_tweet(BulkUnit);  //作ってみたけどなんか機能しないくさいよねうん
             do
             {
                 using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media
@@ -70,44 +59,172 @@ WHERE source_tweet_id IS NULL LIMIT @limit;"))
                     Table = SelectTable(cmd);
                 }
                 if (Table == null || Table.Rows.Count < 1) { break; }
-                i += Table.Rows.Count;
-                try {
-                    Parallel.ForEach(DataTableExtensions.AsEnumerable(Table), op, (DataRow row) =>
-                    {
-                        File.Delete(config.crawl.PictPaththumb + @"\" + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string));
-                    });
-                }catch(Exception e) { Console.WriteLine(e);return i; }
+
+                foreach (DataRow row in Table.Rows)
+                {
+                    File.Delete(config.crawl.PictPaththumb + '\\'
+                        + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
+                }
 
                 if (Table.Rows.Count < BulkUnit)
                 {
                     BulkDeleteCmd = BulkCmdStrIn(Table.Rows.Count, head);
-                    //BulkDeleteCmd_tweet = RemoveOrphanMediaCmd_tweet(Table.Rows.Count);
                 }
                 using (MySqlCommand delcmd = new MySqlCommand(BulkDeleteCmd))
-                //using (MySqlCommand delcmd_tweet = new MySqlCommand(BulkDeleteCmd_tweet))
                 {
                     for (int n = 0; n < Table.Rows.Count; n++)
                     {
-                        delcmd.Parameters.AddWithValue("@" + n.ToString(), Table.Rows[n][0]);
-                        //delcmd_tweet.Parameters.AddWithValue("@m" + n.ToString(), Table.Rows[n][0]);
+                        delcmd.Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
                     }
-                    ExecuteNonQuery(delcmd);
+                    i += ExecuteNonQuery(delcmd);
                 }
                 Console.WriteLine("{0}: {1} Media removed", DateTime.Now, i);
             } while (Table.Rows.Count >= BulkUnit);
             return i;
         }
 
+        public void RemoveOldMedia()
+        {
+            DriveInfo drive = new DriveInfo(config.crawl.PictPaththumb.Substring(0, 1));
+            int RemovedCount = 0;
+            const int BulkUnit = 1000;
+            const string head = @"UPDATE media SET downloaded_at = NULL WHERE media_id IN";
+            string BulkUpdateCmd = BulkCmdStrIn(BulkUnit, head);
+            Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
+            try
+            {
+                while (drive.TotalFreeSpace < drive.TotalSize / 6)
+                {
+                    DataTable Table;
+                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+media_id, media_url FROM media
+WHERE downloaded_at IS NOT NULL
+ORDER BY downloaded_at LIMIT @limit;"))
+                    {
+                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
+                        Table = SelectTable(cmd);
+                    }
+                    if (Table == null || Table.Rows.Count < BulkUnit) { break; }
+
+                    foreach (DataRow row in Table.Rows)
+                    {
+                        File.Delete(config.crawl.PictPaththumb + '\\'
+                            + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string));
+                    }
+
+                    if (Table.Rows.Count < BulkUnit)
+                    {
+                        BulkUpdateCmd = BulkCmdStrIn(Table.Rows.Count, head);
+                    }
+                    using (MySqlCommand delcmd = new MySqlCommand(BulkUpdateCmd))
+                    {
+                        for (int n = 0; n < Table.Rows.Count; n++)
+                        {
+                            delcmd.Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
+                        }
+                        RemovedCount += ExecuteNonQuery(delcmd);
+                    }
+                    Console.WriteLine("{0}: {1} Media removed", DateTime.Now, RemovedCount);
+                    Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
+                }
+            }
+            catch (Exception e) { Console.WriteLine(e); return; }
+            Console.WriteLine("{0}: {1} Media removal completed.", DateTime.Now, RemovedCount);
+        }
+
+        //しばらくツイートがないアカウントのprofile_imageを消す
+        public void RemoveOldProfileImage()
+        {
+            DriveInfo drive = new DriveInfo(config.crawl.PictPathProfileImage.Substring(0, 1));
+            int RemovedCount = 0;
+            const int BulkUnit = 1000;
+            const string head = @"UPDATE user SET updated_at = NULL WHERE user_id IN";
+            string BulkUpdateCmd = BulkCmdStrIn(BulkUnit, head);
+            Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
+            try
+            {
+                while (drive.TotalFreeSpace < drive.TotalSize / 6)
+                {
+                    DataTable Table;
+                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+user_id, profile_image_url FROM user
+WHERE updated_at IS NOT NULL AND profile_image_url IS NOT NULL
+ORDER BY updated_at LIMIT @limit;"))
+                    {
+                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
+                        Table = SelectTable(cmd);
+                    }
+                    foreach (DataRow row in Table.Rows)
+                    {
+                        File.Delete(config.crawl.PictPathProfileImage + '\\'
+                            + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
+                    }
+                    if (Table.Rows.Count < BulkUnit) { BulkUpdateCmd = BulkCmdStrIn(Table.Rows.Count, head); }
+                    using (MySqlCommand upcmd = new MySqlCommand(BulkUpdateCmd))
+                    {
+                        for (int n = 0; n < Table.Rows.Count; n++)
+                        {
+                            upcmd.Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
+                        }
+                        RemovedCount += ExecuteNonQuery(upcmd);
+                    }
+                    Console.WriteLine("{0}: {1} Icons removed", DateTime.Now, RemovedCount);
+                    Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
+                    if (Table.Rows.Count < BulkUnit) { break; }
+                }
+            }
+            catch (Exception e) { Console.WriteLine(e); return; }
+            Console.WriteLine("{0}: {1} Icons removal completed.", DateTime.Now, RemovedCount);
+        }
+
+
+
+
         //画像が削除されて意味がなくなったツイートを消す
         //URL転載したやつの転載元ツイートが消された場合
         public int RemoveOrphanTweet()
         {
-            int i = 0;
             const int BulkUnit = 100;
             const string head = @"DELETE FROM tweet WHERE tweet_id IN";
             string BulkDeleteCmd = BulkCmdStrIn(BulkUnit, head);
-            DataTable Table;
 
+            TransformBlock<long, DataTable> GetTweetBlock = new TransformBlock<long, DataTable>((long id) =>
+            {
+                using(MySqlCommand Cmd = new MySqlCommand(@"SELECT tweet_id
+FROM tweet
+WHERE retweet_id IS NULL
+AND NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_media.tweet_id = tweet.tweet_id)
+AND tweet_id BETWEEN @begin AND @end
+ORDER BY tweet_id DESC;"))
+                {
+                    Cmd.Parameters.AddWithValue("@begin", id);
+                    Cmd.Parameters.AddWithValue("@end", id + msinSnowFlake * 3600 * 1000 - 1);
+                    return SelectTable(Cmd,IsolationLevel.RepeatableRead);
+                }
+            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
+
+
+            DateTimeOffset date = DateTimeOffset.UtcNow.AddDays(-7);
+            for(int i = 0; i < 20; i++)
+            {
+                GetTweetBlock.Post(TimeinSnowFlake(date.ToUnixTimeSeconds(), false));
+                date = date.AddHours(-1);
+            }
+            while(true)
+            {
+                DataTable Table = GetTweetBlock.Receive();
+                using (MySqlCommand delcmd = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head)))
+                {
+                    for (int n = 0; n < Table.Rows.Count; n++)
+                    {
+                        delcmd.Parameters.AddWithValue("@" + n.ToString(), Table.Rows[n].Field<long>(0));
+                    }
+                    Console.WriteLine("{0} {1} Tweets removed", date, ExecuteNonQuery(delcmd));
+                }
+                GetTweetBlock.Post(TimeinSnowFlake(date.ToUnixTimeSeconds(), false));
+                date = date.AddHours(-1);
+            }
+            /*
             MySqlCommand cmd = new MySqlCommand(@"SELECT tweet_id FROM tweet
 WHERE retweet_id IS NULL
 AND NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_media.tweet_id = tweet.tweet_id)
@@ -140,6 +257,7 @@ LIMIT @limit;");
                 Table = SelectTable(cmd);
             }
             return i;
+            */
         }
 
 
@@ -147,8 +265,6 @@ LIMIT @limit;");
         public int RemoveOrphanUser()
         {
             int RemovedCount = 0;
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = 8;
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id, profile_image_url FROM user
 WHERE NOT EXISTS (SELECT * FROM tweet WHERE tweet.user_id = user.user_id)
@@ -159,7 +275,9 @@ AND NOT EXISTS (SELECT user_id FROM token WHERE token.user_id = user.user_id);")
             if (Table == null) { return 0; }
             Console.WriteLine("{0} {1} Users to remove", DateTime.Now, Table.Rows.Count);
             Console.ReadKey();
-            Parallel.ForEach(Table.AsEnumerable(), op, (DataRow row) =>
+            Parallel.ForEach(Table.AsEnumerable(), 
+                new ParallelOptions { MaxDegreeOfParallelism = 4 },
+                (DataRow row) =>
             {
                 using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM user WHERE user_id = @user_id;"))
                 {
@@ -175,6 +293,8 @@ AND NOT EXISTS (SELECT user_id FROM token WHERE token.user_id = user.user_id);")
             });
             return RemovedCount;
         }
+
+
 
 
         //tweet_mediaが書かれなかったツイ画対応を復元する
@@ -198,11 +318,11 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
 
 
             BulkInsertCmdFull = BulkCmdStr(BulkUnit, 2, head);
-
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = Environment.ProcessorCount;
+            
             object StoreLock = new object();
-            Parallel.For(0, Table.Rows.Count / BulkUnit, op, (int i) =>
+            Parallel.For(0, Table.Rows.Count / BulkUnit,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                (int i) =>
             {
                 MySqlCommand cmd = new MySqlCommand(BulkInsertCmdFull);
                 for (int j = 0; j < BulkUnit; j++)
@@ -316,109 +436,6 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
                         }
             */
 
-        public void RemoveOldMedia()
-        {
-            DriveInfo drive = new DriveInfo(config.crawl.PictPaththumb.Substring(0, 1));
-            int RemovedCount = 0;
-            const int BulkUnit = 1000;
-            const string head = @"UPDATE media SET downloaded_at = NULL WHERE media_id IN";
-            string BulkUpdateCmd = BulkCmdStrIn(BulkUnit, head);
-            Console.WriteLine("{0}: {1} / {2} MB Free.",DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = 4;
-
-            try {
-                while (drive.TotalFreeSpace < drive.TotalSize / 6) {
-                    DataTable Table;
-                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-media_id, media_url FROM media
-WHERE downloaded_at IS NOT NULL
-ORDER BY downloaded_at LIMIT @limit;"))
-                    {
-                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                        Table = SelectTable(cmd);
-                    }
-                    List<KeyValuePair<long, string>> media = new List<KeyValuePair<long, string>>();
-                    foreach (DataRow row in Table.Rows)
-                    {
-                        media.Add(new KeyValuePair<long, string>(row[0] as long? ?? 0, row[1] as string));
-                    }
-                    Parallel.ForEach(media, op, (KeyValuePair<long, string> m) =>
-                    //foreach (KeyValuePair<long, string> m in media)
-                    {
-                        File.Delete(config.crawl.PictPaththumb + @"\" + m.Key.ToString() + Path.GetExtension(m.Value));
-                    });
-                    if (media.Count < BulkUnit) { BulkUpdateCmd = BulkCmdStrIn(media.Count, head); }
-                    using (MySqlCommand upcmd = new MySqlCommand(BulkUpdateCmd))
-                    {
-                        for (int n = 0; n < media.Count; n++)
-                        {
-                            upcmd.Parameters.AddWithValue("@" + n.ToString(), media[n].Key);
-                        }
-                        RemovedCount += ExecuteNonQuery(upcmd);
-                    }
-                    Console.WriteLine("{0}: {1} Media removed", DateTime.Now, RemovedCount);
-                    Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
-                    if (media.Count < BulkUnit) { break; }
-                }
-            }
-            catch(Exception e) { Console.WriteLine(e); return; }
-            Console.WriteLine("{0}: {1} Media removal completed.", DateTime.Now, RemovedCount);
-        }
-
-        //しばらくツイートがないアカウントのprofile_imageを消す
-        public void RemoveOldProfileImage()
-        {
-            DriveInfo drive = new DriveInfo(config.crawl.PictPathProfileImage.Substring(0, 1));
-            int RemovedCount = 0;
-            const int BulkUnit = 1000;
-            const string head = @"UPDATE user SET updated_at = NULL WHERE user_id IN";
-            string BulkUpdateCmd = BulkCmdStrIn(BulkUnit, head);
-            Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = 4;
-
-            try
-            {
-                while (drive.TotalFreeSpace < drive.TotalSize / 6)
-                {
-                    DataTable Table;
-                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, profile_image_url FROM user
-WHERE updated_at IS NOT NULL AND profile_image_url IS NOT NULL
-ORDER BY updated_at LIMIT @limit;"))
-                    {
-                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                        Table = SelectTable(cmd);
-                    }
-                    List<KeyValuePair<long, string>> media = new List<KeyValuePair<long, string>>();
-                    foreach (DataRow row in Table.Rows)
-                    {
-                        media.Add(new KeyValuePair<long, string>((long)row[0], row[1] as string));
-                    }
-                    Parallel.ForEach(media, op, (KeyValuePair<long, string> m) =>
-                    //foreach (KeyValuePair<long, string> m in media)
-                    {
-                        File.Delete(config.crawl.PictPathProfileImage + @"\" + m.Key.ToString() + Path.GetExtension(m.Value));
-                    });
-                    if (media.Count < BulkUnit) { BulkUpdateCmd = BulkCmdStrIn(media.Count, head); }
-                    using (MySqlCommand upcmd = new MySqlCommand(BulkUpdateCmd))
-                    {
-                        for (int n = 0; n < media.Count; n++)
-                        {
-                            upcmd.Parameters.AddWithValue("@" + n.ToString(), media[n].Key);
-                        }
-                        RemovedCount += ExecuteNonQuery(upcmd);
-                    }
-                    Console.WriteLine("{0}: {1} Icons removed", DateTime.Now, RemovedCount);
-                    Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
-                    if (media.Count < BulkUnit) { break; }
-                }
-            }
-            catch (Exception e) { Console.WriteLine(e); return; }
-            Console.WriteLine("{0}: {1} Icons removal completed.", DateTime.Now, RemovedCount);
-        }
-
         public void StoreDownloadTimeprofile()
         {
             DataTable Table = SelectTable(new MySqlCommand(@"SELECT user_id, profile_image_url FROM user WHERE profile_image_url IS NOT NULL AND downloaded_at IS NULL;"));
@@ -431,9 +448,9 @@ ORDER BY updated_at LIMIT @limit;"))
             Table = null;
             GC.Collect();
             int i = 0, k = 0;
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = 8;
-            Parallel.ForEach(media, op, (KeyValuePair<long, string> m) =>
+            Parallel.ForEach(media,
+                new ParallelOptions { MaxDegreeOfParallelism = 8 },
+                (KeyValuePair<long, string> m) =>
             //foreach (KeyValuePair<long, string> m in media)
             {
                 string localurl = string.Format(@"{0}\{1}", config.crawl.PictPathProfileImage, twitenlib.localstrs.localmediapath(m.Value));
@@ -523,211 +540,14 @@ ORDER BY updated_at LIMIT @limit;"))
         }
         */
 
-        public int FindPakurier()
-        {
-            int ret = 0;
-
-            //本文をパクってるやつ(パクツイbot）
-            HashSet<long> Pakuriers = FindTextPakurier();
-            ExecuteNonQuery(new MySqlCommand(@"TRUNCATE TABLE pakurier;"));
-            ret += AddPakuriers(Pakuriers.ToArray());
-
-            //↑から画像をパクってるやつ(パクツイbot2)
-            HashSet<long> MediaPakuriers = FindMediaPakurier(Pakuriers);
-            ret += AddPakuriers(MediaPakuriers.ToArray());
-
-            //↑から画(同文) (ニュースサイトとパクツイbot3)
-            Pakuriers.UnionWith(MediaPakuriers);
-            MediaPakuriers = FindMediaPakurier(Pakuriers);
-            ret += AddPakuriers(MediaPakuriers.ToArray());
-            return ret;
-        }
-
-        int AddPakuriers(long[] PakurierArray)
-        {
-            List<MySqlCommand> cmdList = new List<MySqlCommand>(PakurierArray.Length);
-            int ret = 0;
-            const int BulkUnit = 1000;
-            string BulkInsertCmdFull = AddPakuriersCmd(BulkUnit);
-            MySqlCommand cmdtmp;
-            int i, j;
-            for (i = 0; i < PakurierArray.Length / BulkUnit; i++)
-            {
-                cmdtmp = new MySqlCommand(BulkInsertCmdFull);
-                for (j = 0; j < BulkUnit; j++)
-                {
-                    cmdtmp.Parameters.AddWithValue(string.Format("@u{0}", j), PakurierArray[BulkUnit * i + j]);
-                }
-                ret += ExecuteNonQuery(cmdtmp);
-            }
-            cmdtmp = new MySqlCommand(AddPakuriersCmd(PakurierArray.Length % BulkUnit));
-            for (j = 0; j < PakurierArray.Length % BulkUnit; j++)
-            {
-                cmdtmp.Parameters.AddWithValue(string.Format("@u{0}", j), PakurierArray[BulkUnit * i + j]);
-            }
-            return ret + ExecuteNonQuery(cmdtmp);
-        }
-
-        string AddPakuriersCmd(int count)
-        {
-            StringBuilder BulkInsertCmd = new StringBuilder("INSERT IGNORE INTO pakurier VALUES");
-            for (int i = 0; i < count; i++)
-            {
-                BulkInsertCmd.AppendFormat("(@u{0}),", i);
-            }
-            BulkInsertCmd.Remove(BulkInsertCmd.Length - 1, 1);
-            BulkInsertCmd.Append(";");
-            return BulkInsertCmd.ToString();
-        }
-
-        DateTimeOffset NowHour()
-        {
-            DateTimeOffset now = DateTimeOffset.Now;
-            return new DateTimeOffset(now.Year, now.Month, now.Day, now.Hour, 0, 0, 0, new TimeSpan(0));
-        }
-
-        HashSet<long> FindMediaPakurier(HashSet<long> TextPakuriers)
-        {
-            DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id
-FROM tweet t
-NATURAL JOIN user u
-NATURAL JOIN tweet_media
-NATURAL JOIN media
-INNER JOIN mediapair p ON p.media_id_pri = media.media_id
-WHERE isprotected = 0
-AND created_at >= @created_at
-AND (favorite_count >= 100 OR retweet_count >= 100)
-AND EXISTS (SELECT *
-FROM mediapair pp
-INNER JOIN media m ON pp.media_id_sub = m.media_id
-INNER JOIN tweet_media on m.media_id = tweet_media.media_id
-NATURAL JOIN tweet tt
-NATURAL JOIN user uu
-WHERE pp.media_id_pri = p.media_id_pri
-AND t.created_at > tt.created_at
-AND u.user_id <> uu.user_id
-AND EXISTS (SELECT * FROM pakurier WHERE user_id = uu.user_id)
-);"))
-            {
-                cmd.Parameters.AddWithValue("@created_at", NowHour().AddDays(-7));
-                Table = SelectTable(cmd);
-            }
-            HashSet<long> Pakuriers = new HashSet<long>();
-            foreach (DataRow row in Table.Rows)
-            {
-                if (!TextPakuriers.Contains(row[0] as long? ?? 0)) { Pakuriers.Add(row[0] as long? ?? 0); }
-            }
-            return Pakuriers;
-        }
-
-        public struct texthashdata : IComparable
-        {
-            //public long tweet_id { get; }
-            public long relaxedhash { get; }
-            public long user_id { get; }
-            public long created_at { get; }
-            public texthashdata(long relaxedhash, long user_id, long created_at)
-            {
-                //this.tweet_id = tweet_id;
-                this.relaxedhash = relaxedhash;
-                this.user_id = user_id;
-                this.created_at = created_at;
-            }
-
-            public int Compare(texthashdata it, texthashdata other)
-            {
-                if (it.relaxedhash < other.relaxedhash) { return -1; }
-                else if (it.relaxedhash > other.relaxedhash) { return 1; }
-                else if (it.created_at < other.created_at) { return -1; }
-                else if (it.created_at > other.created_at) { return 1; }
-                else { return 0; }
-            }
-
-            public int CompareTo(object obj)
-            {
-                return Compare(this, (texthashdata)obj);
-            }
-        }
-
-        HashSet<long> FindTextPakurier()
-        {
-            DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-text, user_id, created_at
-FROM tweet
-NATURAL JOIN user
-WHERE text IS NOT NULL
-AND created_at >= @created_at
-AND isprotected = 0
-AND (favorite_count >= 100 OR retweet_count >= 100)
-;"))
-            {
-                cmd.Parameters.AddWithValue("@created_at", NowHour().AddDays(-7));
-                Table = SelectTable(cmd);
-            }
-            List<texthashdata> hashes = new List<texthashdata>(Table.Rows.Count);
-            foreach (DataRow row in Table.Rows)
-            {
-                string RelaxedText = TextHash.RelaxedText(row[0] as string);
-                if (RelaxedText.Length >= 3)
-                {
-                    hashes.Add(new texthashdata(TextHash.Hash(RelaxedText), row[1] as long? ?? 0, row[2] as long? ?? 0));
-                }
-            }
-            Table = null;
-            hashes.Sort();
-            HashSet<long> Pakuriers = new HashSet<long>();
-            HashSet<long> Users = new HashSet<long>();
-            for (int i = 0; i < hashes.Count - 1; i++)
-            {
-                if (hashes[i].relaxedhash == hashes[i + 1].relaxedhash)
-                {
-                    Users.Add(hashes[i].user_id);
-                    if (!Users.Contains(hashes[i + 1].user_id))
-                    {
-                        Pakuriers.Add(hashes[i + 1].user_id);
-                    }
-                }
-                else
-                {
-                    Users.Clear();
-                }
-            }
-            return Pakuriers;
-        }
-
-        public static class TextHash
-        {
-            public static string RelaxedText(string Text)
-            {
-                string ret;
-                ret = Regex.Replace(Text, @"(?<before>^|.*[\s　])(?<hashtag>[#＃][a-z0-9_À-ÖØ-öø-ÿĀ-ɏɓ-ɔɖ-ɗəɛɣɨɯɲʉʋʻ̀-ͯḀ-ỿЀ-ӿԀ-ԧⷠ-ⷿꙀ-֑ꚟ-ֿׁ-ׂׄ-ׇׅא-תװ-״﬒-ﬨשׁ-זּטּ-לּמּנּ-סּףּ-פּצּ-ﭏؐ-ؚؠ-ٟٮ-ۓە-ۜ۞-۪ۨ-ۯۺ-ۼۿݐ-ݿࢠࢢ-ࢬࣤ-ࣾﭐ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼ‌ก-ฺเ-๎ᄀ-ᇿ㄰-ㆅꥠ-꥿가-힯ힰ-퟿ﾡ-ￜァ-ヺー-ヾｦ-ﾟｰ０-９Ａ-Ｚａ-ｚぁ-ゖ゙-ゞ㐀-䶿一-鿿꜀-뜿띀-렟-﨟〃々〻]+)", "${before}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-                ret = Regex.Replace(ret, @"s?https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+", "", RegexOptions.Compiled);
-                ret = Regex.Replace(ret, @"[\r\n\s　「」｢｣【】()（）『』。、.,!！?？・…'""’”]", "", RegexOptions.Compiled);
-                return ret;
-            }
-
-            static xxHash xxhasher = new xxHash(64);
-            public static long Hash(string Text)
-            {
-                return BitConverter.ToInt64(xxhasher.ComputeHash(Text), 0);
-            }
-
-            public static long RelaxedHash(string Text)
-            {
-                return Hash(RelaxedText(Text));
-            }
-        }
 
         public void RemoveOrphanProfileImage()
         {
             int RemoveCount = 0;
-            ParallelOptions op = new ParallelOptions();
-            op.MaxDegreeOfParallelism = 8;
             IEnumerable<string> Files = Directory.EnumerateFiles(config.crawl.PictPathProfileImage);
-            Parallel.ForEach(Files, op, (string f) =>
+            Parallel.ForEach(Files,
+                new ParallelOptions { MaxDegreeOfParallelism = 8 }
+                , (string f) =>
              {
                  using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(*) FROM user WHERE user_id = @user_id;"))
                  {
@@ -763,7 +583,7 @@ AND (favorite_count >= 100 OR retweet_count >= 100)
         public void UpdateisProtected()
         {
             ServicePointManager.ReusePort = true;
-            const int ConnectionLimit = 16;
+            const int ConnectionLimit = 10;
             ServicePointManager.DefaultConnectionLimit = ConnectionLimit * 2;
             const int BulkUnit = 100;
             DataTable Table;
@@ -779,58 +599,71 @@ FROM token;"))
             Tokens[] tokens = new Tokens[Table.Rows.Count];
             for(int i = 0; i < Table.Rows.Count; i++)
             {
-                tokens[i] = new Tokens();
-                tokens[i].ConsumerKey = config.token.ConsumerKey;
-                tokens[i].ConsumerSecret = config.token.ConsumerSecret;
-                tokens[i].AccessToken = Table.Rows[i][1] as string;
-                tokens[i].AccessTokenSecret = Table.Rows[i][2] as string;
-                tokens[i].UserId = (long)Table.Rows[i][0];
+                tokens[i] = Tokens.Create(config.token.ConsumerKey,
+                    config.token.ConsumerSecret,
+                    Table.Rows[i].Field<string>(1),
+                    Table.Rows[i].Field<string>(2),
+                    Table.Rows[i].Field<long>(0)
+                    );
                 tokens[i].ConnectionOptions.DisableKeepAlive = false;
                 tokens[i].ConnectionOptions.UseCompression = true;
                 tokens[i].ConnectionOptions.UseCompressionOnStreaming = true;
             }
+            Console.WriteLine(tokens.Length);
 
-            int tokenindex = -1;
+            int tokenindex = 0;
             object tokenindexlock = new object();
             var UpdateUserBlock = new TransformBlock<long[], int>((long[] user_id) => {
                 int i;
+                SelectToken:
                 lock (tokenindexlock)
                 {
                     if (tokenindex >= tokens.Length) { tokenindex = 0; }
                     i = tokenindex;
                     tokenindex++;
                 }
-                CoreTweet.Core.ListedResponse<Status> users = tokens[i].Statuses.Lookup(user_id);
-                List<MySqlCommand> cmd = new List<MySqlCommand>();
-                foreach (Status user in users)
+                try
                 {
-                    Console.WriteLine("{0}\t{1}", user.User.Id, user.User.IsProtected);
-                    /*
-                    MySqlCommand cmdtmp = new MySqlCommand(@"UPDATE user SET isprotected = @isprotected WHERE user_id = @user_id;");
-                    cmdtmp.Parameters.AddWithValue("@isprotected", user.User.IsProtected);
-                    cmdtmp.Parameters.AddWithValue("@user_id", user.User.Id);
-                    cmd.Add(cmdtmp);
-                    */
+                    tokens[i].Account.VerifyCredentials();
+                    CoreTweet.Core.ListedResponse<User> users = tokens[i].Users.Lookup(user_id, false);
+                    List<MySqlCommand> cmd = new List<MySqlCommand>();
+                    foreach (User user in users)
+                    {
+                        //Console.WriteLine("{0}\t{1}", user.Id, user.IsProtected);                        
+                        MySqlCommand cmdtmp = new MySqlCommand(@"UPDATE user SET isprotected = @isprotected WHERE user_id = @user_id;");
+                        cmdtmp.Parameters.AddWithValue("@isprotected", user.IsProtected);
+                        cmdtmp.Parameters.AddWithValue("@user_id", user.Id);
+                        cmd.Add(cmdtmp);                        
+                    }
+                    return ExecuteNonQuery(cmd);
                 }
-                return 0;
-                //return ExecuteNonQuery(cmd);
-            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = ConnectionLimit });
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id FROM user ORDER BY user_id LIMIT 100;"))
+                catch (Exception e) { Console.WriteLine(e); goto SelectToken; }
+        }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = ConnectionLimit });
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id FROM user ORDER BY user_id LIMIT 100 OFFSET 80000;"))
             {
                 cmd.Parameters.AddWithValue("@limit", BulkUnit);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
             }
+
+            int n = 0;
             while (Table != null && Table.Rows.Count > 0)
             {
                 long[] user_id = new long[Table.Rows.Count];
                 for (int i = 0; i < Table.Rows.Count; i++)
                 {
-                    user_id[i] = (long)Table.Rows[i][0];
+                    user_id[i] = Table.Rows[i].Field<long>(0);
                 }
+                UpdateUserBlock.Post(user_id);
+                if(n > ConnectionLimit)
+                {
+                    updated += UpdateUserBlock.Receive();
+                    Console.WriteLine(updated);
+                }
+                else { n++; }
 
                 using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id FROM user WHERE user_id > @lastid ORDER BY user_id LIMIT 100;"))
                 {
-                    cmd.Parameters.AddWithValue("@lastid", (long)Table.Rows[Table.Rows.Count - 1][0]);
+                    cmd.Parameters.AddWithValue("@lastid", Table.Rows[Table.Rows.Count - 1].Field<long>(0));
                     Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
                 }
             }
@@ -838,38 +671,8 @@ FROM token;"))
             UpdateUserBlock.Completion.Wait();
         }
 
-        public void ReHashTest()
-        {
-            int updated = 0;
-            ServicePointManager.ReusePort = true;
-            DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT m.media_id, m.media_url, m.dcthash
-FROM media m
-ORDER BY downloaded_at DESC limit 100;"))
-            {
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
-            }
-            Console.WriteLine("{0} media to rehash",Table.Rows.Count);
-            Console.ReadKey();
-            foreach (DataRow row in Table.Rows)
-            {
-                long? hash = downloadforHash(row[1] as string + ":thumb");
-                if(hash == null) { Console.WriteLine("null"); continue; }
-                Console.WriteLine("{0:x}\t{1:x}", hash, hash ^ row.Field<long>(2));
-                if((hash ^ row.Field<long>(2)) != 0) { Console.WriteLine("＼(^o^)／");Console.ReadKey(); }
-                /*
-                using (MySqlCommand cmdtmp = new MySqlCommand(@"UPDATE media SET dcthash=@dcthash WHERE media_id = @media_id"))
-                {
-                    cmdtmp.Parameters.AddWithValue("@dcthash", hash);
-                    cmdtmp.Parameters.AddWithValue("@media_id", (long)row[0]);
-                    updated += ExecuteNonQuery(cmdtmp, IsolationLevel.ReadUncommitted, true);
-                    Console.WriteLine("{0} {1} hashes updated.", DateTime.Now, updated);
-                }
-                */
-            }
-        }
 
-        public void ReHashDataflow()
+        public void ReHashMedia_Dataflow()
         {
             ServicePointManager.ReusePort = true;
             const int ConnectionLimit = 64;

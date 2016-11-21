@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading;
 
-using System.Diagnostics;
 using twitenlib;
 
 namespace twidownparent
@@ -12,7 +11,7 @@ namespace twidownparent
         static void Main(string[] args)
         {
             //多重起動防止
-            CheckOldProcess();
+            CheckOldProcess.CheckandExit();
 
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
@@ -66,21 +65,6 @@ namespace twidownparent
                 Thread.Sleep(60000);
                 ForceNewChild = db.DeleteDeadpid();
                 users = db.SelectNewToken();
-            }
-        }
-
-        static void CheckOldProcess()
-        {   //多重起動防止
-            Process CurrentProc = Process.GetCurrentProcess();
-            Process[] proc = Process.GetProcessesByName(CurrentProc.ProcessName);
-            foreach(Process p in proc)
-            {
-                if(p.Id != CurrentProc.Id)
-                {
-                    Console.WriteLine("{0} Another Instance of {1} is Runnning.", DateTime.Now, CurrentProc.ProcessName);
-                    Thread.Sleep(5000);
-                    Environment.Exit(1);
-                }
             }
         }
     }
