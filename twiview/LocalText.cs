@@ -39,12 +39,11 @@ namespace twiview
             for (int i = m.Count - 1; 0 <= i; i--)
             {
                 Group g = m[i].Groups["hashtag"];
-                string HashtagEncoded = HttpUtility.UrlEncode(g.Value.Substring(1));
 
                 //後ろから順に挿入する
                 Builder.Insert(g.Index + g.Length, "</a>")
                     .Insert(g.Index, @""" rel=""nofollow"">")
-                    .Insert(g.Index, HashtagEncoded)
+                    .Insert(g.Index, HttpUtility.UrlEncode(g.Value.Substring(1)))
                     .Insert(g.Index, @"<a href=""https://twitter.com/hashtag/");
             }
             return Builder.ToString();

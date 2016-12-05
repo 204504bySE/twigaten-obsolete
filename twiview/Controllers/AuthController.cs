@@ -11,6 +11,7 @@ namespace twiview.Controllers
     {
         // GET: Auth
         //http://nakaji.hatenablog.com/entry/2014/09/19/024341
+        [Route("auth/login")]
         public ActionResult Twitter()
         {
             //"{TwitterApiKey}", "{TwitterApiKeySecret}", "http://mydomain.com:63543/AuthCallback/Twitter"
@@ -22,6 +23,7 @@ namespace twiview.Controllers
             return Redirect(oAuthSession.AuthorizeUri.OriginalString);
         }
 
+        [Route("auth/logout")]
         public ActionResult Logout()
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);

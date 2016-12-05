@@ -28,17 +28,26 @@ namespace twidown
         //ツイ消しはここでDBに投げることにした
         void UnlockDelete()
         {
-            long[] toDelete = LockedDeletes.Keys.ToArray(); //スナップショットが作成される
-            int DeletedCount = db.StoreDelete(toDelete);
-            if (DeletedCount >= 0)
+            const int BulkUnit = 1000;
+            long[] toDelete;
+            int toDeleteCountTotal = 0;
+            int DeletedCountTotal = 0;
+            do
             {
-                foreach (long d in toDelete)
+                toDelete = LockedDeletes.Keys.Take(BulkUnit).ToArray(); //スナップショットが作成される
+                toDeleteCountTotal += toDelete.Length;
+                int DeletedCount = db.StoreDelete(toDelete);
+                if (DeletedCount >= 0)
                 {
-                    byte tmp;
-                    LockedDeletes.TryRemove(d, out tmp);
+                    DeletedCountTotal += DeletedCount;
+                    foreach (long d in toDelete)
+                    {
+                        byte tmp;
+                        LockedDeletes.TryRemove(d, out tmp);
+                    }
                 }
-            }
-            if (toDelete.Length > 0) { Console.WriteLine("{0} App: {1} / {2} Tweets Removed", DateTime.Now, DeletedCount, toDelete.Length); }
+            } while (toDelete.Length >= BulkUnit);
+            if (toDelete.Length > 0) { Console.WriteLine("{0} App: {1} / {2} Tweets Removed", DateTime.Now, DeletedCountTotal, toDeleteCountTotal); }
         }
 
         //DownloadProfileImage用

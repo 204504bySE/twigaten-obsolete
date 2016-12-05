@@ -27,6 +27,8 @@ namespace twiview.Controllers
         public ActionResult OneTweet(long TweetID, bool? More)
         {
             Login = new LoginHandler(Session, Request, Response);
+            long? SourceTweetID = new DBHandlerView().SourceTweetRT(TweetID);
+            if (SourceTweetID != null) { return RedirectToAction("OneTweet", new { TweetID = SourceTweetID, More = More }); }
             if (More ?? false) { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100, false)); }
             else { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 3, true)); }
         }
@@ -68,12 +70,7 @@ namespace twiview.Controllers
             DateTimeOffset? DateOffset = (Time == null ? DateOffset = StrToDateDay(Date) : DateTimeOffset.FromUnixTimeSeconds((long)Time));
 
             if (UserID == null && Login.UserID == null) { throw new ArgumentNullException(); }
-
-            if (UserID == null)
-            {
-                if (Date == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID, Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
-                else { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID, Date = ((DateTimeOffset)DateOffset).ToString("yyyy-MM-dd"), Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
-            }
+            if (UserID == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID }); }
             return View(new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore));
         }
 

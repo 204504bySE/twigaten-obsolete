@@ -38,7 +38,7 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
         <a class="anchor" id="@(Tweet.media.media_id)"></a>
         <div class="panel twigaten-media">
             @if (Tweet.tweet.retweet == null)
-        {
+            {
                 <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(Tweet.tweet, Tweet.media)</div>
                 @TextHelper.MediaTypeGlyphIcon(Tweet.media)
                 <p>
@@ -53,9 +53,9 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
                     @TextHelper.GoogleMediaLink(Tweet.media)
                 </p>
                 <p class="twigaten-tweettext">@(html.Raw(Tweet.tweet.text))</p>
-                }
-                else
-                {
+            }
+            else
+            {
                 <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(Tweet.tweet.retweet, Tweet.media)</div>
                 @(TextHelper.MediaTypeGlyphIcon(Tweet.media))
                 <p>
@@ -76,7 +76,7 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
                     @TextHelper.UserTweetLink(Tweet.tweet)<br />
                     @Tweet.tweet.user.name
                 </p>
-                <p>@TextHelper.DateOneTweetLink(Tweet.tweet)</p>
+                <p>@TextHelper.TweetDate(Tweet.tweet)</p>
                 if (Tweet.tweet.text != null)
                 {
                 <p class="twigaten-tweettext">@html.Raw(Tweet.tweet.text)</p>

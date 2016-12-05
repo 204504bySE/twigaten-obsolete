@@ -14,6 +14,7 @@ namespace twiview.Controllers
         DBHandlerView db = new DBHandlerView();
         Regex StatusRegex = new Regex(@"twitter\.com\/.+?\/status(es)?\/(?<status_id>[0-9]+)", RegexOptions.Compiled);
 
+        [Route("search")]
         public ActionResult Index(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Show, bool Direct = true)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
@@ -23,12 +24,13 @@ namespace twiview.Controllers
             //ツイートのURLっぽいならそのツイートのページに飛ばす
             if (StatusRegex.IsMatch(QueryStr))
             {
+                long StatusID = long.Parse(StatusRegex.Match(QueryStr).Groups["status_id"].Value);
                 return RedirectToRoute(new
                 {
                     controller = "SimilarMedia",
                     action = "OneTweet",
-                    TweetID = StatusRegex.Match(QueryStr).Groups["status_id"]
-                });
+                    TweetID = db.SourceTweetRT(StatusID) ?? StatusID   //RTなら元ツイートに飛ばす
+            });
             }
             else
             {   //ツイートのURLっぽくなければユーザー名検索とみなす
@@ -44,6 +46,7 @@ namespace twiview.Controllers
             }
         }
 
+        [Route("search/media")]
         public ActionResult Media(HttpPostedFileWrapper File)
         {
             long? hash = null;
@@ -56,6 +59,7 @@ namespace twiview.Controllers
             return RedirectToRoute(new { controller = "SimilarMedia", action = "OneTweet", TweetID = tweet_id });
         }
 
+        [Route("search/users")]
         public ActionResult Users(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Undefined)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);

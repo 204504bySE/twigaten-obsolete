@@ -23,7 +23,11 @@ if (Tweet.user.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a 
 
 @helper DateOneTweetLink(TweetData._tweet Tweet)
 {
-    <a href="/tweet/@(Tweet.tweet_id)">@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</a>
+    <a href="/tweet/@(Tweet.tweet_id)">@Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")</a>
+}
+@helper TweetDate(TweetData._tweet Tweet)
+{
+    @Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")
 }
 
 @helper OneTweetLinkButton(SimilarMediaTweet Tweet)
@@ -37,7 +41,7 @@ if (Tweet.user.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a 
 
 @helper OneTweetButtonTweet(SimilarMediaTweet Tweet)
 {
-TweetData._tweet LinkTweet = Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.tweet.retweet;
+TweetData._tweet LinkTweet = Tweet.tweet.retweet ?? Tweet.tweet;
     @ScriptHelper.TweetButton(@"/tweet/" + LinkTweet.tweet_id + "#" + Tweet.media.media_id, string.Format("{0} のツイートと類似画像({1}) - TwiGaTen", LinkTweet.user.screen_name, LinkTweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")))
 }
 

@@ -13,8 +13,8 @@ namespace twiview.Controllers
     public class AuthCallbackController : Controller
     {
 
-        // GET: AuthCallback
         //http://nakaji.hatenablog.com/entry/2014/09/19/024341
+        [Route("auth/callback")]
         public ActionResult Twitter(string oauth_token, string oauth_verifier)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
@@ -45,14 +45,16 @@ namespace twiview.Controllers
             {
                 //ユーザーが認証を拒否したりするとこっち
                 //Session["Exception"] = e;
-                return RedirectToAction("Failed");
+                return RedirectToAction("Failure");
             }
         }
-        public ActionResult Failed()
+        [Route("auth/failure")]
+        public ActionResult Failure()
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
             return View();
         }
+        [Route("auth/done")]
         public ActionResult Done()
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);

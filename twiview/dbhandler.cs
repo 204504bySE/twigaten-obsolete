@@ -224,6 +224,19 @@ ORDER BY p.dcthash_distance, o.created_at LIMIT 1;"))
             return null;
         }
 
+        //tweet_idのツイートがRTだったら元ツイートのIDを返す
+        public long? SourceTweetRT(long tweet_id)
+        {
+            DataTable Table;
+            using(MySqlCommand cmd = new MySqlCommand(@"SELECT retweet_id FROM tweet WHERE tweet_id = @tweet_id;"))
+            {
+                cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
+            }
+            if(Table == null || Table.Rows.Count < 1) { return null; }
+            else { return Table.Rows[0].Field<long?>(0); }
+        }
+
         //特定のツイートの各画像とその類似画像
         //鍵かつフォロー外なら何も出ない
         public SimilarMediaTweet[] SimilarMediaTweet(long tweet_id, long? login_user_id, int SimilarLimit)
