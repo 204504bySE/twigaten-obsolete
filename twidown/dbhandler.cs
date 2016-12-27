@@ -261,38 +261,56 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         //<summary>
         //消されたツイートをDBから消す
         //</summary>
-        public int StoreDelete(long[] DeleteID)
+        public int StoreDelete(long[] DeleteID, out List<long> Deleted)
         {
+            Deleted = new List<long>(DeleteID.Length);
             if(DeleteID == null || DeleteID.Length == 0) { return 0; }
-            const int BulkUnit = 1000;
+            const int BulkUnit = 100;
             const string head = @"DELETE IGNORE FROM tweet WHERE tweet_id IN";
-            List<MySqlCommand> cmdList = new List<MySqlCommand>();
-            MySqlCommand cmdtmp;
+            MySqlCommand cmd;
             int i, j;
             string BulkInsertCmdFull = "";
+            int DeletedCount;
+            int DeletedCountTotal = 0;
 
             Array.Sort(DeleteID);
 
             for (i = 0; i < DeleteID.Length / BulkUnit; i++)
             {
                 if (i == 0) { BulkInsertCmdFull = BulkCmdStrIn(BulkUnit, head); }
-                cmdtmp = new MySqlCommand(BulkInsertCmdFull);
+                cmd = new MySqlCommand(BulkInsertCmdFull);
                 for (j = 0; j < BulkUnit; j++)
                 {
-                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
+                    cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
                 }
-                cmdList.Add(cmdtmp);
+                DeletedCount = ExecuteNonQuery(cmd);
+                if (DeletedCount >= 0)
+                {
+                    DeletedCountTotal += DeletedCount;
+                    for (j = 0; j < BulkUnit; j++)
+                    {
+                        Deleted.Add(DeleteID[BulkUnit * i + j]);
+                    }
+                }
             }
             if (DeleteID.Length % BulkUnit != 0)
             {
-                cmdtmp = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head));
+                cmd = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head));
                 for (j = 0; j < DeleteID.Length % BulkUnit; j++)
                 {
-                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
+                    cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
                 }
-                cmdList.Add(cmdtmp);
+                DeletedCount = ExecuteNonQuery(cmd);
+                if (DeletedCount >= 0)
+                {
+                    DeletedCountTotal += DeletedCount;
+                    for (j = 0; j < DeleteID.Length % BulkUnit; j++)
+                    {
+                        Deleted.Add(DeleteID[BulkUnit * i + j]);
+                    }
+                }
             }
-            return ExecuteNonQuery(cmdList);
+            return DeletedCountTotal;
         }
 
         public int StoreFriends(FriendsMessage x, long UserID)
