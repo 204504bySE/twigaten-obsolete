@@ -190,7 +190,8 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
         {
             if (dcthash == null) { return null; }
             DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+            using (MySqlCommand cmd = new MySqlCommand(@"
+(SELECT
 o.tweet_id
 FROM media m
 INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
@@ -198,30 +199,37 @@ INNER JOIN tweet o ON tweet_media.tweet_id = o.tweet_id
 INNER JOIN user ou ON o.user_id = ou.user_id
 WHERE m.dcthash = @dcthash
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id))
-ORDER BY o.created_at ASC LIMIT 1;"))
-            {
-                cmd.Parameters.AddWithValue("@dcthash", dcthash);
-                cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                Table = SelectTable(cmd);
-            }
-            if (Table.Rows.Count >= 1) { return Table.Rows[0].Field<long?>(0); }
-
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT 
+ORDER BY o.created_at LIMIT 1
+) UNION ALL (SELECT
+o.tweet_id
+FROM media m
+INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
+INNER JOIN tweet o ON tweet_media.tweet_id = o.tweet_id
+INNER JOIN user ou ON o.user_id = ou.user_id
+WHERE m.dcthash IN (@0,@1,@2,@3,@4,@5,@6,@7,@8,@9,@10,@11,@12,@13,@14,@15,@16,@17,@18,@19,@20,@21,@22,@23,@24,@25,@26,@27,@28,@29,@30,@31,@32,@33,@34,@35,@36,@37,@38,@39,@40,@41,@42,@43,@44,@45,@46,@47,@48,@49,@50,@51,@52,@53,@54,@55,@56,@57,@58,@59,@60,@61,@62,@63)
+AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id))
+ORDER BY o.created_at LIMIT 1
+) UNION ALL (SELECT 
 o.tweet_id
 FROM dcthashpair p INNER JOIN media m ON p.hash_sub = m.dcthash
 INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
 INNER JOIN tweet o ON tweet_media.tweet_id = o.tweet_id
 INNER JOIN user ou ON o.user_id = ou.user_id
-WHERE p.hash_pri = @dcthash
+WHERE p.hash_pri IN (@dcthash,@0,@1,@2,@3,@4,@5,@6,@7,@8,@9,@10,@11,@12,@13,@14,@15,@16,@17,@18,@19,@20,@21,@22,@23,@24,@25,@26,@27,@28,@29,@30,@31,@32,@33,@34,@35,@36,@37,@38,@39,@40,@41,@42,@43,@44,@45,@46,@47,@48,@49,@50,@51,@52,@53,@54,@55,@56,@57,@58,@59,@60,@61,@62,@63)
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = o.user_id))
-ORDER BY p.dcthash_distance, o.created_at LIMIT 1;"))
+ORDER BY p.dcthash_distance, o.created_at LIMIT 1
+);"))
             {
                 cmd.Parameters.AddWithValue("@dcthash", dcthash);
+                for(int i = 0; i < 64; i++)
+                {
+                    cmd.Parameters.AddWithValue('@' + i.ToString(), dcthash ^ (1L << i));
+                }
                 cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
                 Table = SelectTable(cmd);
             }
             if (Table.Rows.Count >= 1) { return Table.Rows[0].Field<long?>(0); }
-            return null;
+            else { return null; }
         }
 
         //tweet_idのツイートがRTだったら元ツイートのIDを返す

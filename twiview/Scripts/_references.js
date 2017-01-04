@@ -1,7 +1,4 @@
 ﻿/// <autosync enabled="true" />
-/// <reference path="../content/passback/article.js" />
-/// <reference path="../content/passback/footer.js" />
-/// <reference path="../content/passback/header.js" />
 /// <reference path="bootstrap.min.js" />
 /// <reference path="bootstrap-datetimepicker.min.js" />
 /// <reference path="jquery.lazyloadxt.extra.js" />

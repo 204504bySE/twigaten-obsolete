@@ -28,8 +28,10 @@ namespace twiview.Controllers
         {
             Login = new LoginHandler(Session, Request, Response);
             long? SourceTweetID = new DBHandlerView().SourceTweetRT(TweetID);
+
             //こっちでリダイレクトされるのは直リンだけ(検索側でもリダイレクトする)
             if (SourceTweetID != null) { return RedirectToActionPermanent("OneTweet", new { TweetID = SourceTweetID, More = More }); }
+
             if (More ?? false) { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100, false)); }
             else { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 3, true)); }
         }

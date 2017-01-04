@@ -337,6 +337,7 @@ namespace twitenlib
             //<summary>
             //MysqlConnectionとMySQLTransactionを張ってcmdを実行する
             //戻り値はDBの変更された行数
+            //失敗したら-1
             //</summary>
             try
             {

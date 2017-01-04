@@ -62,7 +62,7 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet ?? Tweet.tweet;
     {
         mediaurl = Media.orig_media_url;
     }
-    <a class="btn btn-default btn-xs" href="https://www.google.co.jp/searchbyimage?image_url=@(url.Encode(mediaurl))"><span class="glyphicon glyphicon-search"></span>@Locale.SimilarMedia_GoogleImage</a>
+    <a class="btn btn-default btn-xs" href="https://www.google.co.jp/searchbyimage?image_url=@(url.Encode(mediaurl))" rel="nofollow"><span class="glyphicon glyphicon-search"></span>@Locale.SimilarMedia_GoogleImage</a>
 }
 
 @helper UserLink(TweetData._user User)
@@ -79,7 +79,7 @@ else { <img src="/Content/images/dummy/48.png" class="pull-left twigaten-icon" /
 }
 @helper TweetPermalink(TweetData._tweet Tweet)
 {
-    <a href="https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)">https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)</a>
+    <a href="https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)" rel="nofollow">https://twitter.com/@(Tweet.user.screen_name)/status/@(Tweet.tweet_id)</a>
 }
 @helper MediaTypeGlyphIcon(TweetData._media Media)
 {

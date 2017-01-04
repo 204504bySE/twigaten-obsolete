@@ -44,7 +44,7 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
                 <p>
                     @TextHelper.UserIcon(Tweet.tweet.user)
                     @TextHelper.UserTweetLink(Tweet.tweet) @TextHelper.UserLink(Tweet.tweet.user)<br />
-                    @Tweet.tweet.user.name)
+                    @Tweet.tweet.user.name
                 </p>
                 <p>@TextHelper.DateOneTweetLink(Tweet.tweet)</p>
                 <p>
@@ -52,7 +52,7 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
                     @ScriptHelper.FavoriteIntent(Tweet.tweet.tweet_id)@Tweet.tweet.favorite_count
                     @TextHelper.GoogleMediaLink(Tweet.media)
                 </p>
-                <p class="twigaten-tweettext">@(html.Raw(Tweet.tweet.text))</p>
+                <p class="twigaten-tweettext">@html.Raw(Tweet.tweet.text)</p>
             }
             else
             {
