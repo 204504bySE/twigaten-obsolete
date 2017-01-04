@@ -16,6 +16,7 @@ namespace twidown
         //static readonly float[,] dct32; //[1,1]-[8,8]だけ
         static readonly float[] cos32_1_8;
         static readonly int VectorCount;    //Vector<float>の要素数
+        static readonly int xCount; //dcthash用
         static readonly Vector<float>[] cos32Vector_1_8; //横方向にVectorCountずつ取った奴
         static PictHash()
         {
@@ -41,6 +42,7 @@ namespace twidown
                 }
 
             VectorCount = Math.Min(32, Vector<float>.Count);
+            xCount = 32 / VectorCount;
 
             //こっちも1~8行だけ使う
             cos32Vector_1_8 = new Vector<float>[256 / VectorCount];
@@ -72,8 +74,9 @@ namespace twidown
             }
             catch { return null; }
         }
-        
+
         //pHashっぽいDCT Hashの自前実装
+
         public static long? dcthash(Stream imgStream, bool crop = false)
         {
             Vector<float>[] hashbuf = monoimage(imgStream, 32, crop); //モノクロ縮小画像
@@ -81,7 +84,6 @@ namespace twidown
 
             //DCTやる phashで必要な成分だけ求める
             //http://www.ice.gunma-ct.ac.jp/~tsurumi/courses/ImagePro/DCT/2D_DCT.htm
-            int xCount = 32 / VectorCount;
             float[] dctbuf = new float[64];
             for (int u = 0; u < 8; u++)
                 for (int v = 0; v < 8; v++)
@@ -137,17 +139,37 @@ namespace twidown
                     g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
                     if (crop)
                     {
-                        Rectangle SizeRect = new Rectangle(0, 0, size, size);
-                        Rectangle CropRect;
-                        if (img.Width > img.Height) { CropRect = new Rectangle((img.Width - img.Height) / 2, 0, img.Height, img.Height); }
-                        else { CropRect = new Rectangle(0, (img.Height - img.Width) / 2, img.Width, img.Width); }
-                        g.DrawImage(img, SizeRect, CropRect, GraphicsUnit.Pixel);
-                    }
+                        //Twitterの:thumbが単なる中央切り出しからずれているのをどうやって再現するか
+                        const int ThumbSize = 150;
+
+                        using (Bitmap ThumbImage = new Bitmap(ThumbSize,ThumbSize))
+                        using (Graphics gThumb = Graphics.FromImage(ThumbImage))
+                        {
+                            gThumb.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
+                            //gThumb.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+
+                            Rectangle ThumbRect;                          
+                            if (img.Width > img.Height) { ThumbRect = new Rectangle((img.Width - img.Height) / 2, 0, img.Height, img.Height); }
+                            else { ThumbRect = new Rectangle(0, (img.Height - img.Width) / 2, img.Width, img.Width); }
+                            /*
+                            if (img.Width > 150 || img.Height > 150)
+                            {
+                                ThumbRect.X += ThumbRect.Width / 300;
+                                ThumbRect.Y += ThumbRect.Height / 300;
+                                ThumbRect.Width -= ThumbRect.Width / 150;
+                                ThumbRect.Height -= ThumbRect.Height / 150;
+                            }
+                            */
+                            gThumb.DrawImage(img, new Rectangle(0, 0, ThumbSize, ThumbSize), ThumbRect, GraphicsUnit.Pixel);
+
+                            g.DrawImage(ThumbImage, new Rectangle(0, 0, size, size), new Rectangle(0, 0, ThumbSize, ThumbSize), GraphicsUnit.Pixel);
+                        }
+                     }
                     else { g.DrawImage(img, 0, 0, size, size); }
     
                     //バイト配列に取り出す
                     //http://www.84kure.com/blog/2014/07/13/c-%E3%83%93%E3%83%83%E3%83%88%E3%83%9E%E3%83%83%E3%83%97%E3%81%AB%E3%83%94%E3%82%AF%E3%82%BB%E3%83%AB%E5%8D%98%E4%BD%8D%E3%81%A7%E9%AB%98%E9%80%9F%E3%81%AB%E3%82%A2%E3%82%AF%E3%82%BB%E3%82%B9/
-                    BitmapData imgdata = miniimage.LockBits(new Rectangle(0, 0, size, size), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    BitmapData imgdata = miniimage.LockBits(new Rectangle(0, 0, size, size), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
                     byte[] imgbuf = new byte[size * size * 4];
                     Marshal.Copy(imgdata.Scan0, imgbuf, 0, imgbuf.Length);
                     //モノクロに変換

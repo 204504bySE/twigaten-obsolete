@@ -266,11 +266,9 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             Deleted = new List<long>(DeleteID.Length);
             if(DeleteID == null || DeleteID.Length == 0) { return 0; }
             const int BulkUnit = 100;
-            const string head = @"DELETE IGNORE FROM tweet WHERE tweet_id IN";
-            MySqlCommand cmd;
+            const string head = @"DELETE FROM tweet WHERE tweet_id IN";
             int i, j;
             string BulkInsertCmdFull = "";
-            int DeletedCount;
             int DeletedCountTotal = 0;
 
             Array.Sort(DeleteID);
@@ -278,12 +276,12 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             for (i = 0; i < DeleteID.Length / BulkUnit; i++)
             {
                 if (i == 0) { BulkInsertCmdFull = BulkCmdStrIn(BulkUnit, head); }
-                cmd = new MySqlCommand(BulkInsertCmdFull);
+                MySqlCommand cmd = new MySqlCommand(BulkInsertCmdFull);
                 for (j = 0; j < BulkUnit; j++)
                 {
                     cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
                 }
-                DeletedCount = ExecuteNonQuery(cmd);
+                int DeletedCount = ExecuteNonQuery(cmd);
                 if (DeletedCount >= 0)
                 {
                     DeletedCountTotal += DeletedCount;
@@ -295,12 +293,12 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             }
             if (DeleteID.Length % BulkUnit != 0)
             {
-                cmd = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head));
+                MySqlCommand cmd = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head));
                 for (j = 0; j < DeleteID.Length % BulkUnit; j++)
                 {
                     cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
                 }
-                DeletedCount = ExecuteNonQuery(cmd);
+                int DeletedCount = ExecuteNonQuery(cmd);
                 if (DeletedCount >= 0)
                 {
                     DeletedCountTotal += DeletedCount;

@@ -22,13 +22,10 @@ namespace twitool
     {
         static void Main(string[] args)
         {
+            CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
-            
-            Console.WriteLine("{0} Media removed", db.RemoveOrphanMedia());
-            return;
-            
-            CheckOldProcess.CheckandExit();
+
             db.RemoveOldMedia();
             db.RemoveOldProfileImage();
             Thread.Sleep(3000);
@@ -88,8 +85,8 @@ WHERE source_tweet_id IS NULL LIMIT @limit;"))
             DriveInfo drive = new DriveInfo(config.crawl.PictPaththumb.Substring(0, 1));
             int RemovedCount = 0;
             const int BulkUnit = 1000;
-            const string head = @"UPDATE media SET downloaded_at = NULL WHERE media_id IN";
-            string BulkUpdateCmd = BulkCmdStrIn(BulkUnit, head);
+            const string head = @"DELETE FROM media WHERE source_tweet_id IS NULL AND media_id IN";
+            const string head2 = @"UPDATE media SET downloaded_at = NULL WHERE media_id IN";
             Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
             try
             {
@@ -111,19 +108,18 @@ ORDER BY downloaded_at LIMIT @limit;"))
                         File.Delete(config.crawl.PictPaththumb + '\\'
                             + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string));
                     }
-
-                    if (Table.Rows.Count < BulkUnit)
+                    
+                    MySqlCommand[] CmdList = new MySqlCommand[2];
+                    CmdList[0] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head));
+                    CmdList[1] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head2));
+                    for (int n = 0; n < Table.Rows.Count; n++)
                     {
-                        BulkUpdateCmd = BulkCmdStrIn(Table.Rows.Count, head);
-                    }
-                    using (MySqlCommand delcmd = new MySqlCommand(BulkUpdateCmd))
-                    {
-                        for (int n = 0; n < Table.Rows.Count; n++)
+                        for (int i = 0; i < 2; i++)
                         {
-                            delcmd.Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
+                            CmdList[i].Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
                         }
-                        RemovedCount += ExecuteNonQuery(delcmd);
                     }
+                    RemovedCount += ExecuteNonQuery(CmdList);
                     Console.WriteLine("{0}: {1} Media removed", DateTime.Now, RemovedCount);
                     Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
                 }
@@ -224,40 +220,6 @@ ORDER BY tweet_id DESC;"))
                 GetTweetBlock.Post(TimeinSnowFlake(date.ToUnixTimeSeconds(), false));
                 date = date.AddHours(-1);
             }
-            /*
-            MySqlCommand cmd = new MySqlCommand(@"SELECT tweet_id FROM tweet
-WHERE retweet_id IS NULL
-AND NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_media.tweet_id = tweet.tweet_id)
-ORDER BY tweet_id DESC
-LIMIT @limit OFFSET @limit;");  //最新の奴は巻き込み防止のためやらない #ウンコード
-            cmd.Parameters.AddWithValue("@limit", BulkUnit);
-            Table = SelectTable(cmd);
-            while(Table != null && Table.Rows.Count > 0)
-            {
-                if (Table.Rows.Count < BulkUnit) { BulkDeleteCmd = BulkCmdStrIn(Table.Rows.Count,  head); }
-                using (MySqlCommand delcmd = new MySqlCommand(BulkDeleteCmd))
-                {
-                    for (int n = 0; n < Table.Rows.Count; n++)
-                    {
-                        delcmd.Parameters.AddWithValue("@" + n.ToString(), Table.Rows[n][0]);
-                    }
-                    i += ExecuteNonQuery(delcmd);
-
-                }
-                Console.WriteLine("{0}: {1} Tweets removed", DateTime.Now, i);
-
-                cmd = new MySqlCommand(@"SELECT tweet_id FROM tweet
-WHERE tweet_id < @last_tweet_id
-AND retweet_id IS NULL
-AND NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_media.tweet_id = tweet.tweet_id)
-ORDER BY tweet_id DESC
-LIMIT @limit;");
-                cmd.Parameters.AddWithValue("@last_tweet_id", Table.Rows[Table.Rows.Count - 1][0]);
-                cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                Table = SelectTable(cmd);
-            }
-            return i;
-            */
         }
 
 
@@ -343,98 +305,6 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             ret += ExecuteNonQuery(cmdlast);
             return ret;
         }
-
-                public void AddSourceTweetID()
-                {
-                    DataTable Table;
-                    using(MySqlCommand cmd = new MySqlCommand(@"SELECT
-                tweet.tweet_id, tweet.text, media.media_id
-                FROM tweet 
-                INNER JOIN tweet_media ON tweet.tweet_id = tweet_media.tweet_id
-                INNER JOIN media ON media.media_id = tweet_media.media_id
-                WHERE tweet.text IS NOT NULL
-                AND source_tweet_id IS NULL;"))
-                    {
-                        Table = SelectTable(cmd);
-                    }
-
-                   List<MySqlCommand> cmdList = new List<MySqlCommand>();
-
-                    //Regex tcoReg = new Regex(@"http(s)?://t\.co/[\da-zA-Z]+",RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-                    Regex TweetRegex = new Regex(@"://twitter\.com/([a-z0-9_]+?)/status(es)?/(?<tweet_id>[0-9]+?)/[a-z]+/[0-9]+$",RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-                    foreach (DataRow row in Table.Rows)
-                    {
-                        foreach (Match mm in TweetRegex.Matches(row[1] as string))
-                        {
-                            //Console.WriteLine(mm.Groups["tweet_id"].Value);
-                            MySqlCommand cmdtmp = new MySqlCommand(@"UPDATE media SET source_tweet_id=@source_tweet_id WHERE media_id = @media_id;");
-                            cmdtmp.Parameters.AddWithValue("@source_tweet_id", long.Parse(mm.Groups["tweet_id"].Value));
-                            cmdtmp.Parameters.AddWithValue("@media_id", row[2] as long? ?? 0);
-                            cmdList.Add(cmdtmp);
-                        }
-                    }
-
-                    ExecuteNonQuery(cmdList.ToArray());
-                }
-        /*
-                        public void HashAllText()
-                        {
-                            DataTable Table;
-                            using(MySqlCommand cmd = new MySqlCommand(@"SELECT tweet_id, text FROM tweet WHERE text IS NOT NULL AND relaxedhash IS NULL;"))
-                            {
-                                Table = SelectTable(cmd);
-                            }
-                            List<MySqlCommand> cmdList = new List<MySqlCommand>(Table.Rows.Count);
-                            foreach(DataRow row in Table.Rows)
-                            {
-
-                                MySqlCommand cmd = new MySqlCommand(@"UPDATE tweet SET relaxedhash = @relaxedhash WHERE tweet_id = @tweet_id;");
-                                cmd.Parameters.AddWithValue("@relaxedhash", TextHash.RelaxedHash(row[1] as string));
-                                cmd.Parameters.AddWithValue("@tweet_id", row[0] as long? ?? 0);
-                                cmdList.Add(cmd);
-
-                            }
-                            ExecuteNonQuery(cmdList.ToArray());
-                        }
-
-
-
-                        public struct tweet_media
-                        {
-                            public long tweet_id { get; }
-                            public long media_id { get; }
-                            public tweet_media(long _tweet_id, long _media_id)
-                            {
-                                tweet_id = _tweet_id;
-                                media_id = _media_id;
-                            }
-                        }
-
-                        public void DownloadIcon()
-                        {
-                            System.Net.ServicePointManager.DefaultConnectionLimit = 20;
-                            List<string> IconUrl = new List<string>();
-                            DataTable Table;
-                            using(MySqlCommand cmd = new MySqlCommand(@"SELECT profile_image_url FROM user;"))
-                            {
-                                Table = SelectTable(cmd);
-                            }
-                            foreach(DataRow row in Table.Rows)
-                            {
-                                IconUrl.Add(row[0] as string);
-                            }
-                            Table = null;
-                            foreach(string u in IconUrl)
-                             {
-                                 if (!File.Exists(string.Format(@"{0}\{1}", config.crawl.PictPathProfileImage, twitenlib.localstrs.localmediapath(u))))
-                                 {
-                                     Console.WriteLine(u);
-                                     bool nullpo = downloadFileAsync(u, string.Format(@"{0}\{1}", config.crawl.PictPathProfileImage, twitenlib.localstrs.localmediapath(u))).Result;
-                                 }
-                             }
-                        }
-            */
 
         public void StoreDownloadTimeprofile()
         {
