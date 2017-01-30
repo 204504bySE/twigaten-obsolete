@@ -280,7 +280,7 @@ namespace twitenlib
             return BulkCmd.ToString();
         }
 
-        protected DataTable SelectTable(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
+        protected DataTable SelectTable(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted)
         {
             try
             {
@@ -327,12 +327,12 @@ namespace twitenlib
             catch { return -1; }
         }
 
-        protected int ExecuteNonQuery(MySqlCommand cmd, bool NeverSemaphoreTimeout = false)
+        protected int ExecuteNonQuery(MySqlCommand cmd)
         {
-            return ExecuteNonQuery(new MySqlCommand[] { cmd }, NeverSemaphoreTimeout);
+            return ExecuteNonQuery(new MySqlCommand[] { cmd });
         }
 
-        protected int ExecuteNonQuery(IEnumerable<MySqlCommand> cmd, bool NeverSemaphoreTimeout = false)
+        protected int ExecuteNonQuery(IEnumerable<MySqlCommand> cmd)
         {
             //<summary>
             //MysqlConnectionとMySQLTransactionを張ってcmdを実行する

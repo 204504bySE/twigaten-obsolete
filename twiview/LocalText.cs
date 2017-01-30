@@ -14,7 +14,7 @@ namespace twiview
     public static class LocalText
     {
         static readonly Regex UrlRegex = new Regex(@"https?://[-_.!~*'()a-zA-Z0-9;/?:@&=+$,%#]+", RegexOptions.Compiled);
-        static readonly Regex HashtagRegex = new Regex(@"(^|.*?[\s　>])[#＃](?<hashtag>[a-z0-9_À-ÖØ-öø-ÿĀ-ɏɓ-ɔɖ-ɗəɛɣɨɯɲʉʋʻ̀-ͯḀ-ỿЀ-ӿԀ-ԧⷠ-ⷿꙀ-֑ꚟ-ֿׁ-ׂׄ-ׇׅא-תװ-״﬒-ﬨשׁ-זּטּ-לּמּנּ-סּףּ-פּצּ-ﭏؐ-ؚؠ-ٟٮ-ۓە-ۜ۞-۪ۨ-ۯۺ-ۼۿݐ-ݿࢠࢢ-ࢬࣤ-ࣾﭐ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼ‌ก-ฺเ-๎ᄀ-ᇿ㄰-ㆅꥠ-꥿가-힯ힰ-퟿ﾡ-ￜァ-ヺー-ヾｦ-ﾟｰ０-９Ａ-Ｚａ-ｚぁ-ゖ゙-ゞ㐀-䶿一-鿿꜀-뜿띀-렟-﨟〃々〻]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static readonly Regex HashtagRegex = new Regex(@"(?<=(?:^|.*?[\s　>])[#＃])[a-z0-9_À-ÖØ-öø-ÿĀ-ɏɓ-ɔɖ-ɗəɛɣɨɯɲʉʋʻ̀-ͯḀ-ỿЀ-ӿԀ-ԧⷠ-ⷿꙀ-֑ꚟ-ֿׁ-ׂׄ-ׇׅא-תװ-״﬒-ﬨשׁ-זּטּ-לּמּנּ-סּףּ-פּצּ-ﭏؐ-ؚؠ-ٟٮ-ۓە-ۜ۞-۪ۨ-ۯۺ-ۼۿݐ-ݿࢠࢢ-ࢬࣤ-ࣾﭐ-ﮱﯓ-ﴽﵐ-ﶏﶒ-ﷇﷰ-ﷻﹰ-ﹴﹶ-ﻼ‌ก-ฺเ-๎ᄀ-ᇿ㄰-ㆅꥠ-꥿가-힯ힰ-퟿ﾡ-ￜァ-ヺー-ヾｦ-ﾟｰ０-９Ａ-Ｚａ-ｚぁ-ゖ゙-ゞ㐀-䶿一-鿿꜀-뜿띀-렟-﨟〃々〻]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         public static string TextToLink(string Text)
         {
             //URLとハッシュタグをリンクにする rel="nofollow" 付き
@@ -38,13 +38,11 @@ namespace twiview
             m = HashtagRegex.Matches(Builder.ToString());
             for (int i = m.Count - 1; 0 <= i; i--)
             {
-                Group g = m[i].Groups["hashtag"];
-
                 //後ろから順に挿入する
-                Builder.Insert(g.Index + g.Length, "</a>")
-                    .Insert(g.Index - 1, @""" rel=""nofollow"">")
-                    .Insert(g.Index - 1, HttpUtility.UrlEncode(g.Value))
-                    .Insert(g.Index - 1, @"<a href=""https://twitter.com/hashtag/");
+                Builder.Insert(m[i].Index + m[i].Length, "</a>")
+                    .Insert(m[i].Index - 1, @""" rel=""nofollow"">")
+                    .Insert(m[i].Index - 1, HttpUtility.UrlEncode(m[i].Value))
+                    .Insert(m[i].Index - 1, @"<a href=""https://twitter.com/hashtag/");
             }
             return Builder.ToString();
         }
