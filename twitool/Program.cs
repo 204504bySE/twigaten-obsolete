@@ -83,10 +83,9 @@ WHERE source_tweet_id IS NULL LIMIT @limit;"))
         public void RemoveOldMedia()
         {
             DriveInfo drive = new DriveInfo(config.crawl.PictPaththumb.Substring(0, 1));
-            int RemovedCount = 0;
+            int RemovedCountDB = 0;
+            int RemovedCountFile = 0;
             const int BulkUnit = 1000;
-            const string head = @"DELETE FROM media WHERE source_tweet_id IS NULL AND media_id IN";
-            const string head2 = @"UPDATE media SET downloaded_at = NULL WHERE media_id IN";
             Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
             try
             {
@@ -110,22 +109,24 @@ ORDER BY downloaded_at LIMIT @limit;"))
                     }
                     
                     MySqlCommand[] CmdList = new MySqlCommand[2];
-                    CmdList[0] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head));
-                    CmdList[1] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head2));
+                    CmdList[0] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, @"UPDATE media SET downloaded_at = NULL WHERE media_id IN"));
+                    CmdList[1] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, @"DELETE FROM media WHERE source_tweet_id IS NULL AND media_id IN"));
                     for (int n = 0; n < Table.Rows.Count; n++)
                     {
+                        string atNum = '@' + n.ToString();
                         for (int i = 0; i < 2; i++)
                         {
-                            CmdList[i].Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
+                            CmdList[i].Parameters.AddWithValue(atNum, Table.Rows[n][0]);
                         }
                     }
-                    RemovedCount += ExecuteNonQuery(CmdList);
-                    Console.WriteLine("{0}: {1} Media removed", DateTime.Now, RemovedCount);
+                    RemovedCountDB += ExecuteNonQuery(CmdList) - Table.Rows.Count;
+                    RemovedCountFile += Table.Rows.Count;
+                    Console.WriteLine("{0}: {1} / {2} Media removed", DateTime.Now, RemovedCountDB, RemovedCountFile);
                     Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
                 }
             }
             catch (Exception e) { Console.WriteLine(e); return; }
-            Console.WriteLine("{0}: {1} Media removal completed.", DateTime.Now, RemovedCount);
+            Console.WriteLine("{0}: {1} Media removal completed.", DateTime.Now, RemovedCountFile);
         }
 
         //しばらくツイートがないアカウントのprofile_imageを消す
@@ -512,7 +513,7 @@ FROM token;"))
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id FROM user ORDER BY user_id LIMIT 100 OFFSET 80000;"))
             {
                 cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
 
             int n = 0;
@@ -534,7 +535,7 @@ FROM token;"))
                 using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id FROM user WHERE user_id > @lastid ORDER BY user_id LIMIT 100;"))
                 {
                     cmd.Parameters.AddWithValue("@lastid", Table.Rows[Table.Rows.Count - 1].Field<long>(0));
-                    Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
+                    Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
                 }
             }
             UpdateUserBlock.Complete();
@@ -556,7 +557,7 @@ FROM token;"))
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media WHERE media_id < 700000000000000000 ORDER BY media_id DESC LIMIT @limit;"))
             {
                 cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                Table = SelectTable(cmd,IsolationLevel.ReadUncommitted,true);
+                Table = SelectTable(cmd,IsolationLevel.ReadUncommitted);
             }
             foreach (DataRow row in Table.Rows)
             {
@@ -570,7 +571,7 @@ FROM token;"))
                 {
                     cmd.Parameters.AddWithValue("@lastid", (long)Table.Rows[Table.Rows.Count - 1][0]);
                     cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                    Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
+                    Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
                 }
                 foreach (DataRow row in Table.Rows)
                 {
@@ -586,7 +587,7 @@ FROM token;"))
                         {
                             cmdtmp.Parameters.AddWithValue("@dcthash", media.Value);
                             cmdtmp.Parameters.AddWithValue("@media_id", media.Key);
-                            updated += ExecuteNonQuery(cmdtmp, true);
+                            updated += ExecuteNonQuery(cmdtmp);
                         }
                     }
                 }
@@ -602,7 +603,7 @@ FROM token;"))
                     {
                         cmdtmp.Parameters.AddWithValue("@dcthash", media.Value);
                         cmdtmp.Parameters.AddWithValue("@media_id", media.Key);
-                        updated += ExecuteNonQuery(cmdtmp, true);
+                        updated += ExecuteNonQuery(cmdtmp);
                     }
                 }
             }
