@@ -74,7 +74,7 @@ namespace twihash
                 Cmd.Parameters["@b" + numstr].Value = StorePairs[i].media1;
                 Cmd.Parameters["@c" + numstr].Value = StorePairs[i].hammingdistance;
             }
-            int ret = ExecuteNonQuery(Cmd, true);
+            int ret = ExecuteNonQuery(Cmd);
 
             Array.Sort(StorePairs, OrderSub);
             for (int i = 0; i < StorePairs.Length; i++)
@@ -84,7 +84,7 @@ namespace twihash
                 Cmd.Parameters["@b" + numstr].Value = StorePairs[i].media0;
                 Cmd.Parameters["@c" + numstr].Value = StorePairs[i].hammingdistance;
             }
-            return ret + ExecuteNonQuery(Cmd, true);
+            return ret + ExecuteNonQuery(Cmd);
         }
 
 

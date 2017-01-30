@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -41,12 +42,12 @@ namespace twihash
     public class MediaHashArray
     {
         public readonly long[] Hashes;
-        public readonly bool[] NeedstoInsert;
+        public readonly BitArray NeedstoInsert;
         public readonly int Length; 
         public MediaHashArray(int Length)
         {
             Hashes = new long[Length];
-            NeedstoInsert = new bool[Length];
+            NeedstoInsert = new BitArray(Length);
             this.Length = Length;
             if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
