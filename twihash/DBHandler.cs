@@ -94,7 +94,7 @@ namespace twihash
             try
             {
                 MediaHashArray ret = new MediaHashArray(config.hash.LastHashCount + config.hash.HashCountOffset);
-                int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2));
+                int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2)); //TableがLarge Heapに載らない程度に調整
                 bool ForceInsert = config.hash.LastUpdate <= 0;
                 Parallel.For(0, 1 << (64 - HashUnitBits),
                     new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },

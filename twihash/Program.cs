@@ -42,12 +42,12 @@ namespace twihash
     public class MediaHashArray
     {
         public readonly long[] Hashes;
-        public readonly BitArray NeedstoInsert;
+        public readonly bool[] NeedstoInsert;
         public readonly int Length; 
         public MediaHashArray(int Length)
         {
             Hashes = new long[Length];
-            NeedstoInsert = new BitArray(Length);
+            NeedstoInsert = new bool[Length];
             this.Length = Length;
             if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
