@@ -8,11 +8,10 @@
 
         public const string ConsumerKey = "";
         public const string ConsumerSecret = "";
-        public const string CallBackUrl = "https://twigaten.204504byse.info/AuthCallback/Twitter";
+        public const string CallBackUrl = "https://twigaten.204504byse.info/auth/callback";
 
         //最後に "/" を付ける
         public const string PictPathProfileImage = "/twimg/profile_image/";
-        public const string PictPathsmall = "/twimg/small/";
         public const string PictPaththumb = "/twimg/thumb/";
 
         public const string DBAddress = "localhost";

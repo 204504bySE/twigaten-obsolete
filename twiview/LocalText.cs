@@ -18,8 +18,8 @@ namespace twiview
         public static string TextToLink(string Text)
         {
             //URLとハッシュタグをリンクにする rel="nofollow" 付き
-            if (Text == null) { return null; }
 
+            if (Text == null) { return null; }
             StringBuilder Builder = new StringBuilder(Text)
                 .Replace("<", "&lt;")
                 .Replace(">", "&gt;")

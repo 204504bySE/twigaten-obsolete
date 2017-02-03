@@ -43,7 +43,7 @@ namespace twidown
             {
                 int Connected = manager.ConnectStreamers();
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Optimized, false, true);
+                GC.Collect();
                 Thread.Sleep(60000);
                 manager.AddAll(db.SelectAlltoken());
             }

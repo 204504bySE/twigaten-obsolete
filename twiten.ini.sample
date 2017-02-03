@@ -1,6 +1,12 @@
+;このファイルを適宜書き換えた上で各exeと同じディレクトリに置く
+;twiviewだけはこれじゃなくてconfig.csを書き換える
+
 [token]
 ConsumerKey=
 ConsumerSecret=
+
+[database]
+Address=localhost
 
 [crawl]
 PictPathProfileImage=D:\profile_image
@@ -10,9 +16,9 @@ PictPaththumb=E:\thumb
 UserStreamTimeout=300
 UserStreamTimeoutTweets=100
 
-DefaultConnections=200
+DefaultConnections=400
 ConnectionCountFactor=1
-MaxDBConnections=4
+MaxDBConnections=16
 
 StreamersConnectTimeout=300
 RestConnected=true
@@ -20,11 +26,10 @@ RestConnected=true
 [crawlparent]
 ChildPath=C:\Users\twigaten\Desktop\twidown\twidown.exe
 ChildName=twidown
-AccountLimit=960
-ChildSingleThread=false
+AccountLimit=6000
 InitTruncate=true
 
 [hash]
-MaxHammingDistance=3
+MaxHammingDistance=2
 ExtraBlocks=2
 LastUpdate=0

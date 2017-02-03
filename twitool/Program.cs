@@ -307,51 +307,6 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             return ret;
         }
 
-        public void StoreDownloadTimeprofile()
-        {
-            DataTable Table = SelectTable(new MySqlCommand(@"SELECT user_id, profile_image_url FROM user WHERE profile_image_url IS NOT NULL AND downloaded_at IS NULL;"));
-            Console.WriteLine(Table.Rows.Count);
-            List<KeyValuePair<long, string>> media = new List<KeyValuePair<long, string>>();
-            foreach (DataRow row in Table.Rows)
-            {
-                media.Add(new KeyValuePair<long, string>(row[0] as long? ?? 0, row[1] as string));
-            }
-            Table = null;
-            GC.Collect();
-            int i = 0, k = 0;
-            Parallel.ForEach(media,
-                new ParallelOptions { MaxDegreeOfParallelism = 8 },
-                (KeyValuePair<long, string> m) =>
-            //foreach (KeyValuePair<long, string> m in media)
-            {
-                string localurl = string.Format(@"{0}\{1}", config.crawl.PictPathProfileImage, twitenlib.localstrs.localmediapath(m.Value));
-                if (File.Exists(localurl))
-                {
-                    Interlocked.Increment(ref k);
-                    DateTime downloadtime = new FileInfo(localurl).CreationTimeUtc;
-                    downloadtime = DateTime.SpecifyKind(downloadtime, DateTimeKind.Utc);
-                    DateTimeOffset utcdownloadtime = downloadtime;
-                    long downloaded_at = utcdownloadtime.ToUnixTimeSeconds();
-                    MySqlCommand cmd2 = new MySqlCommand(@"UPDATE user SET downloaded_at = @downloaded_at WHERE user_id = @user_id;");
-                    cmd2.Parameters.AddWithValue("@downloaded_at", downloaded_at);
-                    cmd2.Parameters.AddWithValue("@user_id", m.Key);
-                    ExecuteNonQuery(cmd2);
-                }
-                /*
-                else
-                {
-                    long? hash = PictHash.dcthash(localurl);
-                    MySqlCommand cmd3 = new MySqlCommand(@"UPDATE media SET dcthash = @dcthash WHERE media_id = @media_id;");
-                    cmd3.Parameters.AddWithValue("@dcthash", hash);
-                    cmd3.Parameters.AddWithValue("@media_id", m.Key);
-                    ExecuteNonQuery(cmd3,IsolationLevel.ReadUncommitted);
-                }
-                */
-                Interlocked.Increment(ref i);
-                if (i % 1000 == 0) { Console.WriteLine("{0}: {1} / {2}", DateTime.Now, k, i); }
-              });
-        }
-
         //とりあえずここに置くやつ #クズ
         bool downloadFile(string uri, string outputPath)
         {

@@ -70,13 +70,23 @@ namespace twitenlib
         private static Config _config = new Config();
         private Config()
         {
-            IniFileHandler ini = new IniFileHandler(Directory.GetCurrentDirectory() + @"\twiten.ini");
-            token = new _token(ini);
-            crawl = new _crawl(ini);
-            crawlparent = new _crawlparent(ini);
-            hash = new _hash(ini);
-            database = new _database(ini);
-            bot = new _bot(ini);
+            try
+            {
+                IniFileHandler ini = new IniFileHandler(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location) + @"\twiten.ini");
+                token = new _token(ini);
+                crawl = new _crawl(ini);
+                crawlparent = new _crawlparent(ini);
+                hash = new _hash(ini);
+                database = new _database(ini);
+                bot = new _bot(ini);
+            }
+            catch { }   //twiviewではこのconfigクラスは使用しない
+        }
+
+        //singletonはこれでインスタンスを取得して使う
+        public static Config Instance
+        {
+            get { return _config; }
         }
 
         public class _token
@@ -209,12 +219,6 @@ namespace twitenlib
             }
         }
         public _bot bot;
-
-        //singletonはこれでインスタンスを取得して使う
-        public static Config Instance
-        {
-            get { return _config; }
-        }
     }
 
     public class DBHandler
@@ -380,50 +384,6 @@ namespace twitenlib
             //ASCII範囲外は消しちゃう(めんどくさい
             byte[] bytes = ascii.GetBytes(Str);
             return ascii.GetString(bytes);
-        }
-    }
-    
-
-    public static class localstrs
-    {
-        //画像の保存先を雑に返す config.pathはここでは付加しない
-        //profile_imageにしか使ってないねきっと
-        public static string localmediapath(Uri u)
-        {
-            return removeinvalidchars(u.Authority + u.LocalPath);
-        }
-        public static string localmediapath(string s)
-        {
-            if(s == null) { return null; }
-            return localmediapath(new Uri(s));
-        }
-        static string removeinvalidchars(string s)
-        //ファイルに使えない文字とUnicode制御文字を'_'にする
-        //http://dobon.net/vb/dotnet/string/removecharacters.html
-        {
-            StringBuilder buf = new StringBuilder();
-            foreach (char c in s)
-            {
-                if (char.IsControl(c))
-                {
-                    buf.Append('_');
-                    continue;
-                }
-                else
-                {
-                    foreach (char i in System.IO.Path.GetInvalidFileNameChars())
-                    {
-                        if (c == i)
-                        {
-                            buf.Append('_');
-                            goto ICONT;
-                        }
-                    }
-                    buf.Append(c);
-                }
-                ICONT:;
-            }
-            return buf.ToString();
         }
     }
 
