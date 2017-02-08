@@ -4,7 +4,7 @@ use twiten;
 create table token(
 	user_id bigint primary key,
 	token varchar(255) character set ascii not null,
-	token_secret varchar(255) character set ascii not null,
+	token_secret varchar(255) character set ascii not null
 );
 
 create table viewlogin(
@@ -105,10 +105,12 @@ create table dcthashpair(
 	foreign key (hash_sub) references media(dcthash) on delete cascade
 );
 
+/*
 create table pakurier(
-	user_id bigint primary key/*,
-	foreign key (user_id) references user(user_id) on delete cascade*/
+	user_id bigint primary key
+	foreign key (user_id) references user(user_id) on delete cascade
 );
+*/
 
 create user token, crawl, hash, view, bot;
 
