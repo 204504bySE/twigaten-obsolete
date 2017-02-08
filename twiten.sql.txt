@@ -40,7 +40,7 @@ engine=memory;
 create table friend(
 	user_id bigint not null,
 	friend_id bigint not null,
-	unique (user_id, friend_id).
+	unique (user_id, friend_id),
 	foreign key (user_id) references token(user_id) on delete cascade
 );
 	
