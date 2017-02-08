@@ -1,18 +1,13 @@
 ﻿using System;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 using System.Reactive.Linq;
-using System.Reactive.Concurrency;
 using CoreTweet;
 using CoreTweet.Streaming;
 using System.IO;
 using System.Net;
-using System.Net.Http;
-using System.Text;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using twitenlib;
 
 namespace twidown
@@ -26,7 +21,6 @@ namespace twidown
         Config config = Config.Instance;
         DBHandler db = DBHandler.Instance;
         Counter counter = Counter.Instance;
-        IObservable<StreamingMessage> UserStream;
         IDisposable StreamDisposable = null;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
         TweetTimeList TweetTime = new TweetTimeList();
@@ -148,8 +142,7 @@ namespace twidown
 
             LastStreamingMessageTime = DateTimeOffset.Now;
             TweetTime.Add(LastStreamingMessageTime);
-            UserStream = Token.Streaming.UserAsObservable();
-            StreamDisposable = UserStream.Subscribe(
+            StreamDisposable = Token.Streaming.UserAsObservable().Subscribe(
                 (StreamingMessage m) =>
                 {
                     DateTimeOffset now = DateTimeOffset.Now;
@@ -162,10 +155,12 @@ namespace twidown
                     if (ex is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
                     Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
                     e = ex;
+                    StreamDisposable.Dispose(); StreamDisposable = null;
                 },
                 () =>
                 { //接続中のRevokeはこれ
                     e = new Exception("UserAsObservable unexpectedly finished.");
+                    StreamDisposable.Dispose(); StreamDisposable = null;
                 }
                 );
         }
@@ -475,11 +470,7 @@ namespace twidown
         //ツイートのURLを作る
         string StatusUrl(Status x)
         {
-            StringBuilder builder = new StringBuilder("https://twitter.com/");
-            builder.Append(x.User.ScreenName);
-            builder.Append("/status/");
-            builder.Append(x.Id);
-            return builder.ToString();
+            return "https://twitter.com/" + x.User.ScreenName + "/status/" + x.Id;
         }
 
         void HandleEventMessage(EventMessage x)
