@@ -5,9 +5,7 @@ using System.Threading.Tasks;
 
 using CoreTweet;
 using System.Net;
-using System.Text;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using twitenlib;
 
 namespace twidown

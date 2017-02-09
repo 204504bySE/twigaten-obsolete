@@ -69,7 +69,7 @@ GROUP BY pid HAVING COUNT(user_id)) cp ON pid.pid = cp.pid
 ORDER BY c LIMIT 1;"))
             {
                 cmd.Parameters.AddWithValue("@count", config.crawlparent.AccountLimit);
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted, true);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
             if (Table == null || Table.Rows.Count < 1
                 || (Table.Rows[0].Field<long?>(1) ?? 0) > config.crawlparent.AccountLimit) { return -1; }
