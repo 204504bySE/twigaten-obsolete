@@ -112,7 +112,7 @@ create table pakurier(
 );
 */
 
-create user token, crawl, hash, view, bot;
+create user token, crawl, hash, tool, view/* , bot */;
 
 grant select, insert, update on twiten.token to token;
 grant select, insert, update on twiten.user to token;
