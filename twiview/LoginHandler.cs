@@ -10,9 +10,6 @@ namespace twiview
 {
     public class LoginHandler
     {
-        DBHandlerToken dbtoken = new DBHandlerToken();
-        DBHandlerView dbview = new DBHandlerView();
-
         HttpSessionStateBase Session;
         HttpRequestBase Request;
         HttpResponseBase Response;
@@ -32,17 +29,17 @@ namespace twiview
 
         public DBHandlerToken.VerifytokenResult StoreNewLogin(Tokens token)
         {
-
-            DBHandlerToken.VerifytokenResult vt = dbtoken.Verifytoken(token);
+            DBHandlerToken dbToken = new DBHandlerToken();
+            DBHandlerToken.VerifytokenResult vt = dbToken.Verifytoken(token);
             if (vt != DBHandlerToken.VerifytokenResult.Exist)
             {
-                if (dbtoken.InsertNewtoken(token) < 1)
+                if (dbToken.InsertNewtoken(token) < 1)
                 {
                     throw (new Exception("トークンの保存に失敗しました"));
                 }
             }
             UserResponse SelfUserInfo = token.Account.VerifyCredentials();
-            dbtoken.StoreUserProfile(SelfUserInfo);
+            dbToken.StoreUserProfile(SelfUserInfo);
 
             Session["LoginUserID"] = token.UserId;
             Session["LoginUserScreenName"] = SelfUserInfo.ScreenName;
@@ -51,7 +48,7 @@ namespace twiview
             string base64str;
             new RNGCryptoServiceProvider().GetBytes(random);
             base64str = Convert.ToBase64String(random);
-            if(dbtoken.StoreUserLoginString(token.UserId, base64str) < 1) { throw new Exception("トークンの保存に失敗しました"); }
+            if(dbToken.StoreUserLoginString(token.UserId, base64str) < 1) { throw new Exception("トークンの保存に失敗しました"); }
 
             SetCookie("ID", token.UserId.ToString());
             SetCookie("LoginToken", base64str);
@@ -83,14 +80,14 @@ namespace twiview
             if(UserID == null) { return; }
             if (Manually)
             {
-                dbview.DeleteUserLoginString((long)UserID);
+
+                new DBHandlerView().DeleteUserLoginString((long)UserID);
                 ClearCookie("TweetCount");
                 ClearCookie("GetRetweet");
                 ClearCookie("TweetOrder");
             }
             ClearCookie("LoginToken");
             ClearCookie("ID");
-            ClearCookie("MediaSize");
             Session.Abandon();
         }
 
@@ -116,14 +113,14 @@ namespace twiview
             long UserID;
             if (!long.TryParse(Request.Cookies["ID"].Value, out UserID)) { return null; }
             string LoginToken = Request.Cookies["LoginToken"].Value;
-            DBHandlerView db = new DBHandlerView();
-            if (db.SelectUserLoginString(UserID) == LoginToken)
+            DBHandlerView dbView = new DBHandlerView();
+            if (dbView.SelectUserLoginString(UserID) == LoginToken)
             {
                 //Cookieの有効期限を延長する
                 SetCookie("ID", UserID.ToString());
                 SetCookie("LoginToken", LoginToken);
                 Session["LoginUserID"] = UserID;
-                Session["LoginUserScreenName"] = db.SelectUser(UserID).screen_name;
+                Session["LoginUserScreenName"] = dbView.SelectUser(UserID).screen_name;
                 Session["LoginUserToken"] = LoginToken;
                 return UserID;
             }

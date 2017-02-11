@@ -161,7 +161,6 @@
     <Compile Include="TweetData.cs" />
     <Compile Include="DBHandler.cs" />
     <Compile Include="twitenlib.cs" />
-    <Compile Include="Controllers\AuthCallbackController.cs" />
     <Compile Include="Controllers\AuthController.cs" />
     <Compile Include="Controllers\SimilarMediaContoroller.cs" />
     <Compile Include="Controllers\HomeController.cs" />
@@ -250,18 +249,17 @@
     <Content Include="Views\SimilarMedia\Timeline.cshtml" />
     <Content Include="Views\SimilarMedia\UserTweet.cshtml" />
     <Content Include="Views\SimilarMedia\OneTweet.cshtml" />
-    <Content Include="Views\AuthCallback\Done.cshtml" />
+    <Content Include="Views\Auth\Done.cshtml" />
     <Content Include="Views\Search\Index.cshtml" />
     <Content Include="Views\Search\Users.cshtml" />
     <Content Include="Views\SimilarMedia\Featured.cshtml" />
-    <Content Include="Views\AuthCallback\Failure.cshtml" />
+    <Content Include="Views\Auth\Failure.cshtml" />
     <Content Include="Views\Search\Media.cshtml" />
     <Content Include="Scripts\jquery-3.1.1.slim.min.map" />
     <Content Include="Scripts\jquery-3.1.1.min.map" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
-    <Folder Include="Views\Auth\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="packages.config" />
