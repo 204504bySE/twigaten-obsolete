@@ -145,10 +145,10 @@
     <value>人気のツイート</value>
   </data>
   <data name="Menu_Login" xml:space="preserve">
-    <value>Twitterアカウントでログイン</value>
+    <value>Twitterでサインイン</value>
   </data>
   <data name="Menu_Logout" xml:space="preserve">
-    <value>ログアウト</value>
+    <value>サインアウト</value>
   </data>
   <data name="Menu_MyTweet" xml:space="preserve">
     <value>自分のツイート</value>

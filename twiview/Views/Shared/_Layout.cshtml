@@ -13,7 +13,7 @@
     @Styles.Render("~/Content/css")
 </head>
 <body>
-    <nav class="navbar navbar-default">
+    <nav class="navbar navbar-default" role="navigation">
         <div class="container-fluid">
             <div class="navbar-header">
                 <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
@@ -47,10 +47,14 @@
                     <li>@Html.ActionLink(Locale.Menu_Featured, "Featured", "SimilarMedia", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") }, null)</li>
                     <li>@Html.ActionLink(Locale.Menu_About, "About", "Home")</li>
                 </ul>
-                <form action=@(Url.RouteUrl(new { controller = "Search", action = "Index" })) method="get" class="navbar-form navbar-right">
-                    <div class="form-group">
-                        <input name="Str" type="text" class="form-control" placeholder="@('@')name/URL" style="width:11em" />
-                        <button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-search"></span></button>
+            </div>
+            <div class="nav navbar-nav">
+                <form action=@(Url.RouteUrl(new { controller = "Search", action = "Index" })) method="get" role="search" class="form-inline">
+                    <div class="input-group">
+                        <input name="Str" type="text" class="form-control" placeholder="@('@')name/URL" />
+                        <span class="input-group-btn">
+                            <button type="submit" class="btn btn-primary"><span class="glyphicon glyphicon-search"></span></button>
+                        </span>
                     </div>
                 </form>
             </div>

@@ -3,7 +3,7 @@
 @helper RenderScripts()
 {
     @Styles.Render("~/Content/bootstrap-datepicker")
-    @ScriptHelper.datetimepickerScript(Model.Date.ToLocalTime())
+    @ScriptHelper.datetimepickerScript(Html, Model.Date, Url.Action("Timeline", new { UserID = Model.TargetUser.user_id }) + @"?Date=")
 }
 @{
 
@@ -77,41 +77,36 @@
     </div>
     if (datepicker)
     {
-    <div>
+    <div class="form-group">
         <form method="get" class="form-inline" style="display:inline-block">
-            <div class="form-group">
-                @Locale.Pager_ResultsPerPage
-                <select class="form-control" name="Count" onchange="this.form.submit()">
-                    <option value="10" @(Model.TweetCount == 10 ? " selected" : "")>10</option>
-                    <option value="20" @(Model.TweetCount == 20 ? " selected" : "")>20</option>
-                    <option value="50" @(Model.TweetCount == 50 ? " selected" : "")>50</option>
-                </select>
-                @switch (Model.Before)
-                {
-                    case true:
-                        <input type="hidden" name="Before" value="@(Model.Date.ToUnixTimeSeconds())" />
-                        break;
-                    case false:
-                        <input type="hidden" name="After" value="@(Model.Date.ToUnixTimeSeconds())" />
-                        break;
-                    case null:
-                    default:
-                        <input type="hidden" name="Date" value="@(Model.Date.ToString("yyyy-MM-dd"))" />
-                        break;
-                }
-            </div>
+            @Locale.Pager_ResultsPerPage
+            <select class="form-control" name="Count" onchange="this.form.submit()">
+                <option value="10" @(Model.TweetCount == 10 ? " selected" : "")>10</option>
+                <option value="20" @(Model.TweetCount == 20 ? " selected" : "")>20</option>
+                <option value="50" @(Model.TweetCount == 50 ? " selected" : "")>50</option>
+            </select>
+            @switch (Model.Before)
+            {
+                case true:
+                    <input type="hidden" name="Before" value="@(Model.Date.ToUnixTimeSeconds())" />
+                    break;
+                case false:
+                    <input type="hidden" name="After" value="@(Model.Date.ToUnixTimeSeconds())" />
+                    break;
+                case null:
+                default:
+                    <input type="hidden" name="Date" value="@(Model.Date.ToString("yyyy-MM-dd"))" />
+                    break;
+            }
         </form>
         <form method="get" class="form-inline" style="display:inline-block">
-            <div class="form-group">
-                @Locale.Pager_Datetimepicker
-                <div class='input-group date' id='datetimepicker_similarmedia'>
-                    <input name="Date" type='text' class="form-control" />
-                    <span class="input-group-addon">
-                        <span class="glyphicon glyphicon-calendar"></span>
-                    </span>
-                </div>
+            @Locale.Pager_Datetimepicker
+            <div class='input-group date' id='datetimepicker_similarmedia'>
+                <input name="Date" type='text' class="form-control" />
+                <span class="input-group-addon">
+                    <span class="glyphicon glyphicon-calendar"></span>
+                </span>
             </div>
-            <button type="submit" class="btn btn-primary">Go</button>
         </form>
     </div>
     }
@@ -164,4 +159,4 @@ else
 {
     @SimilarMediaHelper.NoTweetToShow()
 }
-@RenderScripts()
+@if (Model.TargetUser != null) { @RenderScripts() }

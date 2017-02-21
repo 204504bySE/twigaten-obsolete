@@ -151,7 +151,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   Twitterアカウントでログイン に類似しているローカライズされた文字列を検索します。
+        ///   Twitterでサインイン に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_Login {
             get {
@@ -160,7 +160,7 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   ログアウト に類似しているローカライズされた文字列を検索します。
+        ///   サインアウト に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Menu_Logout {
             get {

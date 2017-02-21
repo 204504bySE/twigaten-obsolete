@@ -29,18 +29,21 @@
 // System.Web.Mvc.HtmlHelper Html を渡さないとHtml.Rawは動かないってStackOverFlowが言ってた
 // http://stackoverflow.com/questions/5282655/why-is-the-htmlhelper-instance-null-in-a-razor-declarative-helper-method
 
-@helper datetimepickerScript(DateTimeOffset Date)
+@helper datetimepickerScript(System.Web.Mvc.HtmlHelper html, DateTimeOffset Date, string UrlPrefix)
 {
 <script type="text/javascript">
-$(function () {
-    $('#datetimepicker_similarmedia').datetimepicker({
-        dayViewHeaderFormat: "YYYY/MM",
-        allowInputToggle: true,
-        format: "YYYY-MM-DD",
-        defaultDate: new Date(@(Date.Year), @(Date.Month - 1), @(Date.Day)),
-        maxDate: Date.now()
+    $(function () {
+        $('#datetimepicker_similarmedia').datetimepicker({
+            defaultDate: new Date(@Date.Year, @Date.Month - 1, @Date.Day),
+            maxDate: Date.now(),
+            useCurrent: false,
+            dayViewHeaderFormat: 'YYYY/MM',
+            allowInputToggle: true,
+            format: 'YYYY-MM-DD'
+        }).on('dp.change', function (e) {
+            location.href = '@html.Raw(UrlPrefix)' + e.date.format('YYYY-MM-DD');
+        });
     });
-});
 </script>
 }
 

@@ -7,7 +7,8 @@
 @helper RenderScripts()
 {
     @Styles.Render("~/Content/bootstrap-datepicker")
-    @ScriptHelper.datetimepickerScript(Model.Date.ToLocalTime())
+    @ScriptHelper.datetimepickerScript(Html, Model.Date, "/featured/")
+
 }
 
 @helper pager(bool datepicker = false)
@@ -27,24 +28,21 @@
         {
             <li>@Html.ActionLink(Locale.Pager_NextDay, "Featured", new { Date = Model.Date.AddDays(1).ToString("yyyy-MM-dd") })</li>
         }
-        <li>@Html.ActionLink(Locale.Pager_PreviousDay, "Featured", new {  Date = Model.Date.AddDays(-1).ToString("yyyy-MM-dd") })</li>
+        <li>@Html.ActionLink(Locale.Pager_PreviousDay, "Featured", new { Date = Model.Date.AddDays(-1).ToString("yyyy-MM-dd") })</li>
     </ul>
     </div>
     if (datepicker)
     { 
         <div class="container">
-            <form action="/SimilarMedia/Featured" method="get" class="form-inline">
-                <div class="form-group">
-                    @Locale.Pager_Datetimepicker
-                    <div class='input-group date' id='datetimepicker_similarmedia'>
-                        <input name="Date" type='text' class="form-control" />
-                        <span class="input-group-addon">
-                            <span class="glyphicon glyphicon-calendar"></span>
-                        </span>
-                    </div>
+            <div class="form-group">
+                @Locale.Pager_Datetimepicker
+                <div class='input-group date' id='datetimepicker_similarmedia'>
+                    <input name="Date" type='text' class="form-control" />
+                    <span class="input-group-addon">
+                        <span class="glyphicon glyphicon-calendar"></span>
+                    </span>
                 </div>
-                <button type="submit" class="btn btn-primary">Go</button>
-            </form>
+            </div>
         </div> 
     }
 }
