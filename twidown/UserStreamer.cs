@@ -36,6 +36,10 @@ namespace twidown
 
             Locker = l;
         }
+        ~UserStreamer()
+        {
+            if(StreamDisposable != null) { StreamDisposable.Dispose(); }
+        }
 
         //最近受信したツイートの時刻を一定数保持する
         //Userstreamの場合は実際に受信した時刻を使う
@@ -439,12 +443,12 @@ namespace twidown
                 {
                     HttpWebRequest req = WebRequest.Create(uri) as HttpWebRequest;
                     req.Referer = StatusUrl(x);
-                    using (MemoryStream mem = new MemoryStream())
-                    { 
-                        using (WebResponse res = await req.GetResponseAsync())
-                        {
-                            await res.GetResponseStream().CopyToAsync(mem);
-                        }
+
+                    using (WebResponse res = await req.GetResponseAsync())
+                    using (MemoryStream mem = new MemoryStream((int)res.ContentLength))
+                    {
+                        await res.GetResponseStream().CopyToAsync(mem);
+                        res.Close();
                         long? dcthash = PictHash.dcthash(mem);
                         if (dcthash != null && (db.StoreMedia(m, x, (long)dcthash)) > 0)
                         {

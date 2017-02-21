@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using System.Runtime;
 using System.IO;
 using System.Net;
 using System.Diagnostics;
@@ -16,6 +17,7 @@ namespace twidown
         {
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             Thread.Sleep(10000);
           
             if (args.Length >= 1 && args[0] == "/REST")

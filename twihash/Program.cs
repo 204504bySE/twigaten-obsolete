@@ -57,11 +57,6 @@ namespace twihash
         public void AutoReadAll()
         //配列を読み捨てて物理メモリに保持する(つもり
         {
-            for (int i = 0; i < Length; i++)
-            {
-                long a = Hashes[i];
-                bool b = NeedstoInsert[i];
-            }
             Task.Run(() =>
             {
                 Thread.CurrentThread.Priority = ThreadPriority.Lowest;
