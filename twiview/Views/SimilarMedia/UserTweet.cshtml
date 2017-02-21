@@ -78,7 +78,7 @@
     if (datepicker)
     {
     <div class="form-group">
-        <form method="get" class="form-inline" style="display:inline-block">
+        <form method="get" class="form-inline" style="display:inline">
             @Locale.Pager_ResultsPerPage
             <select class="form-control" name="Count" onchange="this.form.submit()">
                 <option value="10"@(Model.TweetCount == 10 ? " selected" : "")>10</option>
@@ -99,7 +99,7 @@
                     break;
             }
         </form>
-        <div class="form-inline" style="display:inline-block">  
+        <div class="form-inline" style="display:inline">  
             @Locale.Pager_Datetimepicker
             <div class='input-group date' id='datetimepicker_similarmedia'>
                 <input name="Date" type='text' class="form-control" />
