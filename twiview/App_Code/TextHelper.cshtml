@@ -67,7 +67,7 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet ?? Tweet.tweet;
 
 @helper UserLink(TweetData._user User)
 {
-    <a href="https://twitter.com/@(User.screen_name)"><img src="/Content/images/Twitter_bird_logo_2012.svg" width="16" height="16" /></a>
+    <span class="twigaten-userlink"><a href="https://twitter.com/@(User.screen_name)"><img src="/Content/images/Twitter_bird_logo_2012.svg" width="16" height="16" /></a></span>
 }
 
 @helper UserIcon(TweetData._user User)

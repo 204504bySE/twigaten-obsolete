@@ -47,19 +47,23 @@ a.anchor {
     visibility: hidden;
 }
 
-.twigaten-media {
+div.twigaten-media {
     display: inline-block;
+    width: 100%;
 }
-.twigaten-similarmedia{
+@media (min-width: 520px){
+    div.twigaten-media{ width: 216px; }
+}
+
+div.twigaten-similarmedia{
     vertical-align: top;
     margin: 0 4px;
-    }
-
-.twigaten-media{ width: 100%; }
-@media (min-width: 520px){
-    .twigaten-media{ width: 216px; }
 }
-.twigaten-tweettext{
+span.twigaten-userlink{
+    float: right;
+    margin-right: 1em;
+}
+p.twigaten-tweettext{
     white-space:pre-line;
 }
 img.twigaten-thumb{

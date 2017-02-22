@@ -32,8 +32,11 @@ namespace twiview.Controllers
             //こっちでリダイレクトされるのは直リンだけ(検索側でもリダイレクトする)
             if (SourceTweetID != null) { return RedirectToActionPermanent("OneTweet", new { TweetID = SourceTweetID, More = More }); }
 
-            if (More ?? false) { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100, false)); }
-            else { return View(new SimilarMediaModelOneTweet(TweetID, Login.UserID, 3, true)); }
+            SimilarMediaModelOneTweet Model;
+            if (More ?? false) { Model = new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100, false); }
+            else { Model = new SimilarMediaModelOneTweet(TweetID, Login.UserID, 3, true); }
+            if(Model.isNotFound) { Response.StatusCode = 404; }
+            return View(Model);
         }
 
         [Route("timeline/{UserID:long?}")]
@@ -55,7 +58,9 @@ namespace twiview.Controllers
                 if (Date == null) { return RedirectToAction("Timeline", new { UserID = UserID ?? Login.UserID, Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
                 else { return RedirectToAction("Timeline", new { UserID = UserID ?? Login.UserID, Date = ((DateTimeOffset)DateOffset).ToString("yyyy-MM-dd"), Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
             }
-            return View(new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore));
+            SimilarMediaModelTimeline Model = new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore);
+            if (Model.isNotFound) { Response.StatusCode = 404; }
+            return View(Model);
         }
 
         [Route("users/{UserID:long?}")]
@@ -64,6 +69,9 @@ namespace twiview.Controllers
             //Before == nullは日付指定
             Login = new LoginHandler(Session, Request, Response);
 
+            if (UserID == null && Login.UserID == null) { throw new ArgumentNullException(); }
+            if (UserID == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID }); }
+
             long? Time = Before ?? After;
             bool? isBefore;
             if (Before != null) { isBefore = true; }
@@ -71,10 +79,9 @@ namespace twiview.Controllers
             else { isBefore = null; }
 
             DateTimeOffset? DateOffset = (Time == null ? DateOffset = StrToDateDay(Date) : DateTimeOffset.FromUnixTimeSeconds((long)Time));
-
-            if (UserID == null && Login.UserID == null) { throw new ArgumentNullException(); }
-            if (UserID == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID }); }
-            return View(new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore));
+            SimilarMediaModelUserTweet Model = new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, DateOffset, getRetweetPref(RT), isBefore);
+            if (Model.isNotFound) { Response.StatusCode = 404; }
+            return View(Model);
         }
 
         [Route("SimilarMedia/{ActionName}")]

@@ -45,7 +45,7 @@ namespace twiview.Controllers
                 return RedirectToAction("Users", new { Str = QueryStr, Mode = Mode });
             }
         }
-
+        /*
         [Route("search/media")]
         public ActionResult Media(HttpPostedFileWrapper File)
         {
@@ -58,7 +58,7 @@ namespace twiview.Controllers
             //その画像を含む最も古いツイートにリダイレクト
             return RedirectToRoute(new { controller = "SimilarMedia", action = "OneTweet", TweetID = tweet_id });
         }
-
+        */
         [Route("search/users")]
         public ActionResult Users(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Undefined)
         {

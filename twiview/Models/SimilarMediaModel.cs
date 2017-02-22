@@ -15,6 +15,8 @@ namespace twiview.Models
         public bool GetRetweet { get; protected set; }
         public long QueryElapsedMilliseconds { get; protected set; }
         public int SimilarLimit { get; protected set; }
+
+        public bool isNotFound { get { return TargetUser == null || Tweets.Length == 0; } }
     }
 
     public class SimilarMediaModelFeatured : SimilarMediaModel
