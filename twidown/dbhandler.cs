@@ -32,7 +32,11 @@ namespace twidown
         {
             DataTable Table;
             Tokens[] ret;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id, token, token_secret FROM token NATURAL JOIN crawlprocess WHERE pid = @pid;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+user_id, token, token_secret
+FROM token
+NATURAL JOIN crawlprocess
+WHERE pid = @pid;"))
             {
                 cmd.Parameters.AddWithValue("@pid", Selfpid);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);

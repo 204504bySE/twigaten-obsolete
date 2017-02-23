@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using MySql.Data.MySqlClient;
 using CoreTweet;
+using twitenlib;
 
 namespace twiview
 {
@@ -255,7 +256,7 @@ FROM tweet o INNER JOIN user ou ON o.user_id = ou.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
-INNER JOIN media m ON t.media_id = m.media_id
+NATURAL JOIN media m
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
@@ -267,7 +268,7 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
         }
 
         //target_user_idのTL内から類似画像を発見したツイートをずらりと
-        public SimilarMediaTweet[] SimilarMediaTimeline(long target_user_id, long? login_user_id, DateTimeOffset time, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
+        public SimilarMediaTweet[] SimilarMediaTimeline(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
         {
             //鍵垢のTLはフォローしてない限り表示しない
             //未登録のアカウントもここで弾かれる
@@ -292,11 +293,11 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
 
             int ThreadCount = Environment.ProcessorCount;
             DataTable retTable = null;
-            const int QueryRangeSeconds = 90;
-            long QueryTime = time.ToUnixTimeSeconds();
-            long NowTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            int NoTweetSeconds = 0;
-            const int NoTweetLimitSeconds = 86400;
+            const long QueryRangeSnowFlake = 90 * 1000 * SnowFlake.msinSnowFlake;
+            long QuerySnowFlake = LastTweet;
+            long NowSnowFlake = SnowFlake.Now(true);
+            long NoTweetSnowFlake = 0;
+            const long NoTweetLimitSnowFlake = 86400 * 1000 * SnowFlake.msinSnowFlake;
             const int GiveupMilliSeconds = 15000;
             int QueryTick = Environment.TickCount;
 
@@ -315,7 +316,7 @@ INNER JOIN tweet o ON ou.user_id = o.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
-INNER JOIN media m ON t.media_id = m.media_id
+NATURAL JOIN media m 
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
@@ -340,7 +341,7 @@ AND NOT EXISTS(
     )
     AND o.tweet_id < os.tweet_id
 )
-ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
+ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
             }
             else
             {
@@ -348,18 +349,19 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
 FROM friend f 
 INNER JOIN user ou ON f.friend_id = ou.user_id
 INNER JOIN tweet o ON ou.user_id = o.user_id
-INNER JOIN tweet_media t ON o.tweet_id = t.tweet_id
-INNER JOIN media m ON t.media_id = m.media_id
+NATURAL JOIN tweet_media t
+NATURAL JOIN media m
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
-AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
 AND f.user_id = @target_user_id
+AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
+AND o.retweet_id IS NULL
 AND (@login_user_id = @target_user_id
     OR ou.user_id = @login_user_id
     OR ou.isprotected = 0
     OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id)
 )
-ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
+ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
             }
 
             TransformBlock<int, DataTable> GetTimelineBlock = new TransformBlock<int, DataTable>(
@@ -369,9 +371,9 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
                     {
                         cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
                         cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                        cmd.Parameters.AddWithValue("@time", TimeinSnowFlake((Before ? QueryTime - QueryRangeSeconds * i : QueryTime + QueryRangeSeconds * i), Before));
-                        cmd.Parameters.AddWithValue("@timerange", QueryRangeSeconds * msinSnowFlake * 1000 - 1);
-                        cmd.Parameters.AddWithValue("@tweetcount", TweetCount);
+                        cmd.Parameters.AddWithValue("@time", (Before ? QuerySnowFlake - QueryRangeSnowFlake * i : QuerySnowFlake + QueryRangeSnowFlake * i));
+                        cmd.Parameters.AddWithValue("@timerange", QueryRangeSnowFlake);
+                        cmd.Parameters.AddWithValue("@limitplus", TweetCount + 5);
                         return SelectTable(cmd);
                     }
                 }, op);
@@ -386,8 +388,8 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
                 DataTable Table = GetTimelineBlock.Receive();
                 RecievedCount++;
 
-                if (Table.Rows.Count > 0) { NoTweetSeconds = 0; }   //ツイートがない期間が続いたら打ち切る
-                else { NoTweetSeconds += QueryRangeSeconds; }
+                if (Table.Rows.Count > 0) { NoTweetSnowFlake = 0; }   //ツイートがない期間が続いたら打ち切る
+                else { NoTweetSnowFlake += QueryRangeSnowFlake; }
 
                 if (retTable == null)
                 {
@@ -398,26 +400,35 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
                     foreach (DataRow row in Table.Rows)
                     {
                         retTable.ImportRow(row);
-                        if (retTable.Rows.Count >= TweetCount) { break; }
+                        if (retTable.Rows.Count >= TweetCount + 5) { break; }
                     }
                 }
-                if (Before || QueryTime + QueryRangeSeconds * (PostedCount - 1) < NowTime)   //未来は取得しない
+                if (Before || QuerySnowFlake + QueryRangeSnowFlake * (PostedCount - 1) < NowSnowFlake)   //未来は取得しない
                 {
                     GetTimelineBlock.Post(PostedCount);
                     PostedCount++;
                 }
             } while (PostedCount > RecievedCount && (retTable == null || retTable.Rows.Count < TweetCount)
-                && NoTweetSeconds < NoTweetLimitSeconds
+                && NoTweetSnowFlake < NoTweetLimitSnowFlake
                 && unchecked(Environment.TickCount - QueryTick) < GiveupMilliSeconds);
             CancelToken.Cancel();
             if (retTable == null) { return new SimilarMediaTweet[0]; }
-            if (Before) { return TableToTweet(retTable, login_user_id, SimilarLimit); }
-            else { return TableToTweet(retTable, login_user_id, SimilarLimit).Reverse().ToArray(); }
+
+            SimilarMediaTweet[] ret = TableToTweet(retTable, login_user_id, SimilarLimit);
+            if (!Before) { ret = ret.Reverse().ToArray(); }
+            //TableToTweetで類似画像が表示できないやつが削られるので
+            //多めに拾ってきて溢れた分を捨てる
+            //あと複画は件数超えても同ページに入れる
+            for (int i = TweetCount; i < ret.Length; i++)
+            {
+                if (ret[i].tweet.tweet_id != ret[TweetCount - 1].tweet.tweet_id) { return ret.Take(i - 1).ToArray(); }
+            }
+            return ret;
         }
 
         //target_user_idのツイートから類似画像を発見したツイートをずらりと
         //鍵かつフォロー外なら何も出ない
-        public SimilarMediaTweet[] SimilarMediaUser(long target_user_id, long? login_user_id, DateTimeOffset time, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
+        public SimilarMediaTweet[] SimilarMediaUser(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand())
@@ -426,56 +437,65 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
                 {
                     cmd.CommandText = SimilarMediaHeadRT + @"
 FROM tweet o USE INDEX (user_id)
-INNER JOIN user ou ON o.user_id = ou.user_id
+NATURAL JOIN user ou
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
-INNER JOIN media m ON t.media_id = m.media_id
+NATURAL JOIN media m
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
-AND o.tweet_id " + (Before ? "<=" : ">=") + @" @time
+AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
 AND (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
-ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
+ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
                 else
                 {
                     cmd.CommandText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (user_id)
-INNER JOIN user ou ON o.user_id = ou.user_id
-INNER JOIN tweet_media t ON o.tweet_id = t.tweet_id
-INNER JOIN media m ON t.media_id = m.media_id
+NATURAL JOIN user ou
+NATURAL JOIN tweet_media t
+NATURAL JOIN media m
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
-AND o.tweet_id " + (Before ? "<=" : ">=") + @" @time
+AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
+AND o.retweet_id IS NULL
 AND (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
-ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @tweetcount;";
+ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
                 cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
                 cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                cmd.Parameters.AddWithValue("@time", TimeinSnowFlake(time.ToUnixTimeSeconds(), Before));
-                cmd.Parameters.AddWithValue("@tweetcount", TweetCount);
+                cmd.Parameters.AddWithValue("@lasttweet", LastTweet);
+                cmd.Parameters.AddWithValue("@limitplus", TweetCount + 5);
                 Table = SelectTable(cmd);
             }
-            if (Before) { return TableToTweet(Table, login_user_id, SimilarLimit); }
-            else { return TableToTweet(Table, login_user_id, SimilarLimit).Reverse().ToArray(); }
+            SimilarMediaTweet[] ret = TableToTweet(Table, login_user_id, SimilarLimit);
+            if (!Before) { ret = ret.Reverse().ToArray(); }
+            //TableToTweetで類似画像が表示できないやつが削られるので
+            //多めに拾ってきて溢れた分を捨てる
+            //あと複画は件数超えても同ページに入れる
+            for (int i = TweetCount; i < ret.Length; i++)
+            {
+                if(ret[i].tweet.tweet_id != ret[TweetCount - 1].tweet.tweet_id) { return ret.Take(i - 1).ToArray(); }
+            }
+            return ret;
         }
 
         public enum TweetOrder { New, Featured }
-        public SimilarMediaTweet[] SimilarMediaFeatured(int SimilarLimit, DateTimeOffset begin, DateTimeOffset end, TweetOrder Order)
+        public SimilarMediaTweet[] SimilarMediaFeatured(int SimilarLimit, long begin, long end, TweetOrder Order)
         {
             int RangeCount = Math.Max(24, Environment.ProcessorCount);
             DataTable[] Table = new DataTable[RangeCount];
             DataTable retTable = null;
-            long QueryTime = begin.ToUnixTimeSeconds();
-            int QueryRangeSeconds = (int)(end - begin).TotalSeconds / RangeCount;
+            long QuerySnowFlake = begin;
+            long QueryRangeSnowFlake = (end - begin) / RangeCount;
 
             string QueryText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (PRIMARY)
-INNER JOIN user ou ON o.user_id = ou.user_id
-INNER JOIN tweet_media t ON o.tweet_id = t.tweet_id
-INNER JOIN media m ON t.media_id = m.media_id
+NATURAL JOIN user ou
+NATURAL JOIN tweet_media t
+NATURAL JOIN media m
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
 OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN @begin AND @end
@@ -484,8 +504,8 @@ AND ou.isprotected = 0
 /*
 AND NOT EXISTS (SELECT *
 FROM media mm
-INNER JOIN tweet_media tt ON mm.media_id = tt.media_id
-INNER JOIN tweet oo ON tt.tweet_id = oo.tweet_id
+NATURAL JOIN tweet_media tt
+NATURAL JOIN tweet oo
 NATURAL LEFT JOIN user oou
 WHERE mm.dcthash = m.dcthash
 AND oo.tweet_id != o.tweet_id
@@ -496,8 +516,8 @@ AND oo.favorite_count + oo.retweet_count > o.favorite_count + o.retweet_count
 AND NOT EXISTS (SELECT *
 FROM dcthashpair p
 INNER JOIN media mm ON p.hash_sub = mm.dcthash
-INNER JOIN tweet_media tt ON mm.media_id = tt.media_id
-INNER JOIN tweet oo ON tt.tweet_id = oo.tweet_id
+NATURAL JOIN tweet_media tt
+NATURAL JOIN tweet oo
 NATURAL LEFT JOIN user oou
 WHERE p.hash_pri = m.dcthash
 AND oo.tweet_id BETWEEN @begin AND @end
@@ -513,8 +533,8 @@ LIMIT 50;";
             {
                 using (MySqlCommand cmd = new MySqlCommand(QueryText))
                 {
-                    cmd.Parameters.AddWithValue("@begin", TimeinSnowFlake((QueryTime + QueryRangeSeconds * i), false));
-                    cmd.Parameters.AddWithValue("@end", TimeinSnowFlake((QueryTime + QueryRangeSeconds * (i + 1) - 1), true));
+                    cmd.Parameters.AddWithValue("@begin", QuerySnowFlake + QueryRangeSnowFlake * i);
+                    cmd.Parameters.AddWithValue("@end", QuerySnowFlake + QueryRangeSnowFlake * (i + 1) - 1);
                     Table[i] = SelectTable(cmd, IsolationLevel.ReadUncommitted);
                 }
             });
@@ -668,12 +688,12 @@ FROM(
             WHERE dcthashpair.hash_pri = (SELECT dcthash FROM media WHERE media_id = @media_id)
             ORDER BY media.media_id LIMIT @limitplus
         ) ORDER BY media_id LIMIT @limitplus
-    ) AS i INNER JOIN media m ON i.media_id = m.media_id
-    INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
+    ) AS i NATURAL JOIN media m
+    NATURAL JOIN tweet_media 
     ORDER BY tweet_media.tweet_id LIMIT @limitplus
 ) AS a
-INNER JOIN tweet o ON a.tweet_id = o.tweet_id
-INNER JOIN user ou ON o.user_id = ou.user_id
+NATURAL JOIN tweet o
+NATURAL JOIN user ou
 WHERE (ou.isprotected = 0 OR ou.user_id = @user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @user_id AND friend_id = o.user_id))
 AND o.tweet_id != @except_tweet_id
 ORDER BY o.tweet_id

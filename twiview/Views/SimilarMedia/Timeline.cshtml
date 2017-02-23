@@ -42,12 +42,12 @@
         @switch (Model.Before)
         {
             case true:
-                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
-                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
+                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = true })</li>
+                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = false })</li>
                 break;
             case false:
-                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = true })</li>
-                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds(), RT = false })</li>
+                <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = true })</li>
+                <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = false })</li>
                 break;
             default:
                 <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "Timeline", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = true })</li>
@@ -63,7 +63,7 @@
         }
         else
         {
-            <li>@Html.ActionLink(Locale.Pager_Newer, "Timeline", new { UserID = Model.TargetUser.user_id, After = ((DateTimeOffset)Model.NextNew).ToUnixTimeSeconds() })</li>
+            <li>@Html.ActionLink(Locale.Pager_Newer, "Timeline", new { UserID = Model.TargetUser.user_id, After = Model.NextNew })</li>
         }
         @if (Model.NextOld == null)
         {
@@ -71,7 +71,7 @@
         }
         else
         {
-            <li>@Html.ActionLink(Locale.Pager_Older, "Timeline", new { UserID = Model.TargetUser.user_id, Before = ((DateTimeOffset)Model.NextOld).ToUnixTimeSeconds() })</li>
+            <li>@Html.ActionLink(Locale.Pager_Older, "Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.NextOld })</li>
         }
     </ul>
     </div>
@@ -88,14 +88,14 @@
             @switch (Model.Before)
             {
                 case true:
-                    <input type="hidden" name="Before" value="@(Model.Date.ToUnixTimeSeconds())" />
+                    <input type="hidden" name="Before" value="@Model.LastTweet" />
                     break;
                 case false:
-                    <input type="hidden" name="After" value="@(Model.Date.ToUnixTimeSeconds())" />
+                    <input type="hidden" name="After" value="@Model.LastTweet" />
                     break;
                 case null:
                 default:
-                    <input type="hidden" name="Date" value="@(Model.Date.ToString("yyyy-MM-dd"))" />
+                    <input type="hidden" name="Date" value="@Model.Date.ToString("yyyy-MM-dd")" />
                     break;
             }
         </form>
@@ -114,28 +114,28 @@
 @{
     if (Model.TargetUser != null)
     {
-        @(pager(true))
+        @pager(true)
         <h2>@string.Format(Locale.Headline_Timeline, Model.TargetUser.screen_name)</h2>
         switch (Model.Before)
         {
             case null:
-            <h3>(~@(Model.Date.ToString("yyyy/MM/dd")))</h3>
+            <h3>(~@Model.Date.ToString("yyyy/MM/dd"))</h3>
                 break;
             case true:
-            <h3>(~@(Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")))</h3>
+            <h3>(~@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</h3>
                 break;
             case false:
-            <h3>(@(Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))~)</h3>
+            <h3>(@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")~)</h3>
                 break;
         }
         <p>
             @switch (Model.Before)
             {
                 case true:
-                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.Date.ToUnixTimeSeconds() }))
+                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet }))
                     break;
                 case false:
-                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, After = Model.Date.ToUnixTimeSeconds() }))
+                    @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, After = Model.LastTweet }))
                     break;
                 default:
                     @ScriptHelper.TweetButton(@Url.Action("Timeline", new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd") }))

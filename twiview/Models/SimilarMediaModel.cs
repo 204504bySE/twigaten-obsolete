@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using twitenlib;
 
 namespace twiview.Models
 {
@@ -11,11 +12,11 @@ namespace twiview.Models
         protected DBHandlerView db = new DBHandlerView();
         public TweetData._user TargetUser { get; protected set; }
         public SimilarMediaTweet[] Tweets { get; protected set; }
-        public DateTimeOffset Date { get; protected set; }
+        public long LastTweet { get; protected set; }
         public bool GetRetweet { get; protected set; }
         public long QueryElapsedMilliseconds { get; protected set; }
         public int SimilarLimit { get; protected set; }
-
+        public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet); } }
         public bool isNotFound { get { return TargetUser == null || Tweets.Length == 0; } }
     }
 
@@ -26,9 +27,9 @@ namespace twiview.Models
         {
             sw.Start();
             this.SimilarLimit = SimilarLimit;
-            Date = BeginDate;
+            LastTweet = SnowFlake.SecondinSnowFlake(BeginDate.AddDays(1).AddSeconds(-1),true);
             Order = sortOrder;
-            Tweets = db.SimilarMediaFeatured(SimilarLimit, BeginDate, BeginDate.AddDays(1),Order);
+            Tweets = db.SimilarMediaFeatured(SimilarLimit, SnowFlake.SecondinSnowFlake(BeginDate,false), LastTweet,Order);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
@@ -55,32 +56,25 @@ namespace twiview.Models
     {
         public bool? Before { get; }
         public bool isLatest { get; }
-        public DateTimeOffset? NextOld { get; }
-        public DateTimeOffset? NextNew { get; }
+        public long? NextOld { get; }
+        public long? NextNew { get; }
         public int TweetCount { get; }
-        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, DateTimeOffset? _Date, bool GetRetweet, bool? Before)
+        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool? Before)
         {
             sw.Start();
             TargetUser = db.SelectUser(target_user_id);
-            this.isLatest = (_Date == null);
-            if(Before == null)
-            {
-                if (_Date == null || _Date.Value.AddDays(1) > DateTimeOffset.Now) { Date = DateTimeOffset.Now; }
-                else { Date = _Date.Value.AddDays(1).AddSeconds(-1); }
-            }
-            else
-            {
-                Date = _Date.Value;
-            }
+            if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
+            else { this.LastTweet = (long)LastTweet; }
+            this.isLatest = (LastTweet == null);
             this.Before = Before;
             this.TweetCount = TweetCount;
             this.GetRetweet = GetRetweet;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, Date, TweetCount, SimilarLimit, GetRetweet, Before ?? true);
+            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, Before ?? true);
             if (Tweets.Length > 0)
             {
-                NextOld = Tweets.Last().tweet.created_at;
-                NextNew = Tweets.First().tweet.created_at;
+                NextOld = Tweets.Last().tweet.tweet_id;
+                NextNew = Tweets.First().tweet.tweet_id;
             }
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
@@ -91,33 +85,25 @@ namespace twiview.Models
     {
         public bool? Before { get; }
         public bool isLatest { get; }
-        public DateTimeOffset? NextOld { get; }
-        public DateTimeOffset? NextNew { get; }
+        public long? NextOld { get; }
+        public long? NextNew { get; }
         public int TweetCount { get; }
-        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, DateTimeOffset? _Date, bool GetRetweet, bool? Before)
+        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool? Before)
         {
             sw.Start();
             TargetUser = db.SelectUser(target_user_id);
-            if (Before == null)
-            {
-                if (_Date == null) { this.Date = DateTimeOffset.Now; }
-                else
-                {
-                    this.Date = ((DateTimeOffset)_Date).AddDays(1).AddSeconds(-1);
-                    if (this.Date > DateTimeOffset.Now) { this.Date = DateTimeOffset.Now; }
-                }
-            }
-            else { this.Date = (DateTimeOffset)_Date; }
-            this.isLatest = (_Date == null);
+            if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
+            else { this.LastTweet = (long)LastTweet; }
+            this.isLatest = (LastTweet == null);
             this.Before = Before;
             this.TweetCount = TweetCount;
             this.GetRetweet = GetRetweet;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, Date, TweetCount, SimilarLimit, GetRetweet, Before ?? true);
+            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, Before ?? true);
             if (Tweets.Length > 0)
             {
-                NextOld = Tweets.Last().tweet.created_at;
-                NextNew = Tweets.First().tweet.created_at;
+                NextOld = Tweets.Last().tweet.tweet_id;
+                NextNew = Tweets.First().tweet.tweet_id;
             }
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;

@@ -195,7 +195,7 @@ AND tweet_id BETWEEN @begin AND @end
 ORDER BY tweet_id DESC;"))
                 {
                     Cmd.Parameters.AddWithValue("@begin", id);
-                    Cmd.Parameters.AddWithValue("@end", id + msinSnowFlake * 3600 * 1000 - 1);
+                    Cmd.Parameters.AddWithValue("@end", id + SnowFlake.msinSnowFlake * 3600 * 1000 - 1);
                     return SelectTable(Cmd,IsolationLevel.RepeatableRead);
                 }
             }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
@@ -204,7 +204,7 @@ ORDER BY tweet_id DESC;"))
             DateTimeOffset date = DateTimeOffset.UtcNow.AddDays(-7);
             for(int i = 0; i < 20; i++)
             {
-                GetTweetBlock.Post(TimeinSnowFlake(date.ToUnixTimeSeconds(), false));
+                GetTweetBlock.Post(SnowFlake.SecondinSnowFlake(date, false));
                 date = date.AddHours(-1);
             }
             while(true)
@@ -218,7 +218,7 @@ ORDER BY tweet_id DESC;"))
                     }
                     Console.WriteLine("{0} {1} Tweets removed", date, ExecuteNonQuery(delcmd));
                 }
-                GetTweetBlock.Post(TimeinSnowFlake(date.ToUnixTimeSeconds(), false));
+                GetTweetBlock.Post(SnowFlake.SecondinSnowFlake(date, false));
                 date = date.AddHours(-1);
             }
         }

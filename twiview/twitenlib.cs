@@ -364,17 +364,28 @@ namespace twitenlib
             }
             catch { return -1; }
         }
-
-        //時刻→SnowFlake Larger→時刻じゃないビットを1で埋める
-        protected long TimeinSnowFlake(long UnixTimeSeconds, bool Larger)
-        {
-            const long TwEpoch = 1288834974657L;
-            if (Larger) { return (UnixTimeSeconds * 1000 + 999 - TwEpoch) << 22 | 0x3FFFFFL; }
-            else { return (UnixTimeSeconds * 1000 - TwEpoch) << 22; }
-        }
-        protected const long msinSnowFlake = 0x400000L;   //1msはこれだ
     }
     
+    static class SnowFlake
+    {
+        public const long msinSnowFlake = 0x400000L;   //1msはこれだ
+        const long TwEpoch = 1288834974657L;
+        public static long SecondinSnowFlake(DateTimeOffset TimeSeconds, bool Larger)
+        {
+            if (Larger) { return (TimeSeconds.ToUnixTimeSeconds() * 1000 + 999 - TwEpoch) << 22 | 0x3FFFFFL; }
+            else { return (TimeSeconds.ToUnixTimeSeconds() * 1000 - TwEpoch) << 22; }
+        }
+        public static long Now(bool Larger)
+        {
+            if (Larger) { return (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - TwEpoch) << 22 | 0x3FFFFFL; }
+            else { return (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - TwEpoch) << 22; }
+        }
+        public static DateTimeOffset DatefromSnowFlake(long SnowFlake)
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds((SnowFlake >> 22) + TwEpoch);
+        }
+    }
+
     static class CharCodes
     {
         static Encoding ascii = Encoding.GetEncoding(1252, new EncoderReplacementFallback(""), DecoderFallback.ReplacementFallback);
