@@ -1,11 +1,14 @@
 ﻿@using twiview.Locale;
-@{ViewBag.Title = "登録完了";}
+@{ViewBag.Title = Locale.Title_Registration_Completed;}
 <h2>@ViewBag.Title</h2>
-
-<p>ツイートの収集はまもなく開始されます(数分かかる場合があります)。</p>
-<p class="text-warning">ツイートの収集が開始されるまでは、タイムラインは正しく表示されません。</p>
-<p>
-    以前にログインしたことがあるにも関わらずこの画面が出た場合は<br />
-    何らかの理由でツイートの収集が停止していた可能性が高いです。
-</p>
+<ul>
+    <li>ツイートの収集はまもなく開始されます(数分かかる場合があります)。</li>
+    <li class="text-warning">↑が開始されるまでは「自分のツイート」「タイムライン」の各ページは正しく表示されません。</li>
+    <li>以前にサインインしたことがあるにも関わらずこの画面が出た場合は<br />何らかの理由でツイートの収集が停止していた可能性が高いです。</li>
+</ul>
+<ul>
+    <li>Collecting tweets on your timeline will start soon (will take a few minutes).</li>
+    <li class="text-warning">Your Tweets / Timeline pages won't work right before starting collection.</li>
+    <li>If you're shown this page despite having signed in here before,<br />it shows that collection of tweets was suspended for some reason.</li>
+</ul>
 <p>@Html.ActionLink(Locale.Auth_BackTop, "Index", "Home", null, new { @class = "btn btn-primary" })</p>

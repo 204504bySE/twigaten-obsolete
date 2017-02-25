@@ -16,7 +16,7 @@ namespace twiview.Models
         public bool GetRetweet { get; protected set; }
         public long QueryElapsedMilliseconds { get; protected set; }
         public int SimilarLimit { get; protected set; }
-        public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet); } }
+        public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet).ToLocalTime(); } }
         public bool isNotFound { get { return TargetUser == null || Tweets.Length == 0; } }
     }
 

@@ -20,9 +20,11 @@ iframe.twitter-share-button {vertical-align:text-bottom;}
     -webkit-transition: none;
     transition: none;
 }
-
 .navbar-nav > li {
     float: left;
+}
+.pagination{
+    margin: 0 0 20px 0;
 }
 
 h2, .h2{ font-size: 20px; }

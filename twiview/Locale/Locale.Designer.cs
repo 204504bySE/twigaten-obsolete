@@ -358,6 +358,24 @@ namespace twiview.Locale {
         }
         
         /// <summary>
+        ///   登録完了 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string Title_Registration_Completed {
+            get {
+                return ResourceManager.GetString("Title_Registration_Completed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   サインインに失敗しました に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string Title_SignIn_Failure {
+            get {
+                return ResourceManager.GetString("Title_SignIn_Failure", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   @{0} のタイムライン上の類似画像{1} に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Title_Timeline {

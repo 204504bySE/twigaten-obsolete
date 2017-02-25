@@ -61,7 +61,6 @@
 @(pager())
 @{if (Model.Users.Length >= Model.Limit) { @LimitMessage() } }
 <p>検索にかかった時間: @(Model.QueryElapsedMilliseconds)ms</p>
-@ScriptHelper.TweetButton()
 @if(Model.Users.Length > 0)
 {
     foreach (TweetData._user u in Model.Users)

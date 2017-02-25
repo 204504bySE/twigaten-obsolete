@@ -1,6 +1,13 @@
 ﻿@using twiview.Locale;
-@{ ViewBag.Title = "ログインに失敗しました"; }
+@{ ViewBag.Title = Locale.Title_SignIn_Failure; }
 <h2>@ViewBag.Title</h2>
-<p>Twitterの認証画面で「キャンセル」を押した場合はこれが正常な動作です。</p>
-<p class="text-warning">他の原因でなった場合は…後で試したり問い合わせたりしてください(´・ω・`)</p>
+<ul>
+    <li>Twitterの認証画面で「キャンセル」を押した場合はこれが正常な動作です。</li>
+    <li class="text-warning">他の原因でなった場合は…後で試したり問い合わせたりしてください(´・ω・`)</li>
+</ul>
+
+<ul>
+    <li>If you cancelled authentication of Twitter, this is normal.</li>
+    <li class="text-warning">In other cases, please try again later or contact us. (´・ω・`)</li>
+</ul>
 <p>@Html.ActionLink(Locale.Auth_BackTop, "Index", "Home", null, new { @class = "btn btn-primary" })</p>

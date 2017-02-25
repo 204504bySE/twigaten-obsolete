@@ -231,4 +231,10 @@
   <data name="TweetButton_Tweet" xml:space="preserve">
     <value>ツイート</value>
   </data>
+  <data name="Title_Registration_Completed" xml:space="preserve">
+    <value>登録完了</value>
+  </data>
+  <data name="Title_SignIn_Failure" xml:space="preserve">
+    <value>サインインに失敗しました</value>
+  </data>
 </root>

@@ -231,4 +231,10 @@
   <data name="TweetButton_Tweet" xml:space="preserve">
     <value>Tweet</value>
   </data>
+  <data name="Title_Registration_Completed" xml:space="preserve">
+    <value>Registration Completed</value>
+  </data>
+  <data name="Title_SignIn_Failure" xml:space="preserve">
+    <value>Sign in Failed</value>
+  </data>
 </root>

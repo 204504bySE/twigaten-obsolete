@@ -57,7 +57,7 @@
     </ul>
     <ul class="pagination">
         <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, "Timeline", new { UserID = Model.TargetUser.user_id })</li>
-        @if (Model.NextNew == null)
+        @if (Model.NextNew == null || Model.isLatest)
         {
             <li class="disabled"><a>@Locale.Pager_Newer</a></li>
         }

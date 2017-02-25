@@ -48,26 +48,14 @@ namespace twiview.Controllers
                 }
                 else
                 {
-                    return RedirectToAction("Done");
+                    return View("Done");
                 }
             }
             catch
             {
                 //ユーザーが認証を拒否したりするとこっち
-                return RedirectToAction("Failure");
+                return View("Failure");
             }
-        }
-        [Route("auth/failure")]
-        public ActionResult Failure()
-        {
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
-            return View();
-        }
-        [Route("auth/done")]
-        public ActionResult Done()
-        {
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
-            return View();
         }
 
         [Route("auth/logout")]
