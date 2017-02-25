@@ -72,37 +72,38 @@ namespace twidown
             }
         }
 
-        DateTimeOffset? PostponedTime = null;   //ロックされたアカウントはしばらく接続しない
+        DateTimeOffset? PostponedTime = null;    //ロックされたアカウントが再試行する時刻
         public void PostponeRetry()
         {
-            PostponedTime = DateTimeOffset.Now;
+            PostponedTime = DateTimeOffset.Now.AddSeconds(config.crawl.LockedTokenPostpone);
         }
-        //これを外部から叩いて再接続の必要性を確認
-        //false:不要 true:必要 null:タイムラインの取得もstreamerで行う
-        public bool? NeedRetry()
+        bool isPostponed() {
+            if (PostponedTime == null) { return false; }
+            else if (DateTimeOffset.Now > PostponedTime.Value) { return true; }
+            else { PostponedTime = null; return false; }
+        }
+
+        public enum NeedRetryResult
         {
-            if (PostponedTime != null)
-            {
-                if ((DateTimeOffset.Now - (DateTimeOffset)PostponedTime).TotalSeconds < config.crawl.LockedTokenPostpone) { return false; }
-                else { PostponedTime = null; }
-            }
-            if (e != null || (!isAttemptingConnect && StreamDisposable == null))
-            {
-                e = null;
-                if (StreamDisposable != null)
-                {
-                    StreamDisposable.Dispose();
-                    StreamDisposable = null;
-                }
-                return true;
-            }
-            if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
+            None,         //不要
+            JustNeeded,       //必要だけど↓の各処理は不要
+            Verify,       //VerifyCredentialsが必要
+            GetTimeline   //タイムラインの取得もstreamerで行う
+        }
+
+        //これを外部から叩いて再接続の必要性を確認
+        public NeedRetryResult NeedRetry()
+        {
+            if (isPostponed()) { return NeedRetryResult.None; }
+            if (e != null) { return NeedRetryResult.JustNeeded; }
+            else if (!isAttemptingConnect && StreamDisposable == null) { return NeedRetryResult.Verify; }
+            else if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
                 > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.Min).TotalSeconds))
             {
                 Console.WriteLine("{0} {1}: No streaming message for {2} sec.", DateTime.Now, Token.UserId, (DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds);
-                return null;    //これをnullにしたぞ
+                return NeedRetryResult.GetTimeline;
             }
-            return false;
+            return NeedRetryResult.None;
         }
 
         //tokenの有効性を確認して自身のプロフィールも取得
@@ -142,6 +143,7 @@ namespace twidown
 
         public void RecieveStream()
         {
+            e = null;
             if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
 
             LastStreamingMessageTime = DateTimeOffset.Now;
@@ -163,7 +165,6 @@ namespace twidown
                 },
                 () =>
                 { //接続中のRevokeはこれ
-                    e = new Exception("UserAsObservable unexpectedly finished.");
                     StreamDisposable.Dispose(); StreamDisposable = null;
                 }
                 );

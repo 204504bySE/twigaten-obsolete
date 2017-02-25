@@ -81,7 +81,7 @@ WHERE rest_needed != 0;"))
                         Table.Rows[i].Field<string>(1),
                         Table.Rows[i].Field<string>(2),
                         Table.Rows[i].Field<long>(0)),
-                    Table.Rows[i].Field<sbyte>(3) == 1);
+                    Table.Rows[i].Field<sbyte>(3) == 1); //1:RESTプロセス側でTL取得 2:Streamer側でTL取得
             }
             return ret;
         }
@@ -92,7 +92,7 @@ WHERE rest_needed != 0;"))
             using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = @mode WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
-                cmd.Parameters.AddWithValue("@mode", RestTimeline ? 1 : 2);
+                cmd.Parameters.AddWithValue("@mode", RestTimeline ? 1 : 2); //1:RESTプロセス側でTL取得 2:Streamer側でTL取得
                 return ExecuteNonQuery(cmd);
             }
         }

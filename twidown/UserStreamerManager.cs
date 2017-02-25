@@ -72,19 +72,22 @@ namespace twidown
 
             foreach (KeyValuePair<long, UserStreamer> s in Streamers)
             {
-                bool? NeedRetry = s.Value.NeedRetry();
-                if (NeedRetry != false)
+                UserStreamer.NeedRetryResult NeedRetry = s.Value.NeedRetry();
+                if (NeedRetry != UserStreamer.NeedRetryResult.None)
                 {
-                    switch (s.Value.VerifyCredentials())
+                    //必要なときだけVerifyCredentials()する
+                    switch (NeedRetry == UserStreamer.NeedRetryResult.Verify
+                        ? s.Value.VerifyCredentials() : UserStreamer.TokenStatus.Success)
                     {
                         case UserStreamer.TokenStatus.Success:
                             s.Value.RecieveStream();
                             //TLが遅すぎた時はこっちでTLを取得する
-                            if (NeedRetry == null) {
+                            if (NeedRetry == UserStreamer.NeedRetryResult.GetTimeline)
+                            {
                                 s.Value.RecieveRestTimeline();
                                 db.StoreRestNeedtoken(s.Key, false);
                             }
-                            db.StoreRestNeedtoken(s.Key, true);
+                            else { db.StoreRestNeedtoken(s.Key, true); }
                             break;
                         case UserStreamer.TokenStatus.Locked:
                             s.Value.PostponeRetry();
