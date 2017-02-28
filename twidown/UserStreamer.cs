@@ -95,7 +95,12 @@ namespace twidown
         public NeedRetryResult NeedRetry()
         {
             if (isPostponed()) { return NeedRetryResult.None; }
-            if (e != null) { return NeedRetryResult.JustNeeded; }
+            else if (e != null)
+            {
+                if (e is TwitterException && ((TwitterException)e).Status == HttpStatusCode.Unauthorized)
+                { return NeedRetryResult.Verify; }
+                else { return NeedRetryResult.JustNeeded; }
+            }
             else if (!isAttemptingConnect && StreamDisposable == null) { return NeedRetryResult.Verify; }
             else if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
                 > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.Min).TotalSeconds))
@@ -159,8 +164,9 @@ namespace twidown
                 (Exception ex) =>
                 {
                     if (ex is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
+                    else if (ex is WebException) { e = TwitterException.Create((WebException)ex); }
+                    else { e = ex; }
                     Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
-                    e = ex;
                     StreamDisposable.Dispose(); StreamDisposable = null;
                 },
                 () =>

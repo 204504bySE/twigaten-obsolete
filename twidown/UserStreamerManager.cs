@@ -53,19 +53,12 @@ namespace twidown
             }
         }
 
-        public int Count
-        {
-            get
-            {
-                return Streamers.Count;
-            }
-        }
+        public int Count { get { return Streamers.Count; } }
 
         //これを定期的に呼んで再接続やFriendの取得をやらせる
         //StreamerLockerのロック解除もここでやる
         public int ConnectStreamers()
         {
-            SemaphoreSlim RestSemaphore = new SemaphoreSlim(config.crawl.RestThreads);
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
             Locker.ActualUnlockAll();
             TickCount Tick = new TickCount(0);
