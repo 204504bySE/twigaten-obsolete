@@ -7,12 +7,12 @@
         if (Model.isLatest) { datestr = ""; }
         else
         {
-            switch (Model.Before)
+            switch (Model.RangeMode)
             {
-                case true:
+                case twiview.Models.SimilarMediaModel.RangeModes.Before:
                     datestr = "(~" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + ")";
                     break;
-                case false:
+                case twiview.Models.SimilarMediaModel.RangeModes.After:
                     datestr = "(" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "~)";
                     break;
                 default:
@@ -39,13 +39,13 @@
 {
     <div>
         <ul class="pagination">
-            @switch (Model.Before)
+            @switch (Model.RangeMode)
             {
-                case true:
+                case twiview.Models.SimilarMediaModel.RangeModes.Before:
                     <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = true })</li>
                     <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = false })</li>
                     break;
-                case false:
+                case twiview.Models.SimilarMediaModel.RangeModes.After:
                     <li @(Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_WithRT, "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = true })</li>
                     <li @(!Model.GetRetweet ? "class=active" : "")>@Html.ActionLink(Locale.Pager_NoRT, "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = false })</li>
                     break;
@@ -57,22 +57,10 @@
         </ul>
         <ul class="pagination">
             <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, "UserTweet", new { UserID = Model.TargetUser.user_id })</li>
-            @if (Model.NextNew == null || Model.isLatest)
-            {
-                <li class="disabled"><a>@Locale.Pager_Newer</a></li>
-            }
-            else
-            {
-                <li>@Html.ActionLink(Locale.Pager_Newer, "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.NextNew })</li>
-            }
-            @if (Model.NextOld == null)
-            {
-                <li class="disabled"><a>@Locale.Pager_Older</a></li>
-            }
-            else
-            {
-                <li>@Html.ActionLink(Locale.Pager_Older, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.NextOld })</li>
-            }
+            @if (Model.NextNew == null || Model.isLatest) { <li class="disabled"><a>@Locale.Pager_Newer</a></li> }
+            else { <li>@Html.ActionLink(Locale.Pager_Newer, "UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.NextNew })</li> }
+            @if (Model.NextOld == null) { <li class="disabled"><a>@Locale.Pager_Older</a></li> }
+            else { <li>@Html.ActionLink(Locale.Pager_Older, "UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.NextOld })</li> }
         </ul>
     </div>
     if (datepicker)
@@ -85,15 +73,14 @@
                 <option value="20"@(Model.TweetCount == 20 ? " selected" : "")>20</option>
                 <option value="50"@(Model.TweetCount == 50 ? " selected" : "")>50</option>
             </select>
-            @switch (Model.Before)
+            @switch (Model.RangeMode)
             {
-                case true:
+                case twiview.Models.SimilarMediaModel.RangeModes.Before:
                     <input type="hidden" name="Before" value="@Model.LastTweet" />
                     break;
-                case false:
+                case twiview.Models.SimilarMediaModel.RangeModes.After:
                     <input type="hidden" name="After" value="@Model.LastTweet" />
                     break;
-                case null:
                 default:
                     <input type="hidden" name="Date" value="@Model.Date.ToString("yyyy-MM-dd")" />
                     break;
@@ -115,25 +102,25 @@
     {
         @pager(true)
         <h2>@string.Format(Locale.Headline_UserTweet, Model.TargetUser.screen_name)</h2>
-        switch (Model.Before)
+        switch (Model.RangeMode)
         {
-            case null:
-            <h3>(~@Model.Date.ToString("yyyy/MM/dd"))</h3>
-                break;
-            case true:
+            case twiview.Models.SimilarMediaModel.RangeModes.Before:
             <h3>(~@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</h3>
                 break;
-            case false:
+            case twiview.Models.SimilarMediaModel.RangeModes.After:
             <h3>(@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")~)</h3>
+                break;
+            default:
+                <h3>(~@Model.Date.ToString("yyyy/MM/dd"))</h3>
                 break;
         }
         <p>
-            @switch (Model.Before)
+            @switch (Model.RangeMode)
             {
-                case true:
+                case twiview.Models.SimilarMediaModel.RangeModes.Before:
                     @ScriptHelper.TweetButton(@Url.Action("UserTweet", new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet }))
                     break;
-                case false:
+                case twiview.Models.SimilarMediaModel.RangeModes.After:
                     @ScriptHelper.TweetButton(@Url.Action("UserTweet", new { UserID = Model.TargetUser.user_id, After = Model.LastTweet }))
                     break;
                 default:

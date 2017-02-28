@@ -59,12 +59,12 @@ namespace twiview.Controllers
                 if (ParsedDate != null && ParsedDate.Value <= DateTimeOffset.UtcNow)
                 { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.Value.AddDays(1).AddSeconds(-1), true); }
             }
-            bool? isBefore;
-            if (Before != null) { isBefore = true; }
-            else if (After != null) { isBefore = false; }
-            else { isBefore = null; }
+            SimilarMediaModel.RangeModes RangeMode;
+            if (Before != null) { RangeMode = SimilarMediaModel.RangeModes.Before; }
+            else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
+            else { RangeMode = SimilarMediaModel.RangeModes.Date; }
 
-            SimilarMediaModelTimeline Model = new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), isBefore);
+            SimilarMediaModelTimeline Model = new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
             if (Model.isNotFound) { Response.StatusCode = 404; }
             return View(Model);
         }
@@ -86,12 +86,12 @@ namespace twiview.Controllers
                 if(ParsedDate != null && ParsedDate.Value <= DateTimeOffset.UtcNow)
                 { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.Value.AddDays(1).AddSeconds(-1), true); }
             }
-            bool? isBefore;
-            if (Before != null) { isBefore = true; }
-            else if (After != null) { isBefore = false; }
-            else { isBefore = null; }
+            SimilarMediaModel.RangeModes RangeMode;
+            if (Before != null) { RangeMode = SimilarMediaModel.RangeModes.Before; }
+            else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
+            else { RangeMode = SimilarMediaModel.RangeModes.Date; }
 
-            SimilarMediaModelUserTweet Model = new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), isBefore);
+            SimilarMediaModelUserTweet Model = new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
             if (Model.isNotFound) { Response.StatusCode = 404; }
             return View(Model);
         }

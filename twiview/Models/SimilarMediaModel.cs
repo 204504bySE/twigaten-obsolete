@@ -18,6 +18,39 @@ namespace twiview.Models
         public int SimilarLimit { get; protected set; }
         public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet).ToLocalTime(); } }
         public bool isNotFound { get { return TargetUser == null || Tweets.Length == 0; } }
+
+        public enum RangeModes { None, Date, Before, After }    //なし, 日付指定, 古い, 新しい
+        public RangeModes RangeMode { get; protected set; }
+        public bool isLatest { get; protected set; }
+        public long? NextOld { get {
+                switch (RangeMode)
+                {
+                    case RangeModes.Date:
+                    case RangeModes.Before:
+                        if (Tweets.Length > 0) { return Tweets.Last().tweet.tweet_id; }
+                        else { return null; }
+                    case RangeModes.After:
+                        if (TargetUser == null) { return null; }
+                        else if (Tweets.Length == 0) { return LastTweet + 1; }
+                        else { return LastTweet; }
+                    default:
+                        return null;
+                } } }
+        public long? NextNew { get {
+                switch (RangeMode)
+                {
+                    case RangeModes.Date:
+                    case RangeModes.After:
+                        if (Tweets.Length > 0) { return Tweets.First().tweet.tweet_id; }
+                        else { return null; }
+                    case RangeModes.Before:
+                        if (TargetUser == null) { return null; }
+                        else if (Tweets.Length == 0) { return LastTweet - 1; }
+                        else { return LastTweet; }
+                    default:
+                        return null;
+                } } }
+        public int TweetCount { get; protected set; }   //実際の個数じゃなくて件数指定
     }
 
     public class SimilarMediaModelFeatured : SimilarMediaModel
@@ -52,30 +85,21 @@ namespace twiview.Models
         }
     }
 
+
     public class SimilarMediaModelTimeline : SimilarMediaModel
     {
-        public bool? Before { get; }
-        public bool isLatest { get; }
-        public long? NextOld { get; }
-        public long? NextNew { get; }
-        public int TweetCount { get; }
-        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool? Before)
+        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, RangeModes RangeMode)
         {
             sw.Start();
             TargetUser = db.SelectUser(target_user_id);
             if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
             else { this.LastTweet = (long)LastTweet; }
             this.isLatest = (LastTweet == null);
-            this.Before = Before;
+            this.RangeMode = RangeMode;
             this.TweetCount = TweetCount;
             this.GetRetweet = GetRetweet;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, Before ?? true);
-            if (Tweets.Length > 0)
-            {
-                NextOld = Tweets.Last().tweet.tweet_id;
-                NextNew = Tweets.First().tweet.tweet_id;
-            }
+            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, RangeMode != RangeModes.After);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
@@ -83,28 +107,18 @@ namespace twiview.Models
 
     public class SimilarMediaModelUserTweet : SimilarMediaModel
     {
-        public bool? Before { get; }
-        public bool isLatest { get; }
-        public long? NextOld { get; }
-        public long? NextNew { get; }
-        public int TweetCount { get; }
-        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool? Before)
+        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, RangeModes RangeMode)
         {
             sw.Start();
             TargetUser = db.SelectUser(target_user_id);
             if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
             else { this.LastTweet = (long)LastTweet; }
             this.isLatest = (LastTweet == null);
-            this.Before = Before;
+            this.RangeMode = RangeMode;
             this.TweetCount = TweetCount;
             this.GetRetweet = GetRetweet;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, Before ?? true);
-            if (Tweets.Length > 0)
-            {
-                NextOld = Tweets.Last().tweet.tweet_id;
-                NextNew = Tweets.First().tweet.tweet_id;
-            }
+            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, RangeMode != RangeModes.After);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
