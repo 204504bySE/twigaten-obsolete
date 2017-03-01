@@ -242,8 +242,7 @@
     <Content Include="Views\Shared\_Layout.cshtml" />
     <Content Include="Views\Home\About.cshtml" />
     <Content Include="Views\Home\Index.cshtml" />
-    <Content Include="Views\SimilarMedia\Timeline.cshtml" />
-    <Content Include="Views\SimilarMedia\UserTweet.cshtml" />
+    <Content Include="Views\SimilarMedia\TLUser.cshtml" />
     <Content Include="Views\SimilarMedia\OneTweet.cshtml" />
     <Content Include="Views\Auth\Done.cshtml" />
     <Content Include="Views\Search\Index.cshtml" />

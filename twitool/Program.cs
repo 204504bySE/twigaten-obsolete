@@ -89,7 +89,7 @@ WHERE source_tweet_id IS NULL LIMIT @limit;"))
             Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
             try
             {
-                while (drive.TotalFreeSpace < drive.TotalSize / 6)
+                while (drive.TotalFreeSpace < drive.TotalSize / 25 << 2)
                 {
                     DataTable Table;
                     using (MySqlCommand cmd = new MySqlCommand(@"SELECT
@@ -140,7 +140,7 @@ ORDER BY downloaded_at LIMIT @limit;"))
             Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
             try
             {
-                while (drive.TotalFreeSpace < drive.TotalSize / 6)
+                while (drive.TotalFreeSpace < drive.TotalSize / 25 << 2)
                 {
                     DataTable Table;
                     using (MySqlCommand cmd = new MySqlCommand(@"SELECT
