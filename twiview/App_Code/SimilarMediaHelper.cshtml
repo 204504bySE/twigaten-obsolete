@@ -16,7 +16,7 @@
 @helper SimilarMediaAll(SimilarMediaTweet[] Tweets, int ViewMoreButton, bool ShowDate)
 {
 DateTimeOffset LastTweetDate = Tweets[0].tweet.created_at.ToLocalTime();
-bool AdFlag = true;
+bool AdFlag = Tweets.Length >= 2;
 if (ShowDate) {<h3>@LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd")</h3>}
     foreach (SimilarMediaTweet Tweet in Tweets)
     {

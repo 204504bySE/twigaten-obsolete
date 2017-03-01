@@ -19,13 +19,13 @@
 }
 @if (Model.Tweets.Length > 0)
 {
-    <h2>@(Html.ActionLink("@" + Model.Tweets[0].tweet.user.screen_name,"UserTweet", new{ UserID = Model.Tweets[0].tweet.user.user_id })) のツイート</h2>
+    <h2>@(Html.ActionLink('@' + Model.Tweets[0].tweet.user.screen_name, "UserTweet", new{ UserID = Model.Tweets[0].tweet.user.user_id })) のツイート</h2>
     <p>@TextHelper.TweetPermalink(Model.Tweets[0].tweet)</p>
     <p>@ScriptHelper.TweetButton(@Url.Action("OneTweet", new { TweetID = Model.TargetTweetID }))</p>
     <p>@(Locale.Headline_TimeToSearch): @(Model.QueryElapsedMilliseconds)ms</p>
     @AdHelper.AdHeader()
     @SimilarMediaHelper.SimilarMediaAll(Model.Tweets, (Model.ViewMoreButton ? Model.SimilarLimit : 0), false)
-    if (Model.Tweets.Length > 2) { @AdHelper.AdFooter() }
+    @AdHelper.AdFooter()
 }
 else
 {

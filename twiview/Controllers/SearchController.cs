@@ -12,19 +12,21 @@ namespace twiview.Controllers
     public class SearchController : Controller
     {
         DBHandlerView db = new DBHandlerView();
-        Regex StatusRegex = new Regex(@"twitter\.com\/.+?\/status(es)?\/(?<status_id>[0-9]+)", RegexOptions.Compiled);
+        Regex StatusRegex = new Regex(@"(?<=twitter\.com\/.+?\/status(es)?\/)\d+", RegexOptions.Compiled);
+        Regex ScreenNameRegex = new Regex(@"(?<=twitter\.com\/|@|^)[_\w]+(?=[\/_\w]*$)", RegexOptions.Compiled);
 
         [Route("search")]
         public ActionResult Index(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Show, bool Direct = true)
         {
             LoginHandler Login = new LoginHandler(Session, Request, Response);
-            string QueryStr = twitenlib.CharCodes.KillNonASCII(Str);
             if (Str == null || Str == "") { return View(); }
+            string QueryStr = twitenlib.CharCodes.KillNonASCII(Str).Trim();
 
             //ツイートのURLっぽいならそのツイートのページに飛ばす
-            if (StatusRegex.IsMatch(QueryStr))
+            string StatusStr = StatusRegex.Match(QueryStr).Value;
+            if (StatusStr != "")
             {
-                long StatusID = long.Parse(StatusRegex.Match(QueryStr).Groups["status_id"].Value);
+                long StatusID = long.Parse(StatusStr);
                 return RedirectToRoute(new
                 {
                     controller = "SimilarMedia",
@@ -32,11 +34,13 @@ namespace twiview.Controllers
                     TweetID = db.SourceTweetRT(StatusID) ?? StatusID   //RTなら元ツイートに飛ばす
             });
             }
-            else
-            {   //ツイートのURLっぽくなければユーザー名検索とみなす
+            //ユーザー名検索
+            string ScreenName = ScreenNameRegex.Match(QueryStr).Value;
+            if (ScreenName != "")
+            {
                 if (Direct)
                 {
-                    long? TargetUserID = db.SelectID_Unique_screen_name(QueryStr.Trim().Replace("@", "").Replace("%", ""));
+                    long? TargetUserID = db.SelectID_Unique_screen_name(ScreenName);
                     if (TargetUserID != null)
                     {
                         return RedirectToRoute(new { controller = "SimilarMedia", action = "UserTweet", UserID = TargetUserID });
@@ -44,6 +48,7 @@ namespace twiview.Controllers
                 }
                 return RedirectToAction("Users", new { Str = QueryStr, Mode = Mode });
             }
+            else { return RedirectToAction("Index"); }
         }
         /*
         [Route("search/media")]
