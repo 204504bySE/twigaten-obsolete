@@ -51,6 +51,8 @@ namespace twiview.Models
                         return null;
                 } } }
         public int TweetCount { get; protected set; }   //実際の個数じゃなくて件数指定
+        public enum ActionNames { Featured, OneTweet, Timeline, UserTweet }
+        public ActionNames ActionName;  //ViewでActionNameを取得する方法どこ？
     }
 
     public class SimilarMediaModelFeatured : SimilarMediaModel
@@ -59,6 +61,7 @@ namespace twiview.Models
         public SimilarMediaModelFeatured(int SimilarLimit, DateTimeOffset BeginDate, DBHandlerView.TweetOrder sortOrder)
         {
             sw.Start();
+            ActionName = ActionNames.Featured;
             this.SimilarLimit = SimilarLimit;
             LastTweet = SnowFlake.SecondinSnowFlake(BeginDate.AddDays(1).AddSeconds(-1),true);
             Order = sortOrder;
@@ -75,6 +78,7 @@ namespace twiview.Models
         public SimilarMediaModelOneTweet(long tweet_id, long? login_user_id, int SimilarLimit, bool ViewMoreButton)
         {
             sw.Start();
+            ActionName = ActionNames.OneTweet;
             TargetTweetID = tweet_id;
             this.SimilarLimit = SimilarLimit;
             this.ViewMoreButton = ViewMoreButton;
@@ -91,6 +95,7 @@ namespace twiview.Models
         public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, RangeModes RangeMode)
         {
             sw.Start();
+            ActionName = ActionNames.Timeline;
             TargetUser = db.SelectUser(target_user_id);
             if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
             else { this.LastTweet = (long)LastTweet; }
@@ -110,6 +115,7 @@ namespace twiview.Models
         public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, RangeModes RangeMode)
         {
             sw.Start();
+            ActionName = ActionNames.UserTweet;
             TargetUser = db.SelectUser(target_user_id);
             if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
             else { this.LastTweet = (long)LastTweet; }

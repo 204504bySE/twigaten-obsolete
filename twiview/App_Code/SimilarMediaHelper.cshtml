@@ -32,7 +32,6 @@ if (ShowDate) {<h3>@LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd")</h3>}
 @helper SimilarMedia(SimilarMediaTweet Tweet, int ViewMoreButton)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
-var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContext);
     <div class="well well-sm" style="width:100%">
         <a class="anchor" id="@(Tweet.media.media_id)"></a>
         <div class="panel twigaten-media">
@@ -128,4 +127,3 @@ var url = new System.Web.Mvc.UrlHelper(HttpContext.Current.Request.RequestContex
         { <p>@string.Format(Locale.SimilarMedia_ResultCount, Tweet.SimilarMediaCount)</p> }
 </div>
 }
-

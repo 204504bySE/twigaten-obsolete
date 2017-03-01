@@ -64,9 +64,9 @@ namespace twiview.Controllers
             else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
             else { RangeMode = SimilarMediaModel.RangeModes.Date; }
 
-            SimilarMediaModelTimeline Model = new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
+            SimilarMediaModel Model = new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
             if (Model.isNotFound) { Response.StatusCode = 404; }
-            return View(Model);
+            return View("TLUser", Model);
         }
 
         [Route("users/{UserID:long?}")]
@@ -91,9 +91,9 @@ namespace twiview.Controllers
             else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
             else { RangeMode = SimilarMediaModel.RangeModes.Date; }
 
-            SimilarMediaModelUserTweet Model = new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
+            SimilarMediaModel Model = new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
             if (Model.isNotFound) { Response.StatusCode = 404; }
-            return View(Model);
+            return View("TLUser", Model);
         }
 
         [Route("SimilarMedia/{ActionName}")]

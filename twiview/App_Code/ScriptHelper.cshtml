@@ -29,8 +29,9 @@
 // System.Web.Mvc.HtmlHelper Html を渡さないとHtml.Rawは動かないってStackOverFlowが言ってた
 // http://stackoverflow.com/questions/5282655/why-is-the-htmlhelper-instance-null-in-a-razor-declarative-helper-method
 
-@helper datetimepickerScript(System.Web.Mvc.HtmlHelper html, DateTimeOffset Date, string UrlPrefix)
+@helper datetimepickerScript(DateTimeOffset Date, string UrlPrefix)
 {
+var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 <script type="text/javascript">
     $(function () {
         $('#datetimepicker_similarmedia').datetimepicker({
