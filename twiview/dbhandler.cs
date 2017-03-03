@@ -267,6 +267,7 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
             return TableToTweet(Table, login_user_id, SimilarLimit, true);
         }
 
+        const int MultipleMediaOffset = 3;  //複画は今のところ4枚まで これを同ページに収めたいマン
         //target_user_idのTL内から類似画像を発見したツイートをずらりと
         public SimilarMediaTweet[] SimilarMediaTimeline(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
         {
@@ -373,7 +374,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                         cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
                         cmd.Parameters.AddWithValue("@time", (Before ? QuerySnowFlake - QueryRangeSnowFlake * i : QuerySnowFlake + QueryRangeSnowFlake * i));
                         cmd.Parameters.AddWithValue("@timerange", QueryRangeSnowFlake);
-                        cmd.Parameters.AddWithValue("@limitplus", TweetCount + 5);
+                        cmd.Parameters.AddWithValue("@limitplus", TweetCount + MultipleMediaOffset);
                         return SelectTable(cmd);
                     }
                 }, op);
@@ -400,7 +401,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                     foreach (DataRow row in Table.Rows)
                     {
                         retTable.ImportRow(row);
-                        if (retTable.Rows.Count >= TweetCount + 5) { break; }
+                        if (retTable.Rows.Count >= TweetCount + MultipleMediaOffset) { break; }
                     }
                 }
                 if (Before || QuerySnowFlake + QueryRangeSnowFlake * (PostedCount - 1) < NowSnowFlake)   //未来は取得しない
@@ -467,7 +468,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
                 cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
                 cmd.Parameters.AddWithValue("@lasttweet", LastTweet);
-                cmd.Parameters.AddWithValue("@limitplus", TweetCount + 5);
+                cmd.Parameters.AddWithValue("@limitplus", TweetCount + MultipleMediaOffset);
                 Table = SelectTable(cmd);
             }
             SimilarMediaTweet[] ret = TableToTweet(Table, login_user_id, SimilarLimit);
