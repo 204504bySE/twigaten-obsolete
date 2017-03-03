@@ -32,7 +32,7 @@ if (ShowDate) {<h3>@LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd")</h3>}
 @helper SimilarMedia(SimilarMediaTweet Tweet, int ViewMoreButton)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
-TweetData._tweet tw = (Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.tweet.retweet);
+TweetData._tweet tw = Tweet.tweet.retweet ?? Tweet.tweet;
     <div class="well well-sm" style="width:100%">
         <a class="anchor" id="@(Tweet.media.media_id)"></a>
         <div class="panel twigaten-media">
@@ -42,7 +42,7 @@ TweetData._tweet tw = (Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.tweet.r
                 @TextHelper.UserIcon(tw.user)
                 @TextHelper.UserTweetLink(tw) @TextHelper.UserLink(tw.user)<br />
                 @tw.user.name<br />
-                @TextHelper.DateOneTweetLink(tw)
+                @TextHelper.DateOneTweetLink(tw,Tweet.media)
             </p><p>
                 @ScriptHelper.RetweetIntent(tw.tweet_id) @tw.retweet_count
                 @ScriptHelper.FavoriteIntent(tw.tweet_id) @tw.favorite_count
@@ -70,9 +70,9 @@ TweetData._tweet tw = (Tweet.tweet.retweet == null ? Tweet.tweet : Tweet.tweet.r
                     @TextHelper.UserTweetLink(Similar.tweet) @TextHelper.UserLink(Similar.tweet.user)<br />
                     @Similar.tweet.user.name<br />
                     @if (Similar.tweet.created_at < tw.created_at)
-                    { <strong>@TextHelper.DateOneTweetLink(Similar.tweet)</strong> }
+                    { <strong>@TextHelper.DateOneTweetLink(Similar.tweet,Similar.media)</strong> }
                     else
-                    { @TextHelper.DateOneTweetLink(Similar.tweet) }
+                    { @TextHelper.DateOneTweetLink(Similar.tweet, Similar.media) }
                 </p>
                 <p>
                     @ScriptHelper.RetweetIntent(Similar.tweet.tweet_id)@Similar.tweet.retweet_count

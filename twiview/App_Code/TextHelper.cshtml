@@ -21,9 +21,9 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 if (Tweet.user.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy-MM-dd"))">@@@(Tweet.user.screen_name)</a>
 }
 
-@helper DateOneTweetLink(TweetData._tweet Tweet)
+@helper DateOneTweetLink(TweetData._tweet Tweet, TweetData._media Media)
 {
-    <a href="/tweet/@(Tweet.tweet_id)">@Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")</a>
+    <a href="/tweet/@(Tweet.tweet_id)#@(Media.media_id)">@Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")</a>
 }
 @helper TweetDate(TweetData._tweet Tweet)
 {
