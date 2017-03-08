@@ -35,14 +35,15 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 TweetData._tweet tw = Tweet.tweet.retweet ?? Tweet.tweet;
     <div class="well well-sm" style="width:100%">
         <a class="anchor" id="@(Tweet.media.media_id)"></a>
-        <div class="panel twigaten-media">
-            <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(tw, Tweet.media)</div>
-            @TextHelper.MediaTypeGlyphIcon(Tweet.media)
-            <p>
+        <div class="panel twigaten-panel">
+            <div class="twigaten-media">@TextHelper.MediaThumb(tw, Tweet.media)
+                @TextHelper.MediaTypeGlyphIcon(Tweet.media)</div>
                 @TextHelper.UserIcon(tw.user)
-                @TextHelper.UserTweetLink(tw) @TextHelper.UserLink(tw.user)<br />
+                @TextHelper.BirdTweetLink(tw)
+            <p>
+                @TextHelper.UserTweetLink(tw)<br />
                 @tw.user.name<br />
-                @TextHelper.DateOneTweetLink(tw,Tweet.media)
+                @TextHelper.DateOneTweetLink(tw, Tweet.media)
             </p><p>
                 @ScriptHelper.RetweetIntent(tw.tweet_id) @tw.retweet_count
                 @ScriptHelper.FavoriteIntent(tw.tweet_id) @tw.favorite_count
@@ -52,7 +53,7 @@ TweetData._tweet tw = Tweet.tweet.retweet ?? Tweet.tweet;
             @if (Tweet.tweet.retweet != null)
             {
             <p>
-                @TextHelper.UserIcon(Tweet.tweet.user)
+                @TextHelper.UserIcon(Tweet.tweet.user, true)
                 <span class="glyphicon glyphicon-retweet"></span>
                 @TextHelper.UserTweetLink(Tweet.tweet)<br />
                 @Tweet.tweet.user.name<br />
@@ -62,19 +63,19 @@ TweetData._tweet tw = Tweet.tweet.retweet ?? Tweet.tweet;
         </div>
         @foreach (SimilarMediaTweet Similar in Tweet.Similars)
         {
-            <div class="twigaten-media twigaten-similarmedia">
-                <div class="text-center" style="margin:4px">@TextHelper.MediaThumb(Similar.tweet, Similar.media)</div>
-                @TextHelper.MediaTypeGlyphIcon(Similar.media)
+            <div class="twigaten-panel twigaten-similarmedia">
+                <div class="twigaten-media">@TextHelper.MediaThumb(Similar.tweet, Similar.media)
+                @TextHelper.MediaTypeGlyphIcon(Similar.media)</div>
+                @TextHelper.UserIcon(Similar.tweet.user)
+                @TextHelper.BirdTweetLink(Similar.tweet)
                 <p>
-                    @TextHelper.UserIcon(Similar.tweet.user)
-                    @TextHelper.UserTweetLink(Similar.tweet) @TextHelper.UserLink(Similar.tweet.user)<br />
+                    @TextHelper.UserTweetLink(Similar.tweet)<br />
                     @Similar.tweet.user.name<br />
                     @if (Similar.tweet.created_at < tw.created_at)
-                    { <strong>@TextHelper.DateOneTweetLink(Similar.tweet,Similar.media)</strong> }
+                    { <strong>@TextHelper.DateOneTweetLink(Similar.tweet, Similar.media)</strong> }
                     else
                     { @TextHelper.DateOneTweetLink(Similar.tweet, Similar.media) }
-                </p>
-                <p>
+                </p><p>
                     @ScriptHelper.RetweetIntent(Similar.tweet.tweet_id)@Similar.tweet.retweet_count
                     @ScriptHelper.FavoriteIntent(Similar.tweet.tweet_id)@Similar.tweet.favorite_count
                     @TextHelper.GoogleMediaLink(Tweet.media)

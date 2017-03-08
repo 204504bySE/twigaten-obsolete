@@ -35,14 +35,14 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 <script type="text/javascript">
     $(function () {
         $('#datetimepicker_similarmedia').datetimepicker({
-            defaultDate: new Date(@Date.Year, @Date.Month - 1, @Date.Day),
-            maxDate: Date.now(),
+            defaultDate: new Date(@Date.ToUnixTimeMilliseconds()),
+            maxDate: new Date(@Date.Year, @(Date.Month - 1), @Date.Day, 23, 59, 59),
             useCurrent: false,
-            dayViewHeaderFormat: 'YYYY/MM',
+            sideBySide: true,
             allowInputToggle: true,
-            format: 'YYYY-MM-DD'
+            format: "YYYY/MM/DD HH:mm:ss"
         }).on('dp.change', function (e) {
-            location.href = '@html.Raw(UrlPrefix)' + e.date.format('YYYY-MM-DD');
+            location.href = '@html.Raw(UrlPrefix)' + Math.floor(e.date.getTime() / 1000);
         });
     });
 </script>

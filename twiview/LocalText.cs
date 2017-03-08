@@ -72,6 +72,16 @@ namespace twiview
             else { return User.profile_image_url; }
         }
 
+        public static string wbrEveryLetter(string Input)
+        {   //単語のどこでも改行できるようにするだけ
+            StringBuilder Builder = new StringBuilder(Input, Input.Length * 8);
+            for(int i = Input.Length - 1; i > 0; i--)
+            {
+                Builder.Insert(i, "<wbr />");
+            }
+            return Builder.ToString();
+        }
+
         static int seed = Environment.TickCount;
         static readonly ThreadLocal<Random> rand = new ThreadLocal<Random>(() => 
             { return new Random(Interlocked.Increment(ref seed)); });

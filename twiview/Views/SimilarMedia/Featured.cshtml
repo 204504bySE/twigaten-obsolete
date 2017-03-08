@@ -7,8 +7,25 @@
 @helper RenderScripts()
 {
     @Styles.Render("~/Content/bootstrap-datepicker")
-    @ScriptHelper.datetimepickerScript(Model.Date, "/featured/")
+    @datetimepickerScript(Model.Date, "/featured/")
+}
 
+@helper datetimepickerScript(DateTimeOffset Date, string UrlPrefix)
+{
+var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
+    <script type="text/javascript">
+    $(function () {
+        $('#datetimepicker_similarmedia').datetimepicker({
+            defaultDate: new Date(@Date.Year, @Date.Month - 1, @Date.Day),
+            maxDate: Date.now(),
+            useCurrent: false,
+            allowInputToggle: true,
+            format: 'YYYY-MM-DD'
+        }).on('dp.change', function (e) {
+            location.href = '@html.Raw(UrlPrefix)' + e.date.format('YYYY-MM-DD');
+        });
+    });
+    </script>
 }
 
 @helper pager(bool datepicker = false)

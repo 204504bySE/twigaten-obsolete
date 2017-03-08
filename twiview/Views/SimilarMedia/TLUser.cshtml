@@ -63,11 +63,11 @@ if (datepicker)
                         <input type="hidden" name="After" value="@Model.LastTweet" />
                         break;
                     default:
-                        <input type="hidden" name="Date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+                        <input type="hidden" name="Date" value="@Model.Date.ToString("yyyy/MM/dd HH:mm:ss")" />
                         break;
                 }
             </form>
-            <div class="form-inline" style="display:inline">
+            <form method="get" class="form-inline" style="display:inline">
                 @Locale.Pager_Datetimepicker
                 <div class='input-group date' id='datetimepicker_similarmedia'>
                     <input name="Date" type='text' class="form-control" />
@@ -75,7 +75,8 @@ if (datepicker)
                         <span class="glyphicon glyphicon-calendar"></span>
                     </span>
                 </div>
-            </div>
+                <button type="submit" class="btn btn-primary">Go</button>
+            </form>
         </div>
 }
 }
@@ -90,11 +91,12 @@ if (datepicker)
             switch (Model.RangeMode)
             {
                 case SimilarMediaModel.RangeModes.Before:
+                case SimilarMediaModel.RangeModes.Date:
                     datestr = "(~" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + ")"; break;
                 case SimilarMediaModel.RangeModes.After:
                     datestr = "(" + Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss") + "~)"; break;
                 default:
-                    datestr = "(~" + Model.Date.ToString("yyyy/MM/dd") + ")"; break;
+                    datestr = ""; break;
             }
         }
         string TitleFormat;
@@ -133,13 +135,13 @@ if (datepicker)
         switch (Model.RangeMode)
         {
             case SimilarMediaModel.RangeModes.Before:
+            case SimilarMediaModel.RangeModes.Date:
             <h3>(~@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</h3>
                 break;
             case SimilarMediaModel.RangeModes.After:
             <h3>(@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")~)</h3>
                 break;
             default:
-                <h3>(~@Model.Date.ToString("yyyy/MM/dd"))</h3>
                 break;
         }
         <p>
@@ -152,7 +154,7 @@ if (datepicker)
                     @ScriptHelper.TweetButton(@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet }))
                     break;
                 default:
-                    @ScriptHelper.TweetButton(@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd") }))
+                    @ScriptHelper.TweetButton(@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss") }))
                     break;
             }
         </p>

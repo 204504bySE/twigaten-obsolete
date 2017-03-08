@@ -43,36 +43,49 @@ h3, .h3{ font-size: 20px; }
 }
 
 a.anchor {
-    display: block;
-    position: relative;
-    top: -150px;
-    visibility: hidden;
+    display:block;
+    position:relative;
+    top:-150px;
+    visibility:hidden;
 }
 
-div.twigaten-media {
-    display: inline-block;
-    width: 100%;
-}
-@media (min-width: 520px){
-    div.twigaten-media{ width: 216px; }
-}
-
-div.twigaten-similarmedia{
+div.twigaten-similarmedia {
     vertical-align: top;
     margin: 0 4px;
 }
-span.twigaten-userlink{
-    float: right;
-    margin-right: 1em;
+div.twigaten-panel{
+    display:inline-block;
+    width:100%;
 }
-p.twigaten-tweettext{
-    white-space:pre-line;
+div.twigaten-media {
+    float: left;
+    margin: 4px;
 }
-img.twigaten-thumb{
-    max-width:150px;
-    max-height:150px;
+@media (min-width:520px){
+    div.twigaten-panel { width:216px; }
+    div.twigaten-media { float:none; text-align:center; }
 }
-img.twigaten-icon{
-    max-width:48px;
-    max-height:48px;
+img.twigaten-thumb {
+    max-width: 150px;
+    max-height: 150px;
 }
+img.twigaten-icon {
+    max-width: 48px;
+    max-height: 48px;
+}
+@media (min-width:520px){
+    img.twigaten-icon{ float:left; }
+}
+img.twigaten-icon-retweet{ float:left; }
+
+span.twigaten-twitterbird{
+    float:right;
+    margin-right:1em;
+    word-break:break-all;
+}
+p.twigaten-tweettext {
+    display: inline-block;
+    white-space: pre-line;
+    width:100%;
+}
+

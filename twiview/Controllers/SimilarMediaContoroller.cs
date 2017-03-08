@@ -35,7 +35,7 @@ namespace twiview.Controllers
 
             SimilarMediaModelOneTweet Model;
             if (More ?? false) { Model = new SimilarMediaModelOneTweet(TweetID, Login.UserID, 100, false); }
-            else { Model = new SimilarMediaModelOneTweet(TweetID, Login.UserID, 3, true); }
+            else { Model = new SimilarMediaModelOneTweet(TweetID, Login.UserID, 7, true); }
             if(Model.isNotFound) { Response.StatusCode = 404; }
             return View(Model);
         }
@@ -52,13 +52,14 @@ namespace twiview.Controllers
             }
 
             long? LastTweet = Before ?? After;
+            DateTimeOffset ParsedDate;
             if (LastTweet != null) { LastTweet = Math.Min(LastTweet.Value, SnowFlake.Now(true)); }
-            else
+            else if (Date != null && DateTimeOffset.TryParse(Date, out ParsedDate))
             {
-                DateTimeOffset? ParsedDate = StrToDateDay(Date);
-                if (ParsedDate != null && ParsedDate.Value <= DateTimeOffset.UtcNow)
-                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.Value.AddDays(1).AddSeconds(-1), true); }
+                if (ParsedDate <= DateTimeOffset.UtcNow)
+                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.AddDays(1).AddSeconds(-1), true); }
             }
+            else { LastTweet = SnowFlake.Now(true); }
             SimilarMediaModel.RangeModes RangeMode;
             if (Before != null) { RangeMode = SimilarMediaModel.RangeModes.Before; }
             else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
@@ -79,13 +80,14 @@ namespace twiview.Controllers
             if (UserID == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID }); }
 
             long? LastTweet = Before ?? After;
-            if(LastTweet != null) { LastTweet = Math.Min(LastTweet.Value, SnowFlake.Now(true)); }
-            else
+            DateTimeOffset ParsedDate;
+            if (LastTweet != null) { LastTweet = Math.Min(LastTweet.Value, SnowFlake.Now(true)); }
+            else if (Date != null && DateTimeOffset.TryParse(Date, out ParsedDate))
             {
-                DateTimeOffset? ParsedDate = StrToDateDay(Date);
-                if(ParsedDate != null && ParsedDate.Value <= DateTimeOffset.UtcNow)
-                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.Value.AddDays(1).AddSeconds(-1), true); }
+                if (ParsedDate <= DateTimeOffset.UtcNow)
+                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.AddDays(1).AddSeconds(-1), true); }
             }
+            else { LastTweet = SnowFlake.Now(true); }
             SimilarMediaModel.RangeModes RangeMode;
             if (Before != null) { RangeMode = SimilarMediaModel.RangeModes.Before; }
             else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
