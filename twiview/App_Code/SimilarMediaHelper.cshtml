@@ -16,17 +16,17 @@
 @helper SimilarMediaAll(SimilarMediaTweet[] Tweets, int ViewMoreButton, bool ShowDate)
 {
 DateTimeOffset LastTweetDate = Tweets[0].tweet.created_at.ToLocalTime();
-bool AdFlag = Tweets.Length >= 2;
 if (ShowDate) {<h3>@LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd")</h3>}
-    foreach (SimilarMediaTweet Tweet in Tweets)
+    for (int i = 0; i < Tweets.Length; i++)
     {
-        DateTimeOffset ThisTweetDate = Tweet.tweet.created_at.ToLocalTime();
+        DateTimeOffset ThisTweetDate = Tweets[i].tweet.created_at.ToLocalTime();
         if (ShowDate && (LastTweetDate.Year != ThisTweetDate.Year || LastTweetDate.Month != ThisTweetDate.Month || LastTweetDate.Day != ThisTweetDate.Day))
-        { <h3>@Tweet.tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd")</h3> }
+        { <h3>@Tweets[i].tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd")</h3> }
         LastTweetDate = ThisTweetDate;
-        @SimilarMedia(Tweet, ViewMoreButton)
-    if (AdFlag) { AdFlag = false; @AdHelper.AdArticle() }
-    }
+        @SimilarMedia(Tweets[i], ViewMoreButton)
+        if(i == 0 && Tweets.Length >= 2) { @AdHelper.AdArticle() }
+        if (i == 13 && Tweets.Length >= 15) { @AdHelper.AdArticle2() }
+}
 }
 
 @helper SimilarMedia(SimilarMediaTweet Tweet, int ViewMoreButton)
@@ -55,7 +55,7 @@ TweetData._tweet tw = Tweet.tweet.retweet ?? Tweet.tweet;
             <p>
                 @TextHelper.UserIcon(Tweet.tweet.user, true)
                 <span class="glyphicon glyphicon-retweet"></span>
-                @TextHelper.UserTweetLink(Tweet.tweet)<br />
+                @TextHelper.UserTweetLink(Tweet.tweet, false)<br />
                 @Tweet.tweet.user.name<br />
                 <span class="text-muted">@TextHelper.TweetDate(Tweet.tweet)</span>
             </p>

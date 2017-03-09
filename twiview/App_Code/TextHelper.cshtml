@@ -14,10 +14,13 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 if(User.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(User.user_id)">@@@User.screen_name)</a>
 }
 
-@helper UserTweetLink(TweetData._tweet Tweet)
+@helper UserTweetLink(TweetData._tweet Tweet, bool wbr = true)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
-if (Tweet.user.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))">@@@html.Raw(LocalText.wbrEveryLetter(Tweet.user.screen_name))</a>
+if (Tweet.user.isprotected){<span class="glyphicon glyphicon-lock"></span>}
+    <a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))">
+    @@@if (wbr) {@html.Raw(LocalText.wbrEveryLetter(Tweet.user.screen_name))}
+    else {@Tweet.user.screen_name}</a>
 }
 
 @helper DateOneTweetLink(TweetData._tweet Tweet, TweetData._media Media)

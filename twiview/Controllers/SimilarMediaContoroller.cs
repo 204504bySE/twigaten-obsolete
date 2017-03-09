@@ -51,19 +51,18 @@ namespace twiview.Controllers
                 else { return RedirectToAction("Timeline", new { UserID = UserID ?? Login.UserID, Date = Date, Count = getCountPref(Count), RT = getRetweetPref(RT), Before = Before }); }
             }
 
-            long? LastTweet = Before ?? After;
+            long? LastTweet;
+            SimilarMediaModel.RangeModes RangeMode;
+            if (Before != null) { LastTweet = Before; RangeMode = SimilarMediaModel.RangeModes.Before; }
+            else if (After != null) { LastTweet = After; RangeMode = SimilarMediaModel.RangeModes.After; }
+            else { LastTweet = null; RangeMode = SimilarMediaModel.RangeModes.Date; }
             DateTimeOffset ParsedDate;
             if (LastTweet != null) { LastTweet = Math.Min(LastTweet.Value, SnowFlake.Now(true)); }
             else if (Date != null && DateTimeOffset.TryParse(Date, out ParsedDate))
             {
                 if (ParsedDate <= DateTimeOffset.UtcNow)
-                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.AddDays(1).AddSeconds(-1), true); }
+                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate, true); }
             }
-            else { LastTweet = SnowFlake.Now(true); }
-            SimilarMediaModel.RangeModes RangeMode;
-            if (Before != null) { RangeMode = SimilarMediaModel.RangeModes.Before; }
-            else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
-            else { RangeMode = SimilarMediaModel.RangeModes.Date; }
 
             SimilarMediaModel Model = new SimilarMediaModelTimeline((long)(UserID ?? Login.UserID), Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
             if (Model.isNotFound) { Response.StatusCode = 404; }
@@ -79,19 +78,18 @@ namespace twiview.Controllers
             if (UserID == null && Login.UserID == null) { throw new ArgumentNullException(); }
             if (UserID == null) { return RedirectToAction("UserTweet", new { UserID = UserID ?? Login.UserID }); }
 
-            long? LastTweet = Before ?? After;
+            long? LastTweet;
+            SimilarMediaModel.RangeModes RangeMode;
+            if (Before != null) { LastTweet = Before; RangeMode = SimilarMediaModel.RangeModes.Before; }
+            else if (After != null) { LastTweet = After; RangeMode = SimilarMediaModel.RangeModes.After; }
+            else { LastTweet = null; RangeMode = SimilarMediaModel.RangeModes.Date; }
             DateTimeOffset ParsedDate;
             if (LastTweet != null) { LastTweet = Math.Min(LastTweet.Value, SnowFlake.Now(true)); }
             else if (Date != null && DateTimeOffset.TryParse(Date, out ParsedDate))
             {
                 if (ParsedDate <= DateTimeOffset.UtcNow)
-                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate.AddDays(1).AddSeconds(-1), true); }
+                { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate, true); }
             }
-            else { LastTweet = SnowFlake.Now(true); }
-            SimilarMediaModel.RangeModes RangeMode;
-            if (Before != null) { RangeMode = SimilarMediaModel.RangeModes.Before; }
-            else if (After != null) { RangeMode = SimilarMediaModel.RangeModes.After; }
-            else { RangeMode = SimilarMediaModel.RangeModes.Date; }
 
             SimilarMediaModel Model = new SimilarMediaModelUserTweet((long)UserID, Login.UserID, getCountPref(Count), 3, LastTweet, getRetweetPref(RT), RangeMode);
             if (Model.isNotFound) { Response.StatusCode = 404; }

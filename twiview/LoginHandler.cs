@@ -81,7 +81,7 @@ namespace twiview
             if (Manually)
             {
 
-                new DBHandlerView().DeleteUserLoginString((long)UserID);
+                new DBHandlerView().DeleteUserLoginString(UserID.Value);
                 ClearCookie("TweetCount");
                 ClearCookie("GetRetweet");
                 ClearCookie("TweetOrder");

@@ -20,29 +20,29 @@ namespace twiview
             //URLとハッシュタグをリンクにする rel="nofollow" 付き
 
             if (Text == null) { return null; }
-            StringBuilder Builder = new StringBuilder(Text)
-                .Replace("<", "&lt;")
-                .Replace(">", "&gt;")
-                .Replace("\n", "<br />");
+            StringBuilder Builder = new StringBuilder(Text);
+            Builder.Replace("<", "&lt;");
+            Builder.Replace(">", "&gt;");
+            Builder.Replace("\n", "<br />");
 
             MatchCollection m = UrlRegex.Matches(Builder.ToString());
             for (int i = m.Count - 1; 0 <= i; i--)
             {
                 //後ろから順に挿入する
-                Builder.Insert(m[i].Index + m[i].Length, "</a>")
-                    .Insert(m[i].Index, @""" rel=""nofollow"">")
-                    .Insert(m[i].Index, m[i].Value)
-                    .Insert(m[i].Index, @"<a href=""");
+                Builder.Insert(m[i].Index + m[i].Length, "</a>");
+                Builder.Insert(m[i].Index, @""" rel=""nofollow"">");
+                Builder.Insert(m[i].Index, m[i].Value);
+                Builder.Insert(m[i].Index, @"<a href="""); 
             }
 
             m = HashtagRegex.Matches(Builder.ToString());
             for (int i = m.Count - 1; 0 <= i; i--)
             {
                 //後ろから順に挿入する
-                Builder.Insert(m[i].Index + m[i].Length, "</a>")
-                    .Insert(m[i].Index - 1, @""" rel=""nofollow"">")
-                    .Insert(m[i].Index - 1, HttpUtility.UrlEncode(m[i].Value))
-                    .Insert(m[i].Index - 1, @"<a href=""https://twitter.com/hashtag/");
+                Builder.Insert(m[i].Index + m[i].Length, "</a>");
+                Builder.Insert(m[i].Index - 1, @""" rel=""nofollow"">");
+                Builder.Insert(m[i].Index - 1, HttpUtility.UrlEncode(m[i].Value));
+                Builder.Insert(m[i].Index - 1, @"<a href=""https://twitter.com/hashtag/");
             }
             return Builder.ToString();
         }
@@ -74,8 +74,9 @@ namespace twiview
 
         public static string wbrEveryLetter(string Input)
         {   //単語のどこでも改行できるようにするだけ
-            StringBuilder Builder = new StringBuilder(Input, Input.Length * 8);
-            for(int i = Input.Length - 1; i > 0; i--)
+            if(Input == null || Input.Length < 2) { return Input; }
+            StringBuilder Builder = new StringBuilder(Input, Input.Length * 8 - 14);    //字数ぴったりでおｋ
+            for (int i = Input.Length - 1; i > 0; i--)
             {
                 Builder.Insert(i, "<wbr />");
             }

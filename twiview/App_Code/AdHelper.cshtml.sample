@@ -1,29 +1,7 @@
 ﻿@using twiview;
 
-@helper AdInner(string UrlPC, string UrlPhone, bool brPhone = true)
-{
-return;	//有効化するならこれを消す
-//768px以上ならUrlPCの方を配信する
-//medi-8のことしか考えてないので他の広告を配信するなら適宜書き換える
-string hash = LocalText.RandomHash();
-<div id="ad_@(hash)"></div>
-<script async type="text/javascript">
-    (function () {
-        var ad = document.getElementById("ad_@(hash)");
-        var scr = document.createElement("script");
-        scr.type = "text/javascript";
-        if (window.innerWidth < 768) {
-            @if (brPhone) {@:ad.appendChild(document.createElement("br"));
-        }   scr.src = "@UrlPhone";
-        } else {
-            scr.src = "@UrlPC"; 
-        }
-        ad.appendChild(scr);
-    }());
-</script>
-}
-
-//各広告のURLを貼る 広告を出さないなら放置でおｋ
-@helper AdHeader() { @AdInner("https://js.medi-8.net/あああああ.js", "https://js.medi-8.net/あああああ.js", false) }
-@helper AdArticle(){ @AdInner("https://js.medi-8.net/あああああ.js", "https://js.medi-8.net/あああああ.js") }
-@helper AdFooter() { @AdInner("https://js.medi-8.net/あああああ.js", "https://js.medi-8.net/あああああ.js") }
+//広告を出すならなんか処理を書く
+@helper AdHeader() { }
+@helper AdArticle() { }
+@helper AdArticle2() { }
+@helper AdFooter() { }
