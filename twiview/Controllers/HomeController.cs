@@ -8,17 +8,16 @@ namespace twiview.Controllers
 {
     public class HomeController : Controller
     {
-        public ActionResult Index()
+        public ActionResult Index(LoginParameters p)
         {
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
+            p.Validate(Session, Response);
             return View();
         }
 
         [Route("about")]
-        public ActionResult About()
+        public ActionResult About(LoginParameters p)
         {
-            //ViewBag.Message = "Your application description page.";
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
+            p.Validate(Session, Response);
             return View();
         }
     }

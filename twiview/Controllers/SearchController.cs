@@ -15,15 +15,34 @@ namespace twiview.Controllers
         Regex StatusRegex = new Regex(@"(?<=twitter\.com\/.+?\/status(es)?\/)\d+", RegexOptions.Compiled);
         Regex ScreenNameRegex = new Regex(@"(?<=twitter\.com\/|@|^)[_\w]+(?=[\/_\w]*$)", RegexOptions.Compiled);
 
-        [Route("search")]
-        public ActionResult Index(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Show, bool Direct = true)
+
+        public class SearchParameters : LoginParameters
         {
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
-            if (Str == null || Str == "") { return View(); }
-            string QueryStr = twitenlib.CharCodes.KillNonASCII(Str).Trim();
+            ///<summary>URL</summary>
+            public string Str { get; set; }
+            ///<summary>URL UserLikeMode/Cookie</summary>
+            public DBHandlerView.SelectUserLikeMode? Mode { get; set; }
+            ///<summary>Cookie(Session only)</summary>
+            public DBHandlerView.SelectUserLikeMode? UserLikeMode { get; set; }
+            ///<summary>URL</summary>
+            public bool? Direct { get; set; }
+
+            protected override void ValidateValues(HttpResponseBase Response)
+            {
+                Str = twitenlib.CharCodes.KillNonASCII(Str);
+                UserLikeMode = Mode = Mode ?? UserLikeMode ?? DBHandlerView.SelectUserLikeMode.Show;
+                SetCookie(nameof(UserLikeMode), UserLikeMode.ToString(), Response, true);
+                Direct = Direct ?? true;
+            }
+        }
+        [Route("search")]
+        public ActionResult Index(SearchParameters p)
+        {
+            p.Validate(Session, Response);
+            if (p.Str == null || p.Str == "") { return View(); }
 
             //ツイートのURLっぽいならそのツイートのページに飛ばす
-            string StatusStr = StatusRegex.Match(QueryStr).Value;
+            string StatusStr = StatusRegex.Match(p.Str).Value;
             if (StatusStr != "")
             {
                 long StatusID = long.Parse(StatusStr);
@@ -35,10 +54,10 @@ namespace twiview.Controllers
             });
             }
             //ユーザー名検索
-            string ScreenName = ScreenNameRegex.Match(QueryStr).Value;
+            string ScreenName = ScreenNameRegex.Match(p.Str).Value;
             if (ScreenName != "")
             {
-                if (Direct)
+                if (p.Direct.Value)
                 {
                     long? TargetUserID = db.SelectID_Unique_screen_name(ScreenName);
                     if (TargetUserID != null)
@@ -46,7 +65,7 @@ namespace twiview.Controllers
                         return RedirectToRoute(new { controller = "SimilarMedia", action = "UserTweet", UserID = TargetUserID });
                     }
                 }
-                return RedirectToAction("Users", new { Str = QueryStr, Mode = Mode });
+                return RedirectToAction("Users", new { Str = p.Str, Mode = p.Mode });
             }
             else { return RedirectToAction("Index"); }
         }
@@ -64,33 +83,14 @@ namespace twiview.Controllers
             return RedirectToRoute(new { controller = "SimilarMedia", action = "OneTweet", TweetID = tweet_id });
         }
         */
-        [Route("search/users")]
-        public ActionResult Users(string Str, DBHandlerView.SelectUserLikeMode Mode = DBHandlerView.SelectUserLikeMode.Undefined)
-        {
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
-            //screen_name 検索
-            string QueryStr = twitenlib.CharCodes.KillNonASCII(Str);
-            if(QueryStr == null || QueryStr == "")
-            {
-                return RedirectToAction("Index");
-            }
-            return View(new SearchModelUsers(QueryStr, Login.UserID, getsetUserLikeMode(Mode)));
-        }
 
-        DBHandlerView.SelectUserLikeMode getsetUserLikeMode(DBHandlerView.SelectUserLikeMode Mode)
+        [Route("search/users")]
+        public ActionResult Users(SearchParameters p)
         {
-            if(Mode != DBHandlerView.SelectUserLikeMode.Undefined)
-            {
-                Session["UserLikeMode"] = Mode;
-                return Mode;
-            }
-            else
-            {
-                //ここでデフォルト値も決める
-                DBHandlerView.SelectUserLikeMode newMode = Session["UserLikeMode"] as DBHandlerView.SelectUserLikeMode? ?? DBHandlerView.SelectUserLikeMode.Show;
-                Session["UserLikeMode"] = newMode;
-                return newMode;
-            }
+            p.Validate(Session, Response);
+            //screen_name 検索
+            if(p.Str == null || p.Str == "") { return RedirectToAction("Index"); }
+            return View(new SearchModelUsers(p.Str, p.ID, p.Mode.Value));
         }
     }
 }

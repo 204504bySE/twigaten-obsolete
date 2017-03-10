@@ -118,7 +118,7 @@ FROM user WHERE user_id = @user_id"))
             }
         }
 
-        public enum SelectUserLikeMode { Undefined, Show, Following, All }
+        public enum SelectUserLikeMode { Show, Following, All }
         public TweetData._user[] SelectUserLike(string Pattern, long? login_user_id, SelectUserLikeMode Mode, int Limit)
         {
             DataTable Table;

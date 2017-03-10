@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.Mvc;
 using System.Web.Optimization;
 using System.Web.Routing;
+using Microsoft.Web.Mvc;
 
 namespace twiview
 {
@@ -16,6 +17,10 @@ namespace twiview
             FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+
+            //Cookie, SessionもControllerの引数に渡される
+            ValueProviderFactories.Factories.Add(new CookieValueProviderFactory());
+            ValueProviderFactories.Factories.Add(new SessionValueProviderFactory());
         }
     }
 }

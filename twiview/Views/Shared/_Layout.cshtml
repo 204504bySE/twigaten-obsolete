@@ -24,27 +24,27 @@
                 </button>
                 @Html.ActionLink("TwiGaTen", "Index", "Home", null, new { @class = "navbar-brand" })
                 <ul class="nav navbar-nav">
-                    @if (Session["LoginUserID"] == null)
-                    {
-                        <li>@Html.ActionLink(Locale.Menu_Login, "Twitter", "Auth", null, new { title = Locale.Menu_Login, rel = "nofollow" })</li>
-                    }
-                    else
+                    @if (Session["ScreenName"] != null)
                     {
                         <li class="dropdown">
-                            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@@@(Session["LoginUserScreenName"].ToString())<span class="caret"></span></a>
+                            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@@@Session["ScreenName"].ToString()<span class="caret"></span></a>
                             <ul class="dropdown-menu" role="menu">
-                                <li>@Html.ActionLink(Locale.Menu_MyTweet, "UserTweet", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
-                                <li>@Html.ActionLink(Locale.Menu_Timeline, "Timeline", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
+                                <li>@Html.ActionLink(Locale.Menu_MyTweet, "UserTweet", "SimilarMedia")</li>
+                                <li>@Html.ActionLink(Locale.Menu_Timeline, "Timeline", "SimilarMedia")</li>
                                 <li class="divider"></li>
                                 <li>@Html.ActionLink(Locale.Menu_Logout, "Logout", "Auth")</li>
                             </ul>
                         </li>
                     }
+                    else
+                    {
+                        <li>@Html.ActionLink(Locale.Menu_Login, "Twitter", "Auth", null, new { title = Locale.Menu_Login, rel = "nofollow" })</li>
+                    }
                 </ul>
             </div>
             <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
                 <ul class="nav navbar-nav">
-                    <li>@Html.ActionLink(Locale.Menu_Featured, "Featured", "SimilarMedia", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") }, null)</li>
+                    <li>@Html.ActionLink(Locale.Menu_Featured, "Featured", "SimilarMedia")</li>
                     <li>@Html.ActionLink(Locale.Menu_About, "About", "Home")</li>
                 </ul>
             </div>
