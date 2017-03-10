@@ -23,7 +23,6 @@ namespace twidownparent
             if (config.crawlparent.InitTruncate)
             {
                 db.initTruncate();
-                ch.StartChild("/REST");
                 users = db.SelectNewToken();
                 for (int i = 0; i <= users.Length / config.crawlparent.AccountLimit; i++)
                 {

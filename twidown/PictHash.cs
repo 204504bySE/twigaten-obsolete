@@ -63,13 +63,13 @@ namespace twidown
             }
         }
 
-        public static long? dcthash(string imgPath)
+        public static long? DCTHash(string imgPath)
         {
             try
             {
                 using (FileStream imgStream = new FileStream(imgPath, FileMode.Open))
                 {
-                    return dcthash(imgStream);
+                    return DCTHash(imgStream);
                 }
             }
             catch { return null; }
@@ -77,9 +77,9 @@ namespace twidown
 
         //pHashっぽいDCT Hashの自前実装
 
-        public static long? dcthash(Stream imgStream)
+        public static long? DCTHash(Stream imgStream)
         {
-            Vector<float>[] hashbuf = monoimage(imgStream, 32); //モノクロ縮小画像
+            Vector<float>[] hashbuf = MonoImage(imgStream, 32); //モノクロ縮小画像
             if (hashbuf == null) { return null; }  //正常な場合は0にはならない
 
             //DCTやる phashで必要な成分だけ求める
@@ -127,7 +127,7 @@ namespace twidown
         }
 
         //正方形、モノクロの画像に対応するバイト列を返す
-        static Vector<float>[] monoimage(Stream imgStream, int size)
+        static Vector<float>[] MonoImage(Stream imgStream, int size)
         {
             try
             {

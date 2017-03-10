@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,7 +28,7 @@ namespace twihash
             Console.WriteLine("{0} {1} hash loaded", DateTime.Now, allmediahash.Count);
             Console.WriteLine("{0} Hash load: {1}ms", DateTime.Now, sw.ElapsedMilliseconds);
             sw.Restart();
-            mediahashsorter media = new mediahashsorter(allmediahash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
+            MediaHashSorter media = new MediaHashSorter(allmediahash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
             media.Proceed();
             sw.Stop();
             Console.WriteLine("{0} Multiple Sort, Store: {1}ms", DateTime.Now, sw.ElapsedMilliseconds);
@@ -114,7 +113,7 @@ namespace twihash
 
     //複合ソート法による全ペア類似度検索 とかいうやつ
     //http://d.hatena.ne.jp/tb_yasu/20091107/1257593519
-    class mediahashsorter
+    class MediaHashSorter
     {
         MediaHashArray media;
         DBHandler db;
@@ -123,7 +122,7 @@ namespace twihash
         Combinations combi;
         ConcurrentQueue<MediaPair> SimilarMedia = new ConcurrentQueue<MediaPair>();   //media_idのペアとハミング距離(処理結果)
         
-        public mediahashsorter(MediaHashArray media, DBHandler db, int maxhammingdistance, int extrablock)
+        public MediaHashSorter(MediaHashArray media, DBHandler db, int maxhammingdistance, int extrablock)
         {
             this.media = media;
             this.maxhammingdistance = maxhammingdistance;
@@ -138,7 +137,7 @@ namespace twihash
             for (int i = 0; i < combi.Length; i++)
             {
                 sw.Restart();
-                long count = multiplesortlast(media, combi, combi[i]);
+                long count = MultipleSortUnit(media, combi, combi[i]);
                 sw.Stop();
                 Console.WriteLine("{0} {1}\t{2}\t{3}\t{4}ms ", DateTime.Now, i, count, combi.CombiString(i), sw.ElapsedMilliseconds);
             }
@@ -146,7 +145,7 @@ namespace twihash
         }
 
         const int bitcount = 64;    //longのbit数
-        int multiplesortlast(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
+        int MultipleSortUnit(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
         {
             int startblock = baseblocks.Last();
             long fullmask = UnMask(baseblocks, combi.Count);
@@ -166,7 +165,7 @@ namespace twihash
                       if (maskedhash_i != (basemedia.Hashes[j] & fullmask)) { break; }
                       if (!basemedia.NeedstoInsert[i] && !basemedia.NeedstoInsert[j]) { continue; }
                       //ブロックソートで一致した組のハミング距離を測る
-                      sbyte ham = hammingdistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
+                      sbyte ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
                       if (ham <= maxhammingdistance)
                       {
                           //一致したペアが見つかる最初の組合せを調べる
@@ -198,10 +197,9 @@ namespace twihash
                               {   //溜まったらDBに入れる
                                   Interlocked.Increment(ref dbthreads);
                                   List<MediaPair> PairstoStore = new List<MediaPair>();
-                                  MediaPair outpair;
                                   for (int n = 0; n < DBHandler.StoreMediaPairsUnit; n++)
                                   {
-                                      if(!SimilarMedia.TryDequeue(out outpair)) { break; }
+                                      if(!SimilarMedia.TryDequeue(out MediaPair outpair)) { break; }
                                       PairstoStore.Add(outpair);
                                   }
                                   int c = db.StoreMediaPairs(PairstoStore);
@@ -318,7 +316,7 @@ namespace twihash
         }
         
         //ハミング距離を計算する
-        sbyte hammingdistance(ulong a, ulong b)
+        sbyte HammingDistance(ulong a, ulong b)
         {
             //xorしてpopcnt
             ulong value = a ^ b;

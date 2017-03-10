@@ -13,7 +13,7 @@ namespace twidownparent
     {
         Config config = Config.Instance;
 
-        public int StartChild(string args = "")
+        public int StartChild()
         {
             Config config = Config.Instance;
             try
@@ -21,7 +21,6 @@ namespace twidownparent
                 ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.ChildPath);
                 info.WorkingDirectory = Path.GetDirectoryName(config.crawlparent.ChildPath);
                 info.WindowStyle = ProcessWindowStyle.Minimized;
-                info.Arguments = args;
                 Process retProcess = Process.Start(info);
                 return retProcess.Id;
             }

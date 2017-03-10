@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Linq;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-
+using System.IO;
+using System.Net;
 using System.Reactive.Linq;
 using CoreTweet;
 using CoreTweet.Streaming;
-using System.IO;
-using System.Net;
-using System.Collections.Generic;
 using twitenlib;
 
 namespace twidown
@@ -19,26 +18,24 @@ namespace twidown
         public Exception e { get; private set; }
         public Tokens Token { get; }
         Config config = Config.Instance;
-        DBHandler db = DBHandler.Instance;
         Counter counter = Counter.Instance;
+        DBHandler db = DBHandler.Instance;
         IDisposable StreamDisposable = null;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
         TweetTimeList TweetTime = new TweetTimeList();
         bool isAttemptingConnect = false;
-        StreamerLocker Locker;
+        StreamerLocker Locker = StreamerLocker.Instance;
 
-        public UserStreamer(Tokens t, StreamerLocker l)
+        public UserStreamer(Tokens t)
         {
             Token = t;
             Token.ConnectionOptions.DisableKeepAlive = false;
             Token.ConnectionOptions.UseCompression = true;
             Token.ConnectionOptions.UseCompressionOnStreaming = true;
-
-            Locker = l;
         }
         ~UserStreamer()
         {
-            if(StreamDisposable != null) { StreamDisposable.Dispose(); }
+            if (StreamDisposable != null) { StreamDisposable.Dispose(); }
         }
 
         //最近受信したツイートの時刻を一定数保持する
@@ -85,10 +82,9 @@ namespace twidown
 
         public enum NeedRetryResult
         {
-            None,         //不要
+            None,         //不要(Postponedもこれ)
             JustNeeded,       //必要だけど↓の各処理は不要
-            Verify,       //VerifyCredentialsが必要
-            GetTimeline   //タイムラインの取得もstreamerで行う
+            Verify       //VerifyCredentialsが必要
         }
 
         //これを外部から叩いて再接続の必要性を確認
@@ -97,16 +93,16 @@ namespace twidown
             if (isPostponed()) { return NeedRetryResult.None; }
             else if (e != null)
             {
-                if (e is TwitterException && ((TwitterException)e).Status == HttpStatusCode.Unauthorized)
+                if ((e is TwitterException ex) && ex.Status == HttpStatusCode.Unauthorized)
                 { return NeedRetryResult.Verify; }
                 else { return NeedRetryResult.JustNeeded; }
             }
-            else if (!isAttemptingConnect && StreamDisposable == null) { return NeedRetryResult.Verify; }
+            else if (!isAttemptingConnect && StreamDisposable == null) { return NeedRetryResult.JustNeeded; }
             else if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
                 > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.Min).TotalSeconds))
             {
-                Console.WriteLine("{0} {1}: No streaming message for {2} sec.", DateTime.Now, Token.UserId, (DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds);
-                return NeedRetryResult.GetTimeline;
+                //Console.WriteLine("{0} {1}: No streaming message for {2} sec.", DateTime.Now, Token.UserId, (DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds.ToString("#"));
+                return NeedRetryResult.JustNeeded;
             }
             return NeedRetryResult.None;
         }
@@ -150,7 +146,6 @@ namespace twidown
         {
             e = null;
             if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
-
             LastStreamingMessageTime = DateTimeOffset.Now;
             TweetTime.Add(LastStreamingMessageTime);
             StreamDisposable = Token.Streaming.UserAsObservable().Subscribe(
@@ -163,26 +158,24 @@ namespace twidown
                 },
                 (Exception ex) =>
                 {
-                    if (ex is TaskCanceledException) { LogFailure.Write("TaskCanceledException"); Environment.Exit(1); }    //つまり自殺
-                    else if (ex is WebException) { e = TwitterException.Create((WebException)ex); }
+                    if (ex is TaskCanceledException) { Environment.Exit(1); }    //つまり自殺
+                    else if (ex is WebException wex) { e = TwitterException.Create(wex); }
                     else { e = ex; }
-                    Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
-                    StreamDisposable.Dispose(); StreamDisposable = null;
+                    //Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
                 },
-                () =>
-                { //接続中のRevokeはこれ
-                    StreamDisposable.Dispose(); StreamDisposable = null;
-                }
+                () => { e = new Exception("Userstream unexpectedly closed"); } //接続中のRevokeはこれ
                 );
         }
-
+        
         public TokenStatus RecieveRestTimeline()
         {
             //RESTで取得してツイートをDBに突っ込む
             //各ツイートの時刻をTweetTimeに格納
             try
             {
-                CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
+                CoreTweet.Core.ListedResponse<Status> Timeline;
+                Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
+
                 //Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
                 DateTimeOffset[] RestTweetTime = new DateTimeOffset[Timeline.Count];
                 for (int i = 0; i < Timeline.Count; i++)
@@ -220,70 +213,6 @@ namespace twidown
             {
                 Console.WriteLine("{0} {1}: {2}", DateTime.Now, Token.UserId, ex.Message);
                 return TokenStatus.Failure;
-            }
-        }
-
-        //----------------------------------------
-        // ここから下はUtility Classだったやつ
-        // つまり具体的な処理が多い(適当
-        //----------------------------------------
-
-        void HandleStreamingMessage(StreamingMessage x)
-        {
-            switch (x.Type)
-            {
-                case MessageType.Create:
-                    HandleTweet((x as StatusMessage).Status);
-                    break;
-                case MessageType.DeleteStatus:
-                    HandleTweet(x as DeleteMessage);
-                    break;
-                case MessageType.Friends:
-                    //UserStream接続時に届く(10000フォロー超だと届かない)
-                    db.StoreFriends(x as FriendsMessage, Token.UserId);
-                    Console.WriteLine("{0} {1}: Stream connected", DateTime.Now, Token.UserId);
-                    break;
-                case MessageType.Disconnect:
-                    //届かないことの方が多い
-                    Console.WriteLine("{0} {1}: DisconnectMessage({2})", DateTime.Now, Token.UserId, (x as DisconnectMessage).Code);
-                    break;
-                case MessageType.Event:
-                    HandleEventMessage(x as EventMessage);
-                    break;
-                case MessageType.Warning:
-                    if ((x as WarningMessage).Code == "FOLLOWS_OVER_LIMIT")
-                    {
-                        long[] friends = RestCursored(RestCursorMode.Friend);
-                        if (friends != null) { db.StoreFriends(friends, Token.UserId); }
-                        Console.WriteLine("{0} {1}: REST friends success", DateTime.Now, Token.UserId);
-                        Console.WriteLine("{0} {1}: Stream connected", DateTime.Now, Token.UserId);
-                    }
-                    break;
-            }
-        }
-
-        DateTimeOffset[] RestTimeline()
-        {
-            //RESTで取得してツイートをDBに突っ込む 戻り値はツイート時刻の列
-            //0ツイートだったら現在時刻を返して1ツイート受信したっぽい戻り値にする
-            try
-            {
-                CoreTweet.Core.ListedResponse<Status> Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
-                //Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
-                DateTimeOffset[] ret = new DateTimeOffset[Timeline.Count];
-                for (int i = 0; i < Timeline.Count; i++)
-                {
-                    HandleTweet(Timeline[i], false);
-                    ret[i] = Timeline[i].CreatedAt;
-                }
-                //Console.WriteLine("{0} {1}: REST timeline success", DateTime.Now, Token.UserId);
-                if (ret.Length == 0) { return new DateTimeOffset[] { DateTimeOffset.UtcNow }; }
-                else { return ret; }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("{0} {1}: REST timeline failed: {2}", DateTime.Now, Token.UserId, e.Message);
-                return new DateTimeOffset[0];
             }
         }
 
@@ -338,11 +267,57 @@ namespace twidown
             return null;
         }
 
-        void HandleTweet(DeleteMessage x)
+        void HandleStreamingMessage(StreamingMessage x)
         {
-            Locker.LockDelete(x.Id);    //ここでは削除しないで後でLocker側で消す
+            switch (x.Type)
+            {
+                case MessageType.Create:
+                    HandleTweet((x as StatusMessage).Status);
+                    break;
+                case MessageType.DeleteStatus:
+                    Locker.LockDelete((x as DeleteMessage).Id);    //ここでは削除しないで後でLocker側で消す
+                    break;
+                case MessageType.Friends:
+                    //UserStream接続時に届く(10000フォロー超だと届かない)
+                    db.StoreFriends(x as FriendsMessage, Token.UserId);
+                    //Console.WriteLine("{0} {1}: Stream connected", DateTime.Now, Token.UserId);
+                    break;
+                case MessageType.Disconnect:
+                    //届かないことの方が多い
+                    Console.WriteLine("{0} {1}: DisconnectMessage({2})", DateTime.Now, Token.UserId, (x as DisconnectMessage).Code);
+                    break;
+                case MessageType.Event:
+                    HandleEventMessage(x as EventMessage);
+                    break;
+                case MessageType.Warning:
+                    if ((x as WarningMessage).Code == "FOLLOWS_OVER_LIMIT")
+                    {
+                        long[] friends = RestCursored(RestCursorMode.Friend);
+                        if (friends != null) { db.StoreFriends(friends, Token.UserId); }
+                        Console.WriteLine("{0} {1}: REST friends success", DateTime.Now, Token.UserId);
+                        //Console.WriteLine("{0} {1}: Stream connected", DateTime.Now, Token.UserId);
+                    }
+                    break;
+            }
         }
 
+        void HandleEventMessage(EventMessage x)
+        {
+            switch (x.Event)
+            {
+                case EventCode.Follow:
+                case EventCode.Unfollow:
+                case EventCode.Unblock:
+                    if (x.Source.Id == Token.UserId) { db.StoreEvents(x); }
+                    break;
+                case EventCode.Block:
+                    if (x.Source.Id == Token.UserId || x.Target.Id == Token.UserId) { db.StoreEvents(x); }
+                    break;
+                case EventCode.UserUpdate:
+                    if (x.Source.Id == Token.UserId) { db.StoreUserProfile(Token.Account.VerifyCredentials()); }
+                    break;
+            }
+        }
 
         //ツイートをDBに保存したりRTを先に保存したりする
         //アイコンを適宜保存する
@@ -456,7 +431,7 @@ namespace twidown
                     {
                         await res.GetResponseStream().CopyToAsync(mem);
                         res.Close();
-                        long? dcthash = PictHash.dcthash(mem);
+                        long? dcthash = PictHash.DCTHash(mem);
                         if (dcthash != null && (db.StoreMedia(m, x, (long)dcthash)) > 0)
                         {
                             using (FileStream file = File.Create(LocalPaththumb))
@@ -482,24 +457,6 @@ namespace twidown
         string StatusUrl(Status x)
         {
             return "https://twitter.com/" + x.User.ScreenName + "/status/" + x.Id;
-        }
-
-        void HandleEventMessage(EventMessage x)
-        {
-            switch (x.Event)
-            {
-                case EventCode.Follow:
-                case EventCode.Unfollow:
-                case EventCode.Unblock:
-                    if (x.Source.Id == Token.UserId) { db.StoreEvents(x); }
-                    break;
-                case EventCode.Block:
-                    if (x.Source.Id == Token.UserId || x.Target.Id == Token.UserId) { db.StoreEvents(x); }
-                    break;
-                case EventCode.UserUpdate:
-                    if (x.Source.Id == Token.UserId) { db.StoreUserProfile(Token.Account.VerifyCredentials()); }
-                    break;
-            }
         }
     }
 }

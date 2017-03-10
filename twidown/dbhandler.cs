@@ -26,9 +26,7 @@ namespace twidown
 
         int Selfpid = System.Diagnostics.Process.GetCurrentProcess().Id;
         public Tokens[] SelectAlltoken()
-        //<summary>
         //全tokenを返す
-        //</summary>
         {
             DataTable Table;
             Tokens[] ret;
@@ -54,52 +52,45 @@ WHERE pid = @pid;"))
             return ret;
         }
 
-        public KeyValuePair<Tokens, bool>[] SelectResttoken()
-        //<summary>
+        public Tokens[] SelectResttoken()
         //REST待ちのTokenを返す
-        //valueがtrueならタイムラインも取得
-        //</summary>
         {
             DataTable Table;
-            KeyValuePair<Tokens, bool>[] ret;
+            Tokens[] ret;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, token, token_secret, rest_needed
+user_id, token, token_secret
 FROM token
 NATURAL JOIN crawlprocess
-WHERE rest_needed != 0;"))
+WHERE rest_needed IS TRUE;"))
             {
                 cmd.Parameters.AddWithValue("@pid", Selfpid);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
-            if (Table == null) { return new KeyValuePair<Tokens, bool>[0]; }
-            ret = new KeyValuePair<Tokens, bool>[Table.Rows.Count];
+            if (Table == null) { return new Tokens[0]; }
+            ret = new Tokens[Table.Rows.Count];
             for (int i = 0; i < Table.Rows.Count; i++)
             {
-                ret[i] = new KeyValuePair<Tokens, bool>(
-                    Tokens.Create(config.token.ConsumerKey,
+                ret[i] = Tokens.Create(config.token.ConsumerKey,
                         config.token.ConsumerSecret,
                         Table.Rows[i].Field<string>(1),
                         Table.Rows[i].Field<string>(2),
-                        Table.Rows[i].Field<long>(0)),
-                    Table.Rows[i].Field<sbyte>(3) == 1); //1:RESTプロセス側でTL取得 2:Streamer側でTL取得
+                        Table.Rows[i].Field<long>(0));
             }
             return ret;
         }
 
-        public int StoreRestNeedtoken(long user_id, bool RestTimeline)
+        public int StoreRestNeedtoken(long user_id)
         {
-            //REST用プロセスでタイムラインを取得する必要があるかどうかを与える
-            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = @mode WHERE user_id = @user_id;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = TRUE WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
-                cmd.Parameters.AddWithValue("@mode", RestTimeline ? 1 : 2); //1:RESTプロセス側でTL取得 2:Streamer側でTL取得
                 return ExecuteNonQuery(cmd);
             }
         }
 
         public int StoreRestDonetoken(long user_id)
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = 0 WHERE user_id = @user_id;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE crawlprocess SET rest_needed = FALSE WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
                 return ExecuteNonQuery(cmd);

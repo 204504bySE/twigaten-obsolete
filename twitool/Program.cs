@@ -578,7 +578,7 @@ FROM token;"))
                 {
                     httpStream.CopyTo(mem); //MemoryStreamはFlush不要(FlushはNOP)
                     mem.Position = 0;
-                    return PictHash.dcthash(mem);
+                    return PictHash.DCTHash(mem);
                 }
             }
             catch { return null; }

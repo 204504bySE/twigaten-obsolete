@@ -2,29 +2,25 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
-using CoreTweet;
 using System.Net;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using CoreTweet;
 using twitenlib;
 
 namespace twidown
 {
     class UserStreamerManager
-    //<summary>
     //UserStreamerの追加, 保持, 削除をこれで行う
-    //</summary>
     {
-        Config config = Config.Instance;
+        readonly Config config = Config.Instance;
         ConcurrentDictionary<long, UserStreamer> Streamers = new ConcurrentDictionary<long, UserStreamer>();   //longはUserID
         HashSet<long> RevokeRetryUserID = new HashSet<long>();
         DBHandler db = DBHandler.Instance;
-        StreamerLocker Locker = new StreamerLocker();
+        StreamerLocker Locker = StreamerLocker.Instance;
 
-        public UserStreamerManager() { }
-        public UserStreamerManager(Tokens t) : this() { Add(t); }
-        public UserStreamerManager(Tokens[] t) : this() { AddAll(t); }
+        public UserStreamerManager(Tokens t) { Add(t); }
+        public UserStreamerManager(Tokens[] t) { AddAll(t); }
 
         public void AddAll(Tokens[] t)
         {
@@ -48,22 +44,26 @@ namespace twidown
             else
             {
                 //Console.WriteLine("{0} {1}: Assigned.", DateTime.Now, t.UserId);
-                UserStreamer s = new UserStreamer(t, Locker);
+                UserStreamer s = new UserStreamer(t);
                 return Streamers.TryAdd(t.UserId, s);
             }
         }
 
         public int Count { get { return Streamers.Count; } }
-
+        
         //これを定期的に呼んで再接続やFriendの取得をやらせる
         //StreamerLockerのロック解除もここでやる
         public int ConnectStreamers()
         {
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
             Locker.ActualUnlockAll();
-            TickCount Tick = new TickCount(0);
+            Counter.Instance.PrintReset();
 
-            foreach (KeyValuePair<long, UserStreamer> s in Streamers)
+            TickCount Tick = new TickCount(0);
+            SemaphoreSlim UnlockSemaphore = new SemaphoreSlim(1);
+            Parallel.ForEach (Streamers,
+                new ParallelOptions { MaxDegreeOfParallelism = config.crawl.ReconnectThreads },
+                (KeyValuePair<long, UserStreamer> s) =>
             {
                 UserStreamer.NeedRetryResult NeedRetry = s.Value.NeedRetry();
                 if (NeedRetry != UserStreamer.NeedRetryResult.None)
@@ -72,15 +72,10 @@ namespace twidown
                     switch (NeedRetry == UserStreamer.NeedRetryResult.Verify
                         ? s.Value.VerifyCredentials() : UserStreamer.TokenStatus.Success)
                     {
-                        case UserStreamer.TokenStatus.Success:
+                        case UserStreamer.TokenStatus.Success:                            
+                            s.Value.RecieveRestTimeline();
                             s.Value.RecieveStream();
-                            //TLが遅すぎた時はこっちでTLを取得する
-                            if (NeedRetry == UserStreamer.NeedRetryResult.GetTimeline)
-                            {
-                                s.Value.RecieveRestTimeline();
-                                db.StoreRestNeedtoken(s.Key, false);
-                            }
-                            else { db.StoreRestNeedtoken(s.Key, true); }
+                            db.StoreRestNeedtoken(s.Key);
                             break;
                         case UserStreamer.TokenStatus.Locked:
                             s.Value.PostponeRetry();
@@ -103,18 +98,21 @@ namespace twidown
                 }
                 else { ActiveStreamers++; }
 
-                if(Tick.Elasped >= 60000) { Locker.ActualUnlockAll(); Tick.Update(); }
-            }
+                if (Tick.Elasped >= 60000 && UnlockSemaphore.Wait(0))
+                {
+                    Locker.ActualUnlockAll();
+                    Counter.Instance.PrintReset();
+                    Tick.Update();
+                    UnlockSemaphore.Release();
+                }
+            });
             return ActiveStreamers;
         }
 
         void UserStreamer_Finish(UserStreamer set)
-        //<summary>
-        //UserStreamerがRevokeを検出した時の処理
-        //</summary>
+        //Revokeされた後の処理
         {
-            UserStreamer a;  //out用 捨てるだけ
-            Streamers.TryRemove(set.Token.UserId, out a);  //つまり死んだStreamerは除外される
+            Streamers.TryRemove(set.Token.UserId, out UserStreamer z);  //つまり死んだStreamerは除外される
             setMaxConnections(true);
             Console.WriteLine("{0} {1}: Streamer removed", DateTime.Now, set.Token.UserId);
         }

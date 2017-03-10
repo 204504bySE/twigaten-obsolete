@@ -2,9 +2,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-
 using System.Runtime;
-using System.IO;
 using System.Net;
 using System.Diagnostics;
 using twitenlib;
@@ -24,15 +22,10 @@ namespace twidown
             {
                 Console.WriteLine("{0} App: Running in REST mode.", DateTime.Now);
                 Process.GetCurrentProcess().PriorityClass = ProcessPriorityClass.Idle;
-                RestManager Rest = new RestManager();
-                while (true)
-                {
-                    if(Rest.Proceed() == 0)
-                    {
-                        Thread.Sleep(10000);
-                        GC.Collect();
-                    }
-                }
+                int RestCount = new RestManager().Proceed();
+                Console.WriteLine("{0} App: {1} Accounts REST Tweets Completed.", DateTime.Now, RestCount);
+                Thread.Sleep(10000);
+                return;
             }
 
             Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
@@ -45,7 +38,7 @@ namespace twidown
             {
                 int Connected = manager.ConnectStreamers();
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
-                GC.Collect();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, false, false);
                 Thread.Sleep(60000);
                 manager.AddAll(db.SelectAlltoken());
             }
@@ -60,16 +53,5 @@ namespace twidown
         public TickCount(int Offset) : this() { Update(Offset); }        
         public int Elasped { get { return unchecked(Environment.TickCount - Tick); } }
         public void Update(int Offset = 0) { Tick = unchecked(Environment.TickCount + Offset); }
-    }
-
-    static class LogFailure
-    {
-        public static void Write(string text)
-        {
-            using (StreamWriter writer = new StreamWriter(Directory.GetCurrentDirectory() + @"\failure.log", true))
-            {
-                writer.WriteLine(string.Format("{0} {1}:\t{2}", DateTimeOffset.Now.ToString(), System.Diagnostics.Process.GetCurrentProcess().Id, text));
-            }
-        }
     }
 }

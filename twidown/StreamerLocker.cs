@@ -9,6 +9,14 @@ namespace twidown
     //全UserStreamerで共有するもの
     public class StreamerLocker
     {
+        private static StreamerLocker _locker = new StreamerLocker();
+        //singletonはこれでインスタンスを取得して使う
+        public static StreamerLocker Instance
+        {
+            get { return _locker; }
+        }
+        private StreamerLocker() { }    //new()させないだけ
+
         DBHandler db = DBHandler.Instance;
 
         //storetweet用
@@ -30,13 +38,11 @@ namespace twidown
         {
             long[] toDelete = LockedDeletes.Keys.ToArray(); //スナップショットが作成される
             if(toDelete.Length == 0) { return; }
-
-            List<long> Deleted;
-            int DeletedCount = db.StoreDelete(toDelete, out Deleted);
+            
+            int DeletedCount = db.StoreDelete(toDelete, out List<long> Deleted);
             foreach (long d in Deleted)
             {
-                byte tmp;
-                LockedDeletes.TryRemove(d, out tmp);
+                LockedDeletes.TryRemove(d, out byte z);
             }
             Console.WriteLine("{0} App: {1} / {2} Tweets Removed", DateTime.Now, DeletedCount, toDelete.Length); 
         }
@@ -57,13 +63,10 @@ namespace twidown
             //UnlockTweetID, DBのtweetlockは1周遅れでロック解除する
             if (db.UnlockTweet(UnlockTweetID) > 0)
             {
-                foreach (long Id in UnlockTweetID) { byte z; LockedTweets.TryRemove(Id, out z); }
+                foreach (long Id in UnlockTweetID) { LockedTweets.TryRemove(Id, out byte z); }
                 UnlockTweetID.Clear();
             }
-            long tmp;
-            while (UnlockTweets.TryDequeue(out tmp)) { UnlockTweetID.Add(tmp); }
-
-            Counter.Instance.PrintReset();
+            while (UnlockTweets.TryDequeue(out long tmp)) { UnlockTweetID.Add(tmp); }
         }
     }
 }
