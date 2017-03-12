@@ -76,21 +76,10 @@ namespace twiview.Controllers
                 DBHandlerToken.VerifytokenResult vt = p.StoreNewLogin(token, Session, Response);
 
                 //127.0.0.1だとInvalid Hostnameされる localhostだとおｋ
-                if (vt == DBHandlerToken.VerifytokenResult.Exist)
-                {
-                    return Redirect(@"~/users");
-                }
-                else
-                {
-                    return View("Done");
-                }
+                if (vt == DBHandlerToken.VerifytokenResult.Exist) { return Redirect(@"~/users"); }
+                else { return View("Done"); }
             }
-            catch
-            {
-                throw;
-                //ユーザーが認証を拒否したりするとこっち
-                //return View("Failure");
-            }
+            catch { return View("Failure"); }
         }
 
         [Route("auth/logout")]

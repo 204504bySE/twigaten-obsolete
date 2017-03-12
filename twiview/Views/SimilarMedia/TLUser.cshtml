@@ -23,8 +23,8 @@
                     <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = false })">@Locale.Pager_NoRT</a></li>
                     break;
                 default:
-                    <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy-MM-dd"), RT = true })">@Locale.Pager_WithRT</a></li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString(" yyyy-MM-dd"), RT = false })">@Locale.Pager_NoRT</a></li>
+                    <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = true })">@Locale.Pager_WithRT</a></li>
+                    <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = false })">@Locale.Pager_NoRT</a></li>
                     break;
             }
         </ul>
