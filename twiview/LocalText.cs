@@ -68,6 +68,7 @@ namespace twiview
             //user_idとprofile_image_urlが必要
             if (User.profile_image_url == null) { return null; }
             if (IsCached) { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
+            else if (User.profile_image_url.IndexOf("abs.twimg.com/") > 0) { return config.PictPathProfileImage + '_' + Path.GetFileName(User.profile_image_url); }
             else { return User.profile_image_url; }
         }
 

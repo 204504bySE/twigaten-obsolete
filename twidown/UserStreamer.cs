@@ -332,7 +332,7 @@ namespace twidown
             if (Locker.LockUser(x.User.Id))
             {
                 if (update) { DownloadStoreProfileImage(x).Wait(); }
-                else { db.StoreUser(x, false, false); }
+                else { db.StoreUser(x, DBHandler.UpdateProfileImage.False, false); }
             }
             int ret2;
             counter.TweetToStore.Increment();
@@ -364,33 +364,47 @@ namespace twidown
 
         async Task DownloadStoreProfileImage(Status x)
         {
-            //<summary>
             //アイコンが更新または未保存ならダウンロードする
             //RTは自動でやらない
             //ダウンロード成功してもしなくてもそれなりにDBに反映する
             //(古い奴のURLがDBにあれば古いままになる)
-            //</summary>
-            if (x.User.Id == null) { return; }
-            string ProfileImageUrl = x.User.ProfileBackgroundImageUrlHttps ?? x.User.ProfileBackgroundImageUrl;
-            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage((long)x.User.Id, ProfileImageUrl);
+            if (x.User.Id == null) { return; }  
+            string ProfileImageUrl = x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl;
+            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage(x.User.Id.Value, ProfileImageUrl);
             if (!d.Key || !Locker.LockProfileImage((long)x.User.Id)) { return; }
-            string oldext = Path.GetExtension(d.Value);
-            string newext = Path.GetExtension(ProfileImageUrl);
-            string LocalPathnoExt = config.crawl.PictPathProfileImage + @"\" + x.User.Id.ToString();
 
-            try
-            {
-                HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
-                req.Referer = StatusUrl(x);
-                using (WebResponse res = await req.GetResponseAsync())
-                using (FileStream file = File.Create(LocalPathnoExt + newext))
+            //新しいアイコンの保存先 卵アイコンは'_'をつけただけの名前で保存するお
+            string LocalPath = x.User.IsDefaultProfileImage ?
+                config.crawl.PictPathProfileImage + '_' + Path.GetFileName(ProfileImageUrl) :
+                config.crawl.PictPathProfileImage + x.User.Id.ToString() + Path.GetExtension(ProfileImageUrl);
+            //古いアイコンが卵かどうか 新しいアイコンは x.User.IsDefaultProfileImage でおｋ
+            bool OldDefaultProfileImage = (d.Value != null && Path.GetFileName(d.Value).Substring(0, 1) == "_");
+
+            bool DownloadOK = true;
+            if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
+            { 
+                try
                 {
-                    await res.GetResponseStream().CopyToAsync(file);
+                    HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
+                    req.Referer = StatusUrl(x);
+                    using (WebResponse res = await req.GetResponseAsync())
+                    using (FileStream file = File.Create(LocalPath))
+                    {
+                        await res.GetResponseStream().CopyToAsync(file);
+                    }
                 }
-                if (oldext != null && oldext != newext) { File.Delete(LocalPathnoExt + oldext); }
-                db.StoreUser(x, true);
+                catch { DownloadOK = false; }
             }
-            catch { db.StoreUser(x, false); }
+            if (DownloadOK)
+            {
+                string oldext = Path.GetExtension(d.Value);
+                string newext = Path.GetExtension(ProfileImageUrl);
+                if (!OldDefaultProfileImage && oldext != null && oldext != newext)  //卵アイコンはこのパスじゃないしそもそも消さない
+                { File.Delete(config.crawl.PictPathProfileImage + x.User.Id.ToString() + oldext); }
+                db.StoreUser(x, x.User.IsDefaultProfileImage ? DBHandler.UpdateProfileImage.DefaultIcon : DBHandler.UpdateProfileImage.True);
+            }
+            else { db.StoreUser(x, DBHandler.UpdateProfileImage.False); }
+
         }
 
         async Task DownloadStoreMedia(Status x)
@@ -420,7 +434,7 @@ namespace twidown
                 }
                 //ハッシュがない時だけ落とす
                 string MediaUrl = m.MediaUrlHttps ?? m.MediaUrl;
-                string LocalPaththumb = config.crawl.PictPaththumb + @"\" + m.Id.ToString() + Path.GetExtension(MediaUrl);  //m.Urlとm.MediaUrlは違う
+                string LocalPaththumb = config.crawl.PictPaththumb + m.Id.ToString() + Path.GetExtension(MediaUrl);  //m.Urlとm.MediaUrlは違う
                 string uri = MediaUrl + (MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
 
                 try

@@ -114,8 +114,8 @@ namespace twitenlib
             public int LockedTokenPostpone { get; }
             public _crawl(IniFileHandler ini)
             {
-                PictPathProfileImage = ini.GetValue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image");
-                PictPaththumb = ini.GetValue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb");
+                PictPathProfileImage = ini.GetValue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image\");
+                PictPaththumb = ini.GetValue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb\");
                 UserStreamTimeout = int.Parse(ini.GetValue("crawl", "UserStreamTimeout", "180"));
                 UserStreamTimeoutTweets = int.Parse(ini.GetValue("crawl", "UserStreamTimeoutTweets", "50"));
                 DefaultConnections = int.Parse(ini.GetValue("crawl", "DefaultConnections", "100"));

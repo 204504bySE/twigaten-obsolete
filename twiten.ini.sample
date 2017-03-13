@@ -9,8 +9,9 @@ ConsumerSecret=
 Address=localhost
 
 [crawl]
-PictPathProfileImage=D:\profile_image
-PictPaththumb=E:\thumb
+;ÅŒã‚É \ ‚ğ‚Â‚¯‚é
+PictPathProfileImage=D:\profile_image\
+PictPaththumb=E:\thumb\
 
 ;‚Ç‚Á‚¿‚©’·‚¢•û‚ÌŠÔ‚ª“K‹Xg‚í‚ê‚é
 UserStreamTimeout=300

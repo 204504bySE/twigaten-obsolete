@@ -59,7 +59,7 @@ WHERE source_tweet_id IS NULL LIMIT @limit;"))
 
                 foreach (DataRow row in Table.Rows)
                 {
-                    File.Delete(config.crawl.PictPaththumb + '\\'
+                    File.Delete(config.crawl.PictPaththumb 
                         + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
                 }
 
@@ -104,7 +104,7 @@ ORDER BY downloaded_at LIMIT @limit;"))
 
                     foreach (DataRow row in Table.Rows)
                     {
-                        File.Delete(config.crawl.PictPaththumb + '\\'
+                        File.Delete(config.crawl.PictPaththumb 
                             + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string));
                     }
                     
@@ -153,7 +153,7 @@ ORDER BY updated_at LIMIT @limit;"))
                     }
                     foreach (DataRow row in Table.Rows)
                     {
-                        File.Delete(config.crawl.PictPathProfileImage + '\\'
+                        File.Delete(config.crawl.PictPathProfileImage 
                             + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
                     }
                     if (Table.Rows.Count < BulkUnit) { BulkUpdateCmd = BulkCmdStrIn(Table.Rows.Count, head); }
@@ -248,7 +248,7 @@ AND NOT EXISTS (SELECT user_id FROM token WHERE token.user_id = user.user_id);")
                     if (ExecuteNonQuery(cmd) >= 1)
                     {
                         Interlocked.Increment(ref RemovedCount);
-                        if (row[1] as string != null) { File.Delete(config.crawl.PictPathProfileImage + @"\" + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string)); }
+                        if (row[1] as string != null) { File.Delete(config.crawl.PictPathProfileImage + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string)); }
                         if (RemovedCount % 1000 == 0) { Console.WriteLine("{0} {1} Users Removed", DateTime.Now, RemovedCount); }
                     }
                 }
@@ -371,7 +371,7 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             const int BulkUnit = 1000;
             int LastCount = 0;
             int UpdatedCount = 0;
-            long LastMediaId = 336718109;
+            long LastMediaId = 0;
             string UpdateCmdStr = null;
             try
             {
@@ -400,7 +400,16 @@ ORDER BY user_id LIMIT @limit;"))
                         for (int i = 0; i < Table.Rows.Count; i++)
                         {
                             cmd.Parameters.AddWithValue('@' + i.ToString(), Table.Rows[i][0]);
-                            cmd.Parameters.AddWithValue("@a" + i.ToString(), Table.Rows[i].Field<string>(1).Replace("http://", "https://"));
+
+                            if(Table.Rows[i].Field<string>(1).IndexOf("abs.twimg.com/images/themes/") > 0 || Table.Rows[i].Field<string>(1).IndexOf("pbs.twimg.com/profile_background_images/") > 0)
+                            {   //間違えてbackgroundimageを指定してクソになったのだ
+                                cmd.Parameters.AddWithValue("@a" + i.ToString(), null);
+                            }
+                            else
+                            {
+                                cmd.Parameters.AddWithValue("@a" + i.ToString(), Table.Rows[i].Field<string>(1));
+                            }
+                            
                             //Console.WriteLine("{0}\t{1}", Table.Rows[i][0], Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
                         }
                         UpdatedCount += ExecuteNonQuery(cmd);
@@ -420,6 +429,7 @@ ORDER BY user_id LIMIT @limit;"))
 
         string MediatohttpsCmd(int Count)
         {
+            //ついでにupdated_atをnullにする
             StringBuilder BulkCmd = new StringBuilder(@"UPDATE user SET updated_at = null, profile_image_url = ELT(FIELD(user_id,");
             BulkCmd.Append('@');
             for (int i = 0; i < Count; i++)
