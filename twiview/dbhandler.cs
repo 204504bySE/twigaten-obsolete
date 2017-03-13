@@ -60,7 +60,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
                 cmd.Parameters.AddWithValue("@name", ProfileResponse.Name);
                 cmd.Parameters.AddWithValue("@screen_name", ProfileResponse.ScreenName);
                 cmd.Parameters.AddWithValue("@isprotected", ProfileResponse.IsProtected);
-                cmd.Parameters.AddWithValue("@profile_image_url", ProfileResponse.ProfileImageUrl);
+                cmd.Parameters.AddWithValue("@profile_image_url", ProfileResponse.ProfileImageUrlHttps ?? ProfileResponse.ProfileImageUrl);
                 cmd.Parameters.AddWithValue("@location", ProfileResponse.Location);
                 cmd.Parameters.AddWithValue("@description", ProfileResponse.Description);
 

@@ -22,7 +22,7 @@ namespace twitool
     {
         static void Main(string[] args)
         {
-            CheckOldProcess.CheckandExit();
+            //CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
 
@@ -326,47 +326,6 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             return true;
         }
 
-/*
-        public void ReHashTest()
-        {
-            List<dbhandler.MediaInfo> media = MediaInfoTest();
-
-            //Parallel.For(0, media.Count - 1, op,(int i) =>
-            for (int i = 0; i < media.Count; i++)
-            {
-                long? newhash = PictHash.dcthash(string.Format(@"{0}\{1}.{2}", config.crawl.PictPathsmall, media[i].media_id, media[i].ext));
-                
-                if (media[i].dcthash != newhash)
-                {
-                    Console.WriteLine("{0}: {1}", media[i].media_id, hammingdistance((long)media[i].dcthash, (long)newhash));
-                }
-                
-                if (i % 1000 == 0) { Console.WriteLine("{0}:{1}", DateTime.Now, i); }
-            }
-        }
-*/
-/*
-        //ReHashTest用
-        public List<MediaInfo> MediaInfoTest()
-        {
-            DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, extension, dcthash FROM media WHERE dcthash IS NOT NULL AND downloaded_at IS NOT NULL LIMIT 100000;"))
-            {
-                Table = SelectTable(cmd);
-            }
-            List<MediaInfo> ret = new List<MediaInfo>(Table.Rows.Count);
-            foreach (DataRow row in Table.Rows)
-            {
-                if (row[0] != null && row[1] != null)
-                {
-                    ret.Add(new MediaInfo((long)row[0], row[1] as string, row[2] as long?));
-                }
-            }
-            return ret;
-        }
-        */
-
-
         public void RemoveOrphanProfileImage()
         {
             int RemoveCount = 0;
@@ -406,8 +365,92 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             while (ExecuteNonQuery(cmd) > 0) { Console.WriteLine(DateTime.Now); }
         }
 
+        public void Usertohttps()
+        {
+            //media_urlをhttps://にするだけ
+            const int BulkUnit = 1000;
+            int LastCount = 0;
+            int UpdatedCount = 0;
+            long LastMediaId = 336718109;
+            string UpdateCmdStr = null;
+            try
+            {
+                DataTable Table;
+                do
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+user_id, profile_image_url FROM user
+WHERE user_id > @lastid
+AND profile_image_url IS NOT NULL
+ORDER BY user_id LIMIT @limit;"))
+                    {
+                        cmd.Parameters.AddWithValue("@lastid", LastMediaId);
+                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
+                        Table = SelectTable(cmd);
+                    }
+
+                    if (LastCount != Table.Rows.Count)
+                    {
+                        UpdateCmdStr = MediatohttpsCmd(Table.Rows.Count);
+                        LastCount = Table.Rows.Count;
+                    }
+
+                    using (MySqlCommand cmd = new MySqlCommand(UpdateCmdStr))
+                    {
+                        for (int i = 0; i < Table.Rows.Count; i++)
+                        {
+                            cmd.Parameters.AddWithValue('@' + i.ToString(), Table.Rows[i][0]);
+                            cmd.Parameters.AddWithValue("@a" + i.ToString(), Table.Rows[i].Field<string>(1).Replace("http://", "https://"));
+                            //Console.WriteLine("{0}\t{1}", Table.Rows[i][0], Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
+                        }
+                        UpdatedCount += ExecuteNonQuery(cmd);
+                    }
+                    LastMediaId = Table.Rows[Table.Rows.Count - 1].Field<long>(0);
+                    Console.WriteLine("{0}: {1}, {2}",DateTime.Now, UpdatedCount, LastMediaId);
+                } while (Table.Rows.Count > 0);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Console.WriteLine(LastMediaId);
+            }
+            Console.WriteLine("＼(^o^)／");
+            Console.ReadKey();
+        }
+
+        string MediatohttpsCmd(int Count)
+        {
+            StringBuilder BulkCmd = new StringBuilder(@"UPDATE user SET updated_at = null, profile_image_url = ELT(FIELD(user_id,");
+            BulkCmd.Append('@');
+            for (int i = 0; i < Count; i++)
+            {
+                BulkCmd.Append(i);
+                BulkCmd.Append(",@");
+            }
+            BulkCmd.Remove(BulkCmd.Length - 2, 2);
+            BulkCmd.Append("),@a");
+            for (int i = 0; i < Count; i++)
+            {
+                BulkCmd.Append(i);
+                BulkCmd.Append(",@a");
+            }
+            BulkCmd.Remove(BulkCmd.Length - 3, 3);
+            BulkCmd.Append(") WHERE user_id IN(@");
+            for (int i = 0; i < Count; i++)
+            {
+                BulkCmd.Append(i);
+                BulkCmd.Append(",@");
+            }
+            BulkCmd.Remove(BulkCmd.Length - 2, 2);
+            BulkCmd.Append(");");
+            return BulkCmd.ToString();
+        }
+
+
+
         public void UpdateisProtected()
         {
+            //動かしたらTwitterに怒られたからやっぱダメ
             ServicePointManager.ReusePort = true;
             const int ConnectionLimit = 10;
             ServicePointManager.DefaultConnectionLimit = ConnectionLimit * 2;

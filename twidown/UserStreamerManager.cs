@@ -73,8 +73,8 @@ namespace twidown
                         ? s.Value.VerifyCredentials() : UserStreamer.TokenStatus.Success)
                     {
                         case UserStreamer.TokenStatus.Success:                            
-                            s.Value.RecieveRestTimeline();
                             s.Value.RecieveStream();
+                            s.Value.RecieveRestTimeline();
                             db.StoreRestNeedtoken(s.Key);
                             break;
                         case UserStreamer.TokenStatus.Locked:

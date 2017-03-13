@@ -49,14 +49,14 @@ namespace twitenlib
             inipath = path;
         }
 
-        public string getvalue(string section, string key, string defvalue = "")
+        public string GetValue(string section, string key, string defvalue = "")
         {
             StringBuilder sb = new StringBuilder(1024);
             GetPrivateProfileString(section, key, defvalue, sb, (uint)sb.Capacity, inipath);
             return sb.ToString();
         }
 
-        public void setvalue(string section, string key, string value)
+        public void SetValue(string section, string key, string value)
         {
             WritePrivateProfileString(section, key, value, inipath);
         }
@@ -95,8 +95,8 @@ namespace twitenlib
             public string ConsumerSecret { get; }
             public _token(IniFileHandler ini)
             {
-                ConsumerKey = ini.getvalue("token", "ConsumerKey");
-                ConsumerSecret = ini.getvalue("token", "ConsumerSecret");
+                ConsumerKey = ini.GetValue("token", "ConsumerKey");
+                ConsumerSecret = ini.GetValue("token", "ConsumerSecret");
             }
         }
         public _token token;
@@ -109,20 +109,20 @@ namespace twitenlib
             public int UserStreamTimeoutTweets { get; }
             public int DefaultConnections { get; }
             public int MaxDBConnections { get; }
-            public int MediaKeepAlive { get; }
-            public int RestThreads { get; }
+            public int RestTweetThreads { get; }
+            public int ReconnectThreads { get; }
             public int LockedTokenPostpone { get; }
             public _crawl(IniFileHandler ini)
             {
-                PictPathProfileImage = ini.getvalue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image");
-                PictPaththumb = ini.getvalue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb");
-                UserStreamTimeout = int.Parse(ini.getvalue("crawl", "UserStreamTimeout", "180"));
-                UserStreamTimeoutTweets = int.Parse(ini.getvalue("crawl", "UserStreamTimeoutTweets", "50"));
-                DefaultConnections = int.Parse(ini.getvalue("crawl", "DefaultConnections", "100"));
-                MaxDBConnections = int.Parse(ini.getvalue("crawl", "MaxDBConnections", "10"));
-                MediaKeepAlive = int.Parse(ini.getvalue("crawl", "MediaKeepAlive", "30")) * 1000;
-                RestThreads = int.Parse(ini.getvalue("crawl", "RestThreads", Environment.ProcessorCount.ToString()));
-                LockedTokenPostpone = int.Parse(ini.getvalue("crawl", "LockedTokenPostpone", "86400"));
+                PictPathProfileImage = ini.GetValue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image");
+                PictPaththumb = ini.GetValue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb");
+                UserStreamTimeout = int.Parse(ini.GetValue("crawl", "UserStreamTimeout", "180"));
+                UserStreamTimeoutTweets = int.Parse(ini.GetValue("crawl", "UserStreamTimeoutTweets", "50"));
+                DefaultConnections = int.Parse(ini.GetValue("crawl", "DefaultConnections", "100"));
+                MaxDBConnections = int.Parse(ini.GetValue("crawl", "MaxDBConnections", "10"));
+                RestTweetThreads = int.Parse(ini.GetValue("crawl", "RestTweetThreads", Environment.ProcessorCount.ToString()));
+                ReconnectThreads = int.Parse(ini.GetValue("crawl", "ReconnectThreads", Environment.ProcessorCount.ToString()));
+                LockedTokenPostpone = int.Parse(ini.GetValue("crawl", "LockedTokenPostpone", "86400"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -137,10 +137,10 @@ namespace twitenlib
             public bool InitTruncate { get; }
             public _crawlparent(IniFileHandler ini)
             {
-                AccountLimit = int.Parse(ini.getvalue("crawlparent", "AccountLimit", "250"));
-                ChildPath = ini.getvalue("crawlparent", "ChildPath", "");
-                ChildName = ini.getvalue("crawlparent", "ChildName", "twidown");
-                InitTruncate = bool.Parse(ini.getvalue("crawlparent", "InitTruncate", "true"));
+                AccountLimit = int.Parse(ini.GetValue("crawlparent", "AccountLimit", "250"));
+                ChildPath = ini.GetValue("crawlparent", "ChildPath", "");
+                ChildName = ini.GetValue("crawlparent", "ChildName", "twidown");
+                InitTruncate = bool.Parse(ini.GetValue("crawlparent", "InitTruncate", "true"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -159,20 +159,20 @@ namespace twitenlib
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
-                MaxHammingDistance = int.Parse(ini.getvalue("hash", "MaxHammingDistance", "3"));
-                ExtraBlocks = int.Parse(ini.getvalue("hash", "ExtraBlocks", "1"));
-                LastUpdate = long.Parse(ini.getvalue("hash", "LastUpdate", "0"));
-                LastHashCount = int.Parse(ini.getvalue("hash", "LastHashCount", "0"));
-                HashCountOffset = int.Parse(ini.getvalue("hash", "HashCountOffset", "5000000"));
-                KeepDataRAM = bool.Parse(ini.getvalue("hash", "KeepDataRAM", "false"));
+                MaxHammingDistance = int.Parse(ini.GetValue("hash", "MaxHammingDistance", "3"));
+                ExtraBlocks = int.Parse(ini.GetValue("hash", "ExtraBlocks", "1"));
+                LastUpdate = long.Parse(ini.GetValue("hash", "LastUpdate", "0"));
+                LastHashCount = int.Parse(ini.GetValue("hash", "LastHashCount", "0"));
+                HashCountOffset = int.Parse(ini.GetValue("hash", "HashCountOffset", "5000000"));
+                KeepDataRAM = bool.Parse(ini.GetValue("hash", "KeepDataRAM", "false"));
             }
             public void NewLastUpdate(long time)
             {
-                ini.setvalue("hash", "LastUpdate", time.ToString());
+                ini.SetValue("hash", "LastUpdate", time.ToString());
             }
             public void NewLastHashCount(int Count)
             {
-                ini.setvalue("hash", "LastHashCount", Count.ToString());
+                ini.SetValue("hash", "LastHashCount", Count.ToString());
             }
         }
         public _hash hash;
@@ -182,7 +182,7 @@ namespace twitenlib
             public string Address { get; }
             public _database(IniFileHandler ini)
             {
-                Address = ini.getvalue("database", "Address", "localhost");
+                Address = ini.GetValue("database", "Address", "localhost");
             }
         }
         public _database database;
@@ -201,21 +201,21 @@ namespace twitenlib
             public _bot(IniFileHandler ini)
             {
                 this.ini = ini;
-                ConsumerKey = ini.getvalue("bot", "ConsumerKey","");
-                ConsumerSecret = ini.getvalue("bot", "ConsumerSecret", "");
-                AccessToken = ini.getvalue("bot", "AccessToken", "");
-                AccessTokenSecret = ini.getvalue("bot", "AccessTokenSecret", "");
-                LastTweetTime = int.Parse(ini.getvalue("bot", "LastTweetTime", "0"));
-                LastPakurierTime = int.Parse(ini.getvalue("bot", "LastPakurierTime", "0"));
+                ConsumerKey = ini.GetValue("bot", "ConsumerKey","");
+                ConsumerSecret = ini.GetValue("bot", "ConsumerSecret", "");
+                AccessToken = ini.GetValue("bot", "AccessToken", "");
+                AccessTokenSecret = ini.GetValue("bot", "AccessTokenSecret", "");
+                LastTweetTime = int.Parse(ini.GetValue("bot", "LastTweetTime", "0"));
+                LastPakurierTime = int.Parse(ini.GetValue("bot", "LastPakurierTime", "0"));
             }
 
             public void NewLastTweetTime(long time)
             {
-                ini.setvalue("bot", "LastTweetTime", time.ToString());
+                ini.SetValue("bot", "LastTweetTime", time.ToString());
             }
             public void NewLastPakurierTime(long time)
             {
-                ini.setvalue("bot", "LastPakurierTime", time.ToString());
+                ini.SetValue("bot", "LastPakurierTime", time.ToString());
             }
         }
         public _bot bot;
@@ -256,13 +256,13 @@ namespace twitenlib
                 BulkCmd.Append("(@");
                 for (int j = 0; j < unit - 1; j++)
                 {
-                    BulkCmd.Append(Convert.ToChar(0x61 + j))
-                        .Append(i)
-                        .Append(",@");
+                    BulkCmd.Append(Convert.ToChar(0x61 + j));
+                    BulkCmd.Append(i);
+                    BulkCmd.Append(",@");
                 }
-                BulkCmd.Append(Convert.ToChar(0x61 + unit - 1))
-                    .Append(i)
-                    .Append("),");
+                BulkCmd.Append(Convert.ToChar(0x61 + unit - 1));
+                BulkCmd.Append(i);
+                BulkCmd.Append("),");
             }
             BulkCmd.Remove(BulkCmd.Length - 1, 1)
                 .Append(";");
@@ -276,11 +276,11 @@ namespace twitenlib
             BulkCmd.Append("(@");
             for (int i = 0; i < count; i++)
             {
-                BulkCmd.Append(i)
-                    .Append(",@");
+                BulkCmd.Append(i);
+                BulkCmd.Append(",@");
             }
-            BulkCmd.Remove(BulkCmd.Length - 2, 2)
-                .Append(");");
+            BulkCmd.Remove(BulkCmd.Length - 2, 2);
+            BulkCmd.Append(");");
             return BulkCmd.ToString();
         }
 

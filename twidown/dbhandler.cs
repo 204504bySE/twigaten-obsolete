@@ -142,7 +142,6 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
                 cmd.Parameters.AddWithValue("@screen_name", ProfileResponse.ScreenName);
                 cmd.Parameters.AddWithValue("@isprotected", ProfileResponse.IsProtected);
                 //こっちではアイコンはダウンロードしてないし更新もしない
-                //cmd.Parameters.AddWithValue("@profile_image_url", ProfileResponse.ProfileImageUrl);
                 cmd.Parameters.AddWithValue("@location", ProfileResponse.Location);
                 cmd.Parameters.AddWithValue("@description", ProfileResponse.Description);
 
@@ -211,7 +210,7 @@ VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @locati
                 cmd.Parameters.AddWithValue("@name", x.User.Name);
                 cmd.Parameters.AddWithValue("@screen_name", x.User.ScreenName);
                 cmd.Parameters.AddWithValue("@isprotected", x.User.IsProtected);
-                cmd.Parameters.AddWithValue("@profile_image_url", x.User.ProfileImageUrl);
+                cmd.Parameters.AddWithValue("@profile_image_url", x.User.ProfileBackgroundImageUrlHttps ?? x.User.ProfileImageUrl);
                 //↓アイコンが保存されている場合だけ更新される
                 cmd.Parameters.AddWithValue("@updated_at", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 cmd.Parameters.AddWithValue("@location", x.User.Location);
@@ -443,7 +442,7 @@ dcthash = @dcthash;"))
                 cmd.Parameters.AddWithValue("@media_id", m.Id);
                 cmd.Parameters.AddWithValue("@source_tweet_id", m.SourceStatusId ?? x.Id);
                 cmd.Parameters.AddWithValue("@type", m.Type);
-                cmd.Parameters.AddWithValue("@media_url", m.MediaUrl);
+                cmd.Parameters.AddWithValue("@media_url", m.MediaUrlHttps ?? m.MediaUrl);
                 cmd.Parameters.AddWithValue("@dcthash", hash);
                 cmd.Parameters.AddWithValue("@downloaded_at", (DateTimeOffset.UtcNow.ToUnixTimeSeconds() as long?));
                 int ret = ExecuteNonQuery(cmd);

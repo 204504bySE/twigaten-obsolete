@@ -371,15 +371,16 @@ namespace twidown
             //(古い奴のURLがDBにあれば古いままになる)
             //</summary>
             if (x.User.Id == null) { return; }
-            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage((long)x.User.Id, x.User.ProfileImageUrl);
+            string ProfileImageUrl = x.User.ProfileBackgroundImageUrlHttps ?? x.User.ProfileBackgroundImageUrl;
+            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage((long)x.User.Id, ProfileImageUrl);
             if (!d.Key || !Locker.LockProfileImage((long)x.User.Id)) { return; }
             string oldext = Path.GetExtension(d.Value);
-            string newext = Path.GetExtension(x.User.ProfileImageUrl);
+            string newext = Path.GetExtension(ProfileImageUrl);
             string LocalPathnoExt = config.crawl.PictPathProfileImage + @"\" + x.User.Id.ToString();
 
             try
             {
-                HttpWebRequest req = WebRequest.Create(x.User.ProfileImageUrl) as HttpWebRequest;
+                HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
                 req.Referer = StatusUrl(x);
                 using (WebResponse res = await req.GetResponseAsync())
                 using (FileStream file = File.Create(LocalPathnoExt + newext))
@@ -418,8 +419,9 @@ namespace twidown
                         continue;
                 }
                 //ハッシュがない時だけ落とす
-                string LocalPaththumb = config.crawl.PictPaththumb + @"\" + m.Id.ToString() + Path.GetExtension(m.MediaUrl);  //m.Urlとm.MediaUrlは違う
-                string uri = m.MediaUrl.ToString() + (m.MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
+                string MediaUrl = m.MediaUrlHttps ?? m.MediaUrl;
+                string LocalPaththumb = config.crawl.PictPaththumb + @"\" + m.Id.ToString() + Path.GetExtension(MediaUrl);  //m.Urlとm.MediaUrlは違う
+                string uri = MediaUrl + (MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
 
                 try
                 {

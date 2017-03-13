@@ -15,7 +15,6 @@ namespace twidown
         {
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
-            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
             Thread.Sleep(10000);
           
             if (args.Length >= 1 && args[0] == "/REST")
@@ -29,7 +28,6 @@ namespace twidown
             }
 
             Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
-            Config config = Config.Instance;
             DBHandler db = DBHandler.Instance;
             
             UserStreamerManager manager = new UserStreamerManager(db.SelectAlltoken());
@@ -38,7 +36,8 @@ namespace twidown
             {
                 int Connected = manager.ConnectStreamers();
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
-                GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, false, false);
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce; //これは毎回必要らしい
+                GC.Collect();
                 Thread.Sleep(60000);
                 manager.AddAll(db.SelectAlltoken());
             }
