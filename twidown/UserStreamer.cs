@@ -380,7 +380,7 @@ namespace twidown
             //古いアイコンが卵かどうか 新しいアイコンは x.User.IsDefaultProfileImage でおｋ
             bool OldDefaultProfileImage = (d.Value != null && Path.GetFileName(d.Value).Substring(0, 1) == "_");
 
-            bool DownloadOK = true;
+            bool DownloadOK = true; //卵アイコンのダウンロード不要でもtrue
             if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
             { 
                 try
@@ -464,7 +464,7 @@ namespace twidown
                 //URL転載元もペアを記録する
                 if (m.SourceStatusId != null && m.SourceStatusId != x.Id)
                 {
-                    db.Storetweet_media((long)m.SourceStatusId, m.Id);
+                    db.Storetweet_media(m.SourceStatusId.Value, m.Id);
                 }
             }
         }

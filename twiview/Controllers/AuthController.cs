@@ -16,18 +16,22 @@ namespace twiview.Controllers
         public ActionResult Twitter()
         {
             //"{TwitterApiKey}", "{TwitterApiKeySecret}", "http://mydomain.com:63543/AuthCallback/Twitter"
-            var oAuthSession = OAuth.Authorize(config.ConsumerKey, config.ConsumerSecret, config.CallBackUrl);
+            OAuth.OAuthSession oAuthSession = OAuth.Authorize(config.ConsumerKey, config.ConsumerSecret, config.CallBackUrl);
 
             // セッション情報にOAuthSessionの内容を保存
-            TempData["OAuthSession"] = oAuthSession;
+            TempData[nameof(TwitterCallbackParameters.OAuthSession)] = oAuthSession;
 
             return Redirect(oAuthSession.AuthorizeUri.OriginalString);
         }
 
         public class TwitterCallbackParameters : LoginParameters
         {
+            /// <summary>URL (from Twitter)</summary>
             public string oauth_token { get; set; }
+            /// <summary>URL (from Twitter)</summary>
             public string oauth_verifier { get; set; }
+            /// <summary>TempData</summary>
+            public OAuth.OAuthSession OAuthSession { get; set; }
 
             //(新規)ログインの処理
             public DBHandlerToken.VerifytokenResult StoreNewLogin(Tokens Token, HttpSessionStateBase Session, HttpResponseBase Response)
@@ -64,11 +68,9 @@ namespace twiview.Controllers
         [Route("auth/callback")]
         public ActionResult TwitterCallback(TwitterCallbackParameters p)
         {
-            // OAuthSessionインスタンスを復元
-            var oAuthSession = TempData["OAuthSession"] as OAuth.OAuthSession;
             try
             {
-                var token = oAuthSession.GetTokens(p.oauth_verifier);
+                Tokens token = p.OAuthSession.GetTokens(p.oauth_verifier);
                 // token から AccessToken と AccessTokenSecret を永続化しておくとか、
                 // セッション情報に格納しておけば毎回認証しなくて良いかも
 

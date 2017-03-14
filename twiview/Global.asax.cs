@@ -18,9 +18,10 @@ namespace twiview
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
 
-            //Cookie, SessionもControllerの引数に渡される
+            //CookieなどもControllerの引数に渡される
             ValueProviderFactories.Factories.Add(new CookieValueProviderFactory());
             ValueProviderFactories.Factories.Add(new SessionValueProviderFactory());
+            ValueProviderFactories.Factories.Add(new TempDataValueProviderFactory());
         }
     }
 }
