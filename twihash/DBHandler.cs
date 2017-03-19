@@ -66,7 +66,7 @@ namespace twihash
         MediaPair.OrderSub OrderSub = new MediaPair.OrderSub();
         int StoreMediaPairsInner(MySqlCommand Cmd, MediaPair[] StorePairs)
         {
-            Array.Sort(StorePairs, OrderPri);
+            Array.Sort(StorePairs, OrderPri);   //deadlock防止
             for (int i = 0; i < StorePairs.Length; i++)
             {
                 string numstr = i.ToString();
@@ -79,7 +79,7 @@ namespace twihash
             Array.Sort(StorePairs, OrderSub);
             for (int i = 0; i < StorePairs.Length; i++)
             {
-                string numstr = i.ToString();
+                string numstr = i.ToString();   //deadlock防止
                 Cmd.Parameters["@a" + numstr].Value = StorePairs[i].media1;   //↑とは逆
                 Cmd.Parameters["@b" + numstr].Value = StorePairs[i].media0;
                 Cmd.Parameters["@c" + numstr].Value = StorePairs[i].hammingdistance;
@@ -88,21 +88,20 @@ namespace twihash
         }
 
 
-        //全mediaのhashを読み込む
+        //全mediaのhashを読み込んだりする
         public MediaHashArray AllMediaHash()
         {
             try
             {
                 MediaHashArray ret = new MediaHashArray(config.hash.LastHashCount + config.hash.HashCountOffset);
+                if(!ret.ForceInsert) { NewerMediaHash(ret); }
                 int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2)); //TableがLarge Heapに載らない程度に調整
-                bool ForceInsert = config.hash.LastUpdate <= 0;
                 Parallel.For(0, 1 << (64 - HashUnitBits),
                     new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
                     (long i) =>
                 {
                     DataTable Table;
-                    using (MySqlCommand Cmd = new MySqlCommand(@"SELECT
-dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE
+                    using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
 FROM media
 WHERE dcthash BETWEEN @begin AND @end
 GROUP BY dcthash;"))
@@ -122,7 +121,6 @@ GROUP BY dcthash;"))
                     foreach (DataRow row in Table.Rows)
                     {
                         ret.Hashes[retIndex] = row.Field<long>(0);
-                        ret.NeedstoInsert[retIndex] = ForceInsert || row.Field<long>(1) == 1;
                         retIndex++;
                     }
                 });
@@ -130,51 +128,37 @@ GROUP BY dcthash;"))
                 return ret;
             }
             catch { return null; }
-            /*
-            MediaHashArray ret = new MediaHashArray(config.hash.LastHashCount + config.hash.HashCountOffset);
-            DataTable Table;
-            const int selectunit = 1000; //でかくするとGCが捗らない
-            using (MySqlCommand firstcmd = new MySqlCommand(@"SELECT
-dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE
-FROM media GROUP BY dcthash ORDER BY dcthash LIMIT @selectunit;"))
-            {
-                firstcmd.Parameters.AddWithValue("@lastupdate", config.hash.LastUpdate);
-                firstcmd.Parameters.AddWithValue("@selectunit", selectunit);
-                Table = SelectTable(firstcmd, IsolationLevel.ReadUncommitted);
-            }
-            if (Table == null || Table.Rows.Count < 1) { return null; }
+        }
 
-            MySqlCommand cmd = new MySqlCommand(@"SELECT
-dcthash, MAX(downloaded_at) >= @lastupdate IS TRUE
-FROM media WHERE dcthash > @lasthash
-GROUP BY dcthash ORDER BY dcthash LIMIT @selectunit;");
-            cmd.Parameters.Add("@lastupdate", MySqlDbType.Int64);
-            cmd.Parameters.Add("@lasthash", MySqlDbType.Int64);
-            cmd.Parameters.AddWithValue("@selectunit", selectunit);
-
-            int i = 0;
-            bool ForceInsert = config.hash.LastUpdate <= 0;
-            while (Table.Rows.Count > 0)
-            {
-                foreach (DataRow row in Table.Rows)
+        //dcthashpairに追加する必要があるハッシュを取得するやつ
+        //これが始まった後に追加されたハッシュは無視されるが
+        //次回の実行で拾われるから問題ない
+        public void NewerMediaHash(MediaHashArray ret)
+        {
+            const int QueryRangeSeconds = 600;
+            Parallel.For(0, Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeSeconds() - config.hash.LastUpdate) / QueryRangeSeconds + 1,
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                (long i) => 
                 {
-                    //Console.WriteLine("{0} {1}", (long)row[0], (long)row[1]);
-                    ret.Hashes[i] = row.Field<long>(0);
-                    ret.NeedstoInsert[i] = ForceInsert || row.Field<long>(1) == 1;
-                    i++;
-                    if (i >= ret.Length) { return null; }
-                }
-                long LastHash = Table.Rows[Table.Rows.Count - 1].Field<long>(0);
-                cmd.Parameters["@lastupdate"].Value = config.hash.LastUpdate;
-                cmd.Parameters["@lasthash"].Value = LastHash;
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
-                if (Table == null) { return null; }
-            }
-            config.hash.NewLastHashCount(i);
-            ret.Count = i;
-            return ret;
-            */
+                    DataTable Table;
+                    using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
+FROM media_downloaded_at
+NATURAL JOIN media
+WHERE downloaded_at BETWEEN @begin AND @end;"))
+                    {
+                        Cmd.Parameters.AddWithValue("@begin", config.hash.LastUpdate + QueryRangeSeconds * i);
+                        Cmd.Parameters.AddWithValue("@end", config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1);
+                        Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
+                    }
+                    if (Table == null) { throw new Exception("Hash load failed"); }
+                    lock (ret.NewHashes)
+                    {
+                        foreach (DataRow row in Table.Rows)
+                        {
+                            ret.NewHashes.Add(row.Field<long>(0));
+                        }
+                    }
+                });
         }
     }
-
 }

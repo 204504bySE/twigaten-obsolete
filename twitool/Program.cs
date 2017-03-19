@@ -93,8 +93,9 @@ WHERE source_tweet_id IS NULL LIMIT @limit;"))
                 {
                     DataTable Table;
                     using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-media_id, media_url FROM media
-WHERE downloaded_at IS NOT NULL
+media_id, media_url
+FROM media_downloaded_at
+NATURAL JOIN media
 ORDER BY downloaded_at LIMIT @limit;"))
                     {
                         cmd.Parameters.AddWithValue("@limit", BulkUnit);
@@ -107,19 +108,19 @@ ORDER BY downloaded_at LIMIT @limit;"))
                         File.Delete(config.crawl.PictPaththumb 
                             + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string));
                     }
-                    
-                    MySqlCommand[] CmdList = new MySqlCommand[2];
-                    CmdList[0] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, @"UPDATE media SET downloaded_at = NULL WHERE media_id IN"));
-                    CmdList[1] = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, @"DELETE FROM media WHERE source_tweet_id IS NULL AND media_id IN"));
+
+                    MySqlCommand[] Cmd = new MySqlCommand[] {
+                        new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, @"DELETE FROM media_downloaded_at WHERE media_id IN")),
+                        new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, @"DELETE FROM media WHERE source_tweet_id IS NULL AND media_id IN")) };
                     for (int n = 0; n < Table.Rows.Count; n++)
                     {
                         string atNum = '@' + n.ToString();
                         for (int i = 0; i < 2; i++)
                         {
-                            CmdList[i].Parameters.AddWithValue(atNum, Table.Rows[n][0]);
+                            Cmd[i].Parameters.AddWithValue(atNum, Table.Rows[n][0]);
                         }
                     }
-                    RemovedCountDB += ExecuteNonQuery(CmdList) - Table.Rows.Count;
+                    RemovedCountDB += ExecuteNonQuery(Cmd) - Table.Rows.Count;
                     RemovedCountFile += Table.Rows.Count;
                     Console.WriteLine("{0}: {1} / {2} Media removed", DateTime.Now, RemovedCountDB, RemovedCountFile);
                     Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
@@ -346,7 +347,7 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
                  }
              });
         }
-
+/*
         public void Nullify_downloaded_at()
         {
             const int BulkUnit = 10000;
@@ -355,7 +356,7 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             cmd.Parameters.AddWithValue("@limit", BulkUnit);
             while (ExecuteNonQuery(cmd) > 0) { Console.WriteLine(DateTime.Now); }
         }
-
+*/
         public void Nullify_updated_at()
         {
             const int BulkUnit = 10000;
@@ -365,63 +366,59 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             while (ExecuteNonQuery(cmd) > 0) { Console.WriteLine(DateTime.Now); }
         }
 
-        public void Usertohttps()
+
+
+        public void Mediatohttps()
         {
             //media_urlをhttps://にするだけ
-            const int BulkUnit = 1000;
-            int LastCount = 0;
-            int UpdatedCount = 0;
-            long LastMediaId = 0;
-            string UpdateCmdStr = null;
+            const int BulkUnit = 10000;
+            long UpdatedCount = 0;
+            string UpdateCmdStrFull = MediatohttpsCmd(BulkUnit);
+
+            ActionBlock<DataTable> updateblock = new ActionBlock<DataTable>((DataTable Table) =>
+            {
+                string UpdateCmdStr;
+                if (Table.Rows.Count != Table.Rows.Count) { UpdateCmdStr = MediatohttpsCmd(Table.Rows.Count); }
+                else { UpdateCmdStr = UpdateCmdStrFull; }
+                using (MySqlCommand cmd = new MySqlCommand(UpdateCmdStr))
+                {
+                    for (int i = 0; i < Table.Rows.Count; i++)
+                    {
+                        cmd.Parameters.AddWithValue('@' + i.ToString(), Table.Rows[i][0]);
+                        cmd.Parameters.AddWithValue("@a" + i.ToString(), Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
+
+                        //Console.WriteLine("{0}\t{1}", Table.Rows[i][0], Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
+                    }
+                    int cmdcnt = ExecuteNonQuery(cmd);
+                    Interlocked.Add(ref UpdatedCount, cmdcnt);
+                    Console.WriteLine("{0} {1}\t{2}",DateTime.Now, UpdatedCount, Table.Rows[Table.Rows.Count - 1].Field<long>(0));
+                }
+            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
+
             try
             {
-                DataTable Table;
-                do
+                long LastId = 757000000000000000;    //ここからスタート
+                while(true)
                 {
+                    DataTable Table;
                     using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, profile_image_url FROM user
-WHERE user_id > @lastid
-AND profile_image_url IS NOT NULL
-ORDER BY user_id LIMIT @limit;"))
+media_id, media_url FROM media
+WHERE media_id > @lastid
+ORDER BY media_id LIMIT @limit;"))
                     {
-                        cmd.Parameters.AddWithValue("@lastid", LastMediaId);
+                        cmd.Parameters.AddWithValue("@lastid", LastId);
                         cmd.Parameters.AddWithValue("@limit", BulkUnit);
                         Table = SelectTable(cmd);
+                        if(Table != null && Table.Rows.Count > 0) { updateblock.Post(Table); }
+                        else { break; }
+                        LastId = Table.Rows[Table.Rows.Count - 1].Field<long>(0);
+                        while(updateblock.InputCount > 10) { Thread.Sleep(1000); }
                     }
-
-                    if (LastCount != Table.Rows.Count)
-                    {
-                        UpdateCmdStr = MediatohttpsCmd(Table.Rows.Count);
-                        LastCount = Table.Rows.Count;
-                    }
-
-                    using (MySqlCommand cmd = new MySqlCommand(UpdateCmdStr))
-                    {
-                        for (int i = 0; i < Table.Rows.Count; i++)
-                        {
-                            cmd.Parameters.AddWithValue('@' + i.ToString(), Table.Rows[i][0]);
-
-                            if(Table.Rows[i].Field<string>(1).IndexOf("abs.twimg.com/images/themes/") > 0 || Table.Rows[i].Field<string>(1).IndexOf("pbs.twimg.com/profile_background_images/") > 0)
-                            {   //間違えてbackgroundimageを指定してクソになったのだ
-                                cmd.Parameters.AddWithValue("@a" + i.ToString(), null);
-                            }
-                            else
-                            {
-                                cmd.Parameters.AddWithValue("@a" + i.ToString(), Table.Rows[i].Field<string>(1));
-                            }
-                            
-                            //Console.WriteLine("{0}\t{1}", Table.Rows[i][0], Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
-                        }
-                        UpdatedCount += ExecuteNonQuery(cmd);
-                    }
-                    LastMediaId = Table.Rows[Table.Rows.Count - 1].Field<long>(0);
-                    Console.WriteLine("{0}: {1}, {2}",DateTime.Now, UpdatedCount, LastMediaId);
-                } while (Table.Rows.Count > 0);
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                Console.WriteLine(LastMediaId);
             }
             Console.WriteLine("＼(^o^)／");
             Console.ReadKey();
@@ -430,7 +427,7 @@ ORDER BY user_id LIMIT @limit;"))
         string MediatohttpsCmd(int Count)
         {
             //ついでにupdated_atをnullにする
-            StringBuilder BulkCmd = new StringBuilder(@"UPDATE user SET updated_at = null, profile_image_url = ELT(FIELD(user_id,");
+            StringBuilder BulkCmd = new StringBuilder(@"UPDATE media SET media_url = ELT(FIELD(media_id,");
             BulkCmd.Append('@');
             for (int i = 0; i < Count; i++)
             {
@@ -445,7 +442,7 @@ ORDER BY user_id LIMIT @limit;"))
                 BulkCmd.Append(",@a");
             }
             BulkCmd.Remove(BulkCmd.Length - 3, 3);
-            BulkCmd.Append(") WHERE user_id IN(@");
+            BulkCmd.Append(") WHERE media_id IN(@");
             for (int i = 0; i < Count; i++)
             {
                 BulkCmd.Append(i);

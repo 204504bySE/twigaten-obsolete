@@ -438,22 +438,27 @@ WHERE media_id = @media_id;"))
         public int StoreMedia(MediaEntity m, Status x, long hash)
         {
 
-            using (MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE 
-INTO media (media_id, source_tweet_id, type, media_url, dcthash, downloaded_at) 
-VALUES(@media_id, @source_tweet_id, @type, @media_url, @dcthash, @downloaded_at) 
+            MySqlCommand[] cmd = new MySqlCommand[] { new MySqlCommand(@"INSERT IGNORE 
+INTO media (media_id, source_tweet_id, type, media_url, dcthash) 
+VALUES(@media_id, @source_tweet_id, @type, @media_url, @dcthash) 
 ON DUPLICATE KEY UPDATE
 source_tweet_id = if (EXISTS (SELECT * FROM tweet WHERE tweet_id = @source_tweet_id), @source_tweet_id, source_tweet_id),
-dcthash = @dcthash;"))
-            {
-                cmd.Parameters.AddWithValue("@media_id", m.Id);
-                cmd.Parameters.AddWithValue("@source_tweet_id", m.SourceStatusId ?? x.Id);
-                cmd.Parameters.AddWithValue("@type", m.Type);
-                cmd.Parameters.AddWithValue("@media_url", m.MediaUrlHttps ?? m.MediaUrl);
-                cmd.Parameters.AddWithValue("@dcthash", hash);
-                cmd.Parameters.AddWithValue("@downloaded_at", (DateTimeOffset.UtcNow.ToUnixTimeSeconds() as long?));
-                int ret = ExecuteNonQuery(cmd);
-                return ret + Storetweet_media(x.Id, m.Id);
-            }
+dcthash = @dcthash;"),
+            new MySqlCommand(@"INSERT IGNORE
+INTO media_downloaded_at
+VALUES(@media_id, @downloaded_at)") };
+
+            cmd[0].Parameters.AddWithValue("@media_id", m.Id);
+            cmd[0].Parameters.AddWithValue("@source_tweet_id", m.SourceStatusId ?? x.Id);
+            cmd[0].Parameters.AddWithValue("@type", m.Type);
+            cmd[0].Parameters.AddWithValue("@media_url", m.MediaUrlHttps ?? m.MediaUrl);
+            cmd[0].Parameters.AddWithValue("@dcthash", hash);
+
+            cmd[1].Parameters.AddWithValue("@media_id", m.Id);
+            cmd[1].Parameters.AddWithValue("@downloaded_at", (DateTimeOffset.UtcNow.ToUnixTimeSeconds()));
+
+            int ret = ExecuteNonQuery(cmd) >> 1;
+            return ret + Storetweet_media(x.Id, m.Id);
         }
 
         public int Storetweet_media(long tweet_id, long media_id)

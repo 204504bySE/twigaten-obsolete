@@ -17,18 +17,18 @@ namespace twihash
         {
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
-            long NewLastUpdate = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 600;   //とりあえず10分前
+            long NewLastUpdate = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 900;   //とりあえず15分前
 
-            Console.WriteLine("{0} Loading hash", DateTime.Now);
             Stopwatch sw = new Stopwatch();
-            sw.Start();
-            MediaHashArray allmediahash =  db.AllMediaHash();
-            if(allmediahash == null) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
-            sw.Stop();
-            Console.WriteLine("{0} {1} hash loaded", DateTime.Now, allmediahash.Count);
-            Console.WriteLine("{0} Hash load: {1}ms", DateTime.Now, sw.ElapsedMilliseconds);
+            Console.WriteLine("{0} Loading hash", DateTime.Now);
             sw.Restart();
-            MediaHashSorter media = new MediaHashSorter(allmediahash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
+            MediaHashArray AllMediaHash = db.AllMediaHash();
+            if(AllMediaHash == null) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
+            sw.Stop();
+            Console.WriteLine("{0} {1} Hash loaded in {2} ms", DateTime.Now, AllMediaHash.Count, sw.ElapsedMilliseconds);
+            Console.WriteLine("{0} {1} New hash", DateTime.Now, AllMediaHash.NewHashes.Count);
+            sw.Restart();
+            MediaHashSorter media = new MediaHashSorter(AllMediaHash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
             media.Proceed();
             sw.Stop();
             Console.WriteLine("{0} Multiple Sort, Store: {1}ms", DateTime.Now, sw.ElapsedMilliseconds);
@@ -37,21 +37,30 @@ namespace twihash
         }
     }
 
-    //メモリ使用量を減らすための悪あがき
+    //とても変なクラスになってしまっためう
     public class MediaHashArray
     {
         public readonly long[] Hashes;
-        public readonly bool[] NeedstoInsert;
-        public readonly int Length; 
+        public readonly HashSet<long> NewHashes;
         public MediaHashArray(int Length)
         {
             Hashes = new long[Length];
-            NeedstoInsert = new bool[Length];
-            this.Length = Length;
+            NewHashes = new HashSet<long>();
+            ForceInsert = Config.Instance.hash.LastUpdate <= 0;
             if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
         public int Count = 0;  //実際に使ってる個数
         public bool EnableAutoRead = true;
+        public bool ForceInsert { get; }
+
+        public bool NeedtoInsert(int Index)
+        {
+            return ForceInsert || NewHashes.Contains(Hashes[Index]);
+        }
+        public bool NeedtoInsert(long Hash)
+        {
+            return ForceInsert || NewHashes.Contains(Hash);
+        }
 
         public void AutoReadAll()
         //配列を読み捨てて物理メモリに保持する(つもり
@@ -61,10 +70,9 @@ namespace twihash
                 Thread.CurrentThread.Priority = ThreadPriority.Lowest;
                 while (true)
                 {
-                    for (int i = 0; EnableAutoRead && i < Length; i++)
+                    for (int i = 0; EnableAutoRead && i < Hashes.Length; i++)
                     {
                         long a = Hashes[i];
-                        bool b = NeedstoInsert[i];
                     }
                     Thread.Sleep(60000);
                 }
@@ -163,7 +171,7 @@ namespace twihash
                   for (int j = i + 1; j < basemedia.Count; j++)
                   {
                       if (maskedhash_i != (basemedia.Hashes[j] & fullmask)) { break; }
-                      if (!basemedia.NeedstoInsert[i] && !basemedia.NeedstoInsert[j]) { continue; }
+                      if (!basemedia.NeedtoInsert(i) && !basemedia.NeedtoInsert(j)) { continue; }
                       //ブロックソートで一致した組のハミング距離を測る
                       sbyte ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
                       if (ham <= maxhammingdistance)
@@ -196,8 +204,8 @@ namespace twihash
                               if (SimilarMedia.Count >= (dbthreads + 1) * DBHandler.StoreMediaPairsUnit)
                               {   //溜まったらDBに入れる
                                   Interlocked.Increment(ref dbthreads);
-                                  List<MediaPair> PairstoStore = new List<MediaPair>();
-                                  for (int n = 0; n < DBHandler.StoreMediaPairsUnit; n++)
+                                  List<MediaPair> PairstoStore = new List<MediaPair>(DBHandler.StoreMediaPairsUnit);
+                                  while (PairstoStore.Count < DBHandler.StoreMediaPairsUnit)
                                   {
                                       if(!SimilarMedia.TryDequeue(out MediaPair outpair)) { break; }
                                       PairstoStore.Add(outpair);
@@ -211,7 +219,7 @@ namespace twihash
                       }
                   }
               });
-            dbcount += db.StoreMediaPairs(SimilarMedia.ToList());
+            dbcount += db.StoreMediaPairs(SimilarMedia.ToList());   //余りをDBに入れる
             Console.WriteLine("{0} {1} Rows affected", DateTime.Now, dbcount);
             return ret;
         }
@@ -241,7 +249,7 @@ namespace twihash
             var QuickSortBlock = new TransformBlock<KeyValuePair<int, int>, KeyValuePair<int, int>[]>
                 ((KeyValuePair<int, int> SortRange) => {
                     return QuickSortUnit(SortRange.Key, SortRange.Value, SortMask, SortList);
-                }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
+                }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount | (Environment.ProcessorCount >> 1) });
 
             QuickSortBlock.Post(new KeyValuePair<int, int>(0, SortList.Count - 1));
             int ProcessingCount = 1;
@@ -272,19 +280,16 @@ namespace twihash
                 {
                     long TempHash = SortList.Hashes[k];
                     long TempMasked = SortList.Hashes[k] & SortMask;
-                    bool TempNeedtoInsert = SortList.NeedstoInsert[k];
                     if ((SortList.Hashes[k - 1] & SortMask) > TempMasked)
                     {
                         int m = k;
                         do
                         {
                             SortList.Hashes[m] = SortList.Hashes[m - 1];
-                            SortList.NeedstoInsert[m] = SortList.NeedstoInsert[m - 1];
                             m--;
                         } while (m > Left
                         && (SortList.Hashes[m - 1] & SortMask) > TempMasked);
                         SortList.Hashes[m] = TempHash;
-                        SortList.NeedstoInsert[m] = TempNeedtoInsert;
                     }
                 }
                 return null;
@@ -303,9 +308,6 @@ namespace twihash
                 long SwapHash = SortList.Hashes[i];
                 SortList.Hashes[i] = SortList.Hashes[j];
                 SortList.Hashes[j] = SwapHash;
-                bool SwapNeedtoInsert = SortList.NeedstoInsert[i];
-                SortList.NeedstoInsert[i] = SortList.NeedstoInsert[j];
-                SortList.NeedstoInsert[j] = SwapNeedtoInsert;
                 i++; j--;
             }
             return new KeyValuePair<int, int>[]

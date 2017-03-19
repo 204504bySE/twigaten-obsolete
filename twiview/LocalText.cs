@@ -50,7 +50,7 @@ namespace twiview
         //単にhttps://…を必要に応じてつけるだけ
         public static string MediaUrlFull(TweetData._media Media, HttpRequestBase Request)
         {
-            if (Media.media_url.IndexOf("://") >= 0) { return Media.media_url; }
+            if (Media.media_url.IndexOf("://") > 0) { return Media.media_url; }
             else { return Request.Url.GetLeftPart(UriPartial.Authority) + Media.media_url; }
         }
 
@@ -59,7 +59,7 @@ namespace twiview
             //orig_media_urlとmedia_idが必要
             if(Media.orig_media_url == null) { return null; }
             if (IsCached) { return config.PictPaththumb + Media.media_id.ToString() + Path.GetExtension(Media.orig_media_url); }
-            else if (Media.orig_media_url.IndexOf("twimg.com/") >= 0) { return Media.orig_media_url.Replace("http://", "https://") + ":thumb"; }
+            else if (Media.orig_media_url.IndexOf("twimg.com/") > 0) { return Media.orig_media_url + ":thumb"; }
             else { return Media.orig_media_url; }
         }
 

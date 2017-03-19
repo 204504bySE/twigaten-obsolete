@@ -257,6 +257,7 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m
+NATURAL JOIN media_downloaded_at md
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
@@ -318,6 +319,7 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m 
+NATURAL JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
@@ -352,6 +354,7 @@ INNER JOIN user ou ON f.friend_id = ou.user_id
 INNER JOIN tweet o ON ou.user_id = o.user_id
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
+NATURAL JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND f.user_id = @target_user_id
@@ -443,6 +446,7 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m
+NATURAL JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -457,6 +461,7 @@ FROM tweet o USE INDEX (user_id)
 NATURAL JOIN user ou
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
+NATURAL JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -497,6 +502,7 @@ FROM tweet o USE INDEX (PRIMARY)
 NATURAL JOIN user ou
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
+NATURAL JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
 OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN @begin AND @end
@@ -583,7 +589,7 @@ ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.isp
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
 rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.updated_at, ru.isprotected,
 rt.created_at, rt.text, rt.favorite_count, rt.retweet_count,
-m.media_id, m.media_url, m.type, m.downloaded_at,
+m.media_id, m.media_url, m.type, md.downloaded_at,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1 +
 (SELECT COUNT(media_id) FROM dcthashpair
     INNER JOIN media ON hash_sub = media.dcthash
@@ -593,7 +599,7 @@ m.media_id, m.media_url, m.type, m.downloaded_at,
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-m.media_id, m.media_url, m.type, m.downloaded_at,
+m.media_id, m.media_url, m.type, md.downloaded_at,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1 +
 (SELECT COUNT(media_id) FROM dcthashpair
     INNER JOIN media ON hash_sub = media.dcthash
@@ -678,7 +684,7 @@ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 a.media_id, a.media_url, a.type, a.downloaded_at,
 NULL
 FROM(
-    SELECT tweet_media.tweet_id, m.media_id, m.media_url, m.type, m.downloaded_at
+    SELECT tweet_media.tweet_id, m.media_id, m.media_url, m.type, md.downloaded_at
     FROM ((
             SELECT media_id FROM media 
             WHERE dcthash = (SELECT dcthash FROM media WHERE media_id = @media_id)
@@ -689,7 +695,9 @@ FROM(
             WHERE dcthashpair.hash_pri = (SELECT dcthash FROM media WHERE media_id = @media_id)
             ORDER BY media.media_id LIMIT @limitplus
         ) ORDER BY media_id LIMIT @limitplus
-    ) AS i NATURAL JOIN media m
+    ) AS i
+    NATURAL JOIN media m
+    NATURAL JOIN media_downloaded_at md
     NATURAL JOIN tweet_media 
     ORDER BY tweet_media.tweet_id LIMIT @limitplus
 ) AS a

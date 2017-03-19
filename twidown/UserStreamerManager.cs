@@ -96,7 +96,7 @@ namespace twidown
                             break;  //何もしない
                     }
                 }
-                else { ActiveStreamers++; }
+                else { Interlocked.Increment(ref ActiveStreamers); }
 
                 if (Tick.Elasped >= 60000 && UnlockSemaphore.Wait(0))
                 {
