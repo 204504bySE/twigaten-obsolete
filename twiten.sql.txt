@@ -1,9 +1,3 @@
-alter table media drop key downloaded_at_index, add index dcthash_index(dcthash), drop key dcthash_downloaded_at_index;
-alter table media drop column downloaded_at;
-
-
-
-
 create database twiten character set utf8mb4;
 use twiten;
 
@@ -28,10 +22,8 @@ engine=memory;
 create table crawlprocess(
 	user_id bigint primary key,
 	pid int not null,
-	rest_needed tinyint bool default false/*,
-	foreign key (user_id) references token(user_id) on delete cascade,
-	foreign key (pid) references pid(pid) on delete cascade
-*/)
+	rest_needed tinyint bool default false
+)
 engine=memory;
 
 create table tweetlock(

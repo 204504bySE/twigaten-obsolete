@@ -257,7 +257,7 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m
-NATURAL JOIN media_downloaded_at md
+NATURAL LEFT JOIN media_downloaded_at md
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
@@ -319,7 +319,7 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m 
-NATURAL JOIN media_downloaded_at md
+NATURAL LEFT JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
@@ -354,7 +354,7 @@ INNER JOIN user ou ON f.friend_id = ou.user_id
 INNER JOIN tweet o ON ou.user_id = o.user_id
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
-NATURAL JOIN media_downloaded_at md
+NATURAL LEFT JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND f.user_id = @target_user_id
@@ -446,7 +446,7 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m
-NATURAL JOIN media_downloaded_at md
+NATURAL LEFT JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -461,7 +461,7 @@ FROM tweet o USE INDEX (user_id)
 NATURAL JOIN user ou
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
-NATURAL JOIN media_downloaded_at md
+NATURAL LEFT JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -502,7 +502,7 @@ FROM tweet o USE INDEX (PRIMARY)
 NATURAL JOIN user ou
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
-NATURAL JOIN media_downloaded_at md
+NATURAL LEFT JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
 OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN @begin AND @end
@@ -697,7 +697,7 @@ FROM(
         ) ORDER BY media_id LIMIT @limitplus
     ) AS i
     NATURAL JOIN media m
-    NATURAL JOIN media_downloaded_at md
+    NATURAL LEFT JOIN media_downloaded_at md
     NATURAL JOIN tweet_media 
     ORDER BY tweet_media.tweet_id LIMIT @limitplus
 ) AS a
