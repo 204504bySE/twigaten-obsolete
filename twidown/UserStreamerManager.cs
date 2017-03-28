@@ -19,11 +19,11 @@ namespace twidown
         DBHandler db = DBHandler.Instance;
         StreamerLocker Locker = StreamerLocker.Instance;
 
-        public UserStreamerManager(Tokens t) { Add(t); }
-        public UserStreamerManager(Tokens[] t) { AddAll(t); }
+        public UserStreamerManager() { AddAll(); }
 
-        public void AddAll(Tokens[] t)
+        public void AddAll()
         {
+            Tokens[] t = db.SelectAlltoken();
             setMaxConnections(false, t.Length);
             Console.WriteLine("{0} App: {1} tokens loaded.", DateTime.Now, t.Length);
             foreach (Tokens tt in t)
@@ -100,9 +100,9 @@ namespace twidown
 
                 if (Tick.Elasped >= 60000 && UnlockSemaphore.Wait(0))
                 {
+                    Tick.Update();
                     Locker.ActualUnlockAll();
                     Counter.Instance.PrintReset();
-                    Tick.Update();
                     UnlockSemaphore.Release();
                 }
             });

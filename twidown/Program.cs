@@ -28,10 +28,8 @@ namespace twidown
             }
 
             Thread.CurrentThread.Priority = ThreadPriority.AboveNormal;
-            DBHandler db = DBHandler.Instance;
             
-            UserStreamerManager manager = new UserStreamerManager(db.SelectAlltoken());
-            manager.AddAll(db.SelectAlltoken());
+            UserStreamerManager manager = new UserStreamerManager();
             while (true)
             {
                 int Connected = manager.ConnectStreamers();
@@ -39,7 +37,7 @@ namespace twidown
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce; //これは毎回必要らしい
                 GC.Collect();
                 Thread.Sleep(60000);
-                manager.AddAll(db.SelectAlltoken());
+                manager.AddAll();
             }
         }
     }
