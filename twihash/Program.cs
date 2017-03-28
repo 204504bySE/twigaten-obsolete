@@ -168,10 +168,11 @@ namespace twihash
                 (int i) =>
               {
                   long maskedhash_i = basemedia.Hashes[i] & fullmask;
+                  bool NeedtoInsert_i = basemedia.NeedtoInsert(i);
                   for (int j = i + 1; j < basemedia.Count; j++)
                   {
                       if (maskedhash_i != (basemedia.Hashes[j] & fullmask)) { break; }
-                      if (!basemedia.NeedtoInsert(i) && !basemedia.NeedtoInsert(j)) { continue; }
+                      if (!NeedtoInsert_i && !basemedia.NeedtoInsert(j)) { continue; }
                       //ブロックソートで一致した組のハミング距離を測る
                       sbyte ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
                       if (ham <= maxhammingdistance)

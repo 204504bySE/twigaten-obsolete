@@ -21,7 +21,8 @@ namespace twiview
             public string name { get; set; }
             public string screen_name { get; set; }
             public bool isprotected { get; set; }
-            public string profile_image_url { get; set; }   //外部サイトならhttpsにしたやつが入ってる
+            public string profile_image_url { get; set; }   //鯖に保存してあればそのURL
+            public bool is_default_profile_image { get; set; }
             public string location { get; set; }
             public string description { get; set; }    //リンクや改行などをhtmlにして突っ込む
             //public string origdescription { get; set; }  //今は必要ないね
@@ -44,7 +45,7 @@ namespace twiview
             public long media_id { get; set; }
             public long source_tweet_id { get; set; }
             public string type { get; set; }
-            public string media_url { get; set; }   //外部サイトならhttpsにしたやつが入ってる
+            public string media_url { get; set; }   //鯖に保存してあればそのURL
             public string orig_media_url { get; set; }
             public long dcthash { get; set; }
             //public sbyte dcthash_distance { get; set; }

@@ -87,7 +87,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, name, screen_name, isprotected, profile_image_url, updated_at, location, description
+user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description
 FROM user WHERE user_id = @user_id"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
@@ -123,7 +123,7 @@ FROM user WHERE user_id = @user_id"))
         {
             DataTable Table;
             System.Text.StringBuilder cmdBuilder = new System.Text.StringBuilder(@"SELECT
-user_id, name, screen_name, isprotected, profile_image_url, updated_at, location, description
+user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description
 FROM user AS u WHERE screen_name LIKE @screen_name ");
 
             switch (Mode)
@@ -161,10 +161,10 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
                 rettmp.screen_name = row.Field<string>(2);
                 rettmp.isprotected = row.Field<bool?>(3) ?? row.Field<sbyte>(3) != 0;
                 rettmp.profile_image_url = row.Field<string>(4);
-                rettmp.location = row.Field<string>(6);
-                rettmp.description = LocalText.TextToLink(row.Field<string>(7));    //htmlにしておく
+                rettmp.location = row.Field<string>(7);
+                rettmp.description = LocalText.TextToLink(row.Field<string>(8));    //htmlにしておく
 
-                rettmp.profile_image_url = LocalText.ProfileImageUrl(rettmp, !row.IsNull(5));
+                rettmp.profile_image_url = LocalText.ProfileImageUrl(rettmp, !row.IsNull(5), row.Field<bool>(6));
                 ret.Add(rettmp);
             }
             return ret.ToArray();
@@ -559,15 +559,15 @@ LIMIT 50;";
             {
                 case TweetOrder.New:
                     sorted = retTable.Rows.Cast<DataRow>()
-                        .OrderByDescending((DataRow row) => row.Field<int>(9) + row.Field<int>(10))
+                        .OrderByDescending((DataRow row) => row.Field<int>(10) + row.Field<int>(11))
                         .Take(50)
-                        .OrderByDescending((DataRow row) => row.Field<long>(7))
+                        .OrderByDescending((DataRow row) => row.Field<long>(8))
                         .ToArray();
                     break;
                 case TweetOrder.Featured:
                 default:
                     sorted = retTable.Rows.Cast<DataRow>()
-                        .OrderByDescending((DataRow row) => row.Field<int>(9) + row.Field<int>(10))
+                        .OrderByDescending((DataRow row) => row.Field<int>(10) + row.Field<int>(11))
                         .Take(50)
                         .ToArray();
                     break;
@@ -585,9 +585,9 @@ LIMIT 50;";
 
         //TabletoTweetに渡すリレーションの形式
         const string SimilarMediaHeadRT = @"SELECT
-ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.isprotected,
+ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
-rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.updated_at, ru.isprotected,
+rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.updated_at, ru.is_default_profile_image, ru.isprotected,
 rt.created_at, rt.text, rt.favorite_count, rt.retweet_count,
 m.media_id, m.media_url, m.type, md.downloaded_at,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1 +
@@ -596,9 +596,9 @@ m.media_id, m.media_url, m.type, md.downloaded_at,
     WHERE hash_pri = m.dcthash) + 
 (SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
         const string SimilarMediaHeadnoRT = @"SELECT
-ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.isprotected,
+ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
-NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 m.media_id, m.media_url, m.type, md.downloaded_at,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1 +
 (SELECT COUNT(media_id) FROM dcthashpair
@@ -618,37 +618,39 @@ m.media_id, m.media_url, m.type, md.downloaded_at,
                 rettmp.tweet.user.user_id = Table.Rows[i].Field<long>(0);
                 rettmp.tweet.user.name = Table.Rows[i].Field<string>(1);
                 rettmp.tweet.user.screen_name = Table.Rows[i].Field<string>(2);
-                rettmp.tweet.user.profile_image_url = Table.Rows[i].Field<string>(3);
-                rettmp.tweet.user.isprotected = Table.Rows[i].Field<bool?>(5) ?? Table.Rows[i].Field<sbyte>(5) != 0;
-                rettmp.tweet.tweet_id = Table.Rows[i].Field<long>(6);
-                rettmp.tweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(7));
-                rettmp.tweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(8));
-                rettmp.tweet.favorite_count = Table.Rows[i].Field<int>(9);
-                rettmp.tweet.retweet_count = Table.Rows[i].Field<int>(10);
+                rettmp.tweet.user.profile_image_url = Table.Rows[i].Field<string>(3);  
+                rettmp.tweet.user.isprotected = Table.Rows[i].Field<bool?>(6) ?? Table.Rows[i].Field<sbyte>(6) != 0;
+                rettmp.tweet.tweet_id = Table.Rows[i].Field<long>(7);
+                rettmp.tweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(8));
+                rettmp.tweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(9));
+                rettmp.tweet.favorite_count = Table.Rows[i].Field<int>(10);
+                rettmp.tweet.retweet_count = Table.Rows[i].Field<int>(11);
 
-                //アイコンが鯖内にあればそれの絶対パスに差し替える
-                rettmp.tweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.user, !Table.Rows[i].IsNull(4));
-                if (!Table.Rows[i].IsNull(11)) //RTなら元ツイートが入っている
+                //アイコンが鯖内にあればそれの絶対パスに置き換える
+                rettmp.tweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.user, !Table.Rows[i].IsNull(4), Table.Rows[i].Field<bool>(5));
+
+                if (!Table.Rows[i].IsNull(12)) //RTなら元ツイートが入っている
                 {
                     rettmp.tweet.retweet = new TweetData._tweet();
-                    rettmp.tweet.retweet.user.user_id = Table.Rows[i].Field<long>(12);
-                    rettmp.tweet.retweet.user.name = Table.Rows[i].Field<string>(13);
-                    rettmp.tweet.retweet.user.screen_name = Table.Rows[i].Field<string>(14);
-                    rettmp.tweet.retweet.user.profile_image_url = Table.Rows[i].Field<string>(15);
-                    rettmp.tweet.retweet.user.isprotected = Table.Rows[i].Field<bool>(17);
-                    rettmp.tweet.retweet.tweet_id = Table.Rows[i].Field<long>(11);
-                    rettmp.tweet.retweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(18));
-                    rettmp.tweet.retweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(19));
-                    rettmp.tweet.retweet.favorite_count = Table.Rows[i].Field<int>(20);
-                    rettmp.tweet.retweet.retweet_count = Table.Rows[i].Field<int>(21);
+                    rettmp.tweet.retweet.tweet_id = Table.Rows[i].Field<long>(12);
+                    rettmp.tweet.retweet.user.user_id = Table.Rows[i].Field<long>(13);
+                    rettmp.tweet.retweet.user.name = Table.Rows[i].Field<string>(14);
+                    rettmp.tweet.retweet.user.screen_name = Table.Rows[i].Field<string>(15);
+                    rettmp.tweet.retweet.user.profile_image_url = Table.Rows[i].Field<string>(16);
+                    rettmp.tweet.retweet.user.isprotected = Table.Rows[i].Field<bool>(19);
+                    rettmp.tweet.retweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(20));
+                    rettmp.tweet.retweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(21));
+                    rettmp.tweet.retweet.favorite_count = Table.Rows[i].Field<int>(22);
+                    rettmp.tweet.retweet.retweet_count = Table.Rows[i].Field<int>(23);
 
-                    rettmp.tweet.retweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.retweet.user, !Table.Rows[i].IsNull(16));
+                    //アイコンが鯖内にあればそれの絶対パスに置き換える
+                    rettmp.tweet.retweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.retweet.user, !Table.Rows[i].IsNull(17), Table.Rows[i].Field<bool>(18));
                 }
-                rettmp.media.media_id = Table.Rows[i].Field<long>(22);
-                rettmp.media.orig_media_url = Table.Rows[i].Field<string>(23);
-                rettmp.media.media_url = LocalText.MediaUrl(rettmp.media, !Table.Rows[i].IsNull(25));
-                rettmp.media.type = Table.Rows[i].Field<string>(24);
-                rettmp.SimilarMediaCount = Table.Rows[i].Field<long?>(26) ?? -1;    //COUNTはNOT NULLじゃない
+                rettmp.media.media_id = Table.Rows[i].Field<long>(24);
+                rettmp.media.orig_media_url = Table.Rows[i].Field<string>(25);
+                rettmp.media.type = Table.Rows[i].Field<string>(26);
+                rettmp.media.media_url = LocalText.MediaUrl(rettmp.media, !Table.Rows[i].IsNull(27));
+                rettmp.SimilarMediaCount = Table.Rows[i].Field<long?>(28) ?? -1;    //COUNTはNOT NULLじゃない
 
                 if (GetSimilars)
                 {
@@ -678,9 +680,9 @@ m.media_id, m.media_url, m.type, md.downloaded_at,
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT 
-ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.isprotected,
+ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
-NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 a.media_id, a.media_url, a.type, a.downloaded_at,
 NULL
 FROM(

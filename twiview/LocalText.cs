@@ -63,12 +63,15 @@ namespace twiview
             else { return Media.orig_media_url; }
         }
 
-        public static string ProfileImageUrl(TweetData._user User, bool IsCached)
+        public static string ProfileImageUrl(TweetData._user User, bool IsCached, bool IsDefaultProfileImage)
         {   //Viewに使うアイコンのURLを返す
             //user_idとprofile_image_urlが必要
             if (User.profile_image_url == null) { return null; }
-            if (IsCached) { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
-            else if (User.profile_image_url.IndexOf("abs.twimg.com/") > 0) { return config.PictPathProfileImage + '_' + Path.GetFileName(User.profile_image_url); }
+            if (IsCached)
+            {
+                if (IsDefaultProfileImage) { return config.PictPathProfileImage + '_' + Path.GetFileName(User.profile_image_url); }
+                else { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
+            }
             else { return User.profile_image_url; }
         }
 

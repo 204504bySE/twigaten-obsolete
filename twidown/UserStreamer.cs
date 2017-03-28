@@ -332,7 +332,7 @@ namespace twidown
             if (Locker.LockUser(x.User.Id))
             {
                 if (update) { DownloadStoreProfileImage(x).Wait(); }
-                else { db.StoreUser(x, DBHandler.UpdateProfileImage.False, false); }
+                else { db.StoreUser(x, false, false); }
             }
             int ret2;
             counter.TweetToStore.Increment();
@@ -370,15 +370,13 @@ namespace twidown
             //(古い奴のURLがDBにあれば古いままになる)
             if (x.User.Id == null) { return; }  
             string ProfileImageUrl = x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl;
-            KeyValuePair<bool, string> d = db.NeedtoDownloadProfileImage(x.User.Id.Value, ProfileImageUrl);
-            if (!d.Key || !Locker.LockProfileImage((long)x.User.Id)) { return; }
+            DBHandler.ProfileImageInfo d = db.NeedtoDownloadProfileImage(x.User.Id.Value, ProfileImageUrl);
+            if (!d.NeedDownload || !Locker.LockProfileImage((long)x.User.Id)) { return; }
 
             //新しいアイコンの保存先 卵アイコンは'_'をつけただけの名前で保存するお
             string LocalPath = x.User.IsDefaultProfileImage ?
                 config.crawl.PictPathProfileImage + '_' + Path.GetFileName(ProfileImageUrl) :
                 config.crawl.PictPathProfileImage + x.User.Id.ToString() + Path.GetExtension(ProfileImageUrl);
-            //古いアイコンが卵かどうか 新しいアイコンは x.User.IsDefaultProfileImage でおｋ
-            bool OldDefaultProfileImage = (d.Value != null && Path.GetFileName(d.Value).Substring(0, 1) == "_");
 
             bool DownloadOK = true; //卵アイコンのダウンロード不要でもtrue
             if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
@@ -397,13 +395,13 @@ namespace twidown
             }
             if (DownloadOK)
             {
-                string oldext = Path.GetExtension(d.Value);
+                string oldext = Path.GetExtension(d.OldProfileImageUrl);
                 string newext = Path.GetExtension(ProfileImageUrl);
-                if (!OldDefaultProfileImage && oldext != null && oldext != newext)  //卵アイコンはこのパスじゃないしそもそも消さない
+                if (!d.isDefaultProfileImage && oldext != null && oldext != newext)  //卵アイコンはこのパスじゃないしそもそも消さない
                 { File.Delete(config.crawl.PictPathProfileImage + x.User.Id.ToString() + oldext); }
-                db.StoreUser(x, x.User.IsDefaultProfileImage ? DBHandler.UpdateProfileImage.DefaultIcon : DBHandler.UpdateProfileImage.True);
+                db.StoreUser(x, true);
             }
-            else { db.StoreUser(x, DBHandler.UpdateProfileImage.False); }
+            else { db.StoreUser(x, false); }
 
         }
 

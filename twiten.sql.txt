@@ -54,6 +54,7 @@ create table user(
 	isprotected bool not null,
 	profile_image_url text character set ascii,
 	updated_at bigint,
+	is_default_profile_image bool not null default false,
 	location tinytext,
 	description text
 )engine=InnoDB row_format=COMPRESSED;

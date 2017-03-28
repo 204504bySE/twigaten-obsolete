@@ -156,71 +156,77 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         //  そもそもアカウントの情報が保存されていない
         //  stringは古いアイコンのURL(trueの場合のみ)
         //  卵アイコンかどうかは考慮しない(updated_atしか見ない
-        public KeyValuePair<bool, string> NeedtoDownloadProfileImage(long user_id, string NewProfileImageUrl)
+        public struct ProfileImageInfo
+        {
+            public bool NeedDownload;
+            public bool isDefaultProfileImage;
+            public string OldProfileImageUrl;
+        }
+        public ProfileImageInfo NeedtoDownloadProfileImage(long user_id, string NewProfileImageUrl)
         {
             DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT profile_image_url, updated_at FROM user WHERE user_id = @user_id;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT profile_image_url, updated_at, is_default_profile_image FROM user WHERE user_id = @user_id;"))
             {
                 cmd.Parameters.AddWithValue("@user_id", user_id);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
-            if(Table == null) { return new KeyValuePair<bool, string>(false, null); } 
-            else if (Table.Rows.Count < 1) { return new KeyValuePair<bool, string>(true, null); }
+            if (Table == null) { return new ProfileImageInfo { NeedDownload = false }; }
+            else if (Table.Rows.Count < 1) { return new ProfileImageInfo { NeedDownload = true }; }
             else if (Table.Rows[0].IsNull(1) || Table.Rows[0].Field<string>(0) != NewProfileImageUrl)
-            { return new KeyValuePair<bool, string>(true, Table.Rows[0].Field<string>(0)); }
-            else { return new KeyValuePair<bool, string>(false, null); }
+            { return new ProfileImageInfo { NeedDownload = true, OldProfileImageUrl = Table.Rows[0].Field<string>(0), isDefaultProfileImage = Table.Rows[0].Field<bool>(2) }; }
+            else { return new ProfileImageInfo { NeedDownload = false }; }
         }
 
-        public enum UpdateProfileImage
-        {           //profile_image_urlを
-            False,  //更新しない
-            True,   //更新する
-            DefaultIcon //卵アイコンなので更新するけどupdated_atはnullにする
-        }
-        public int StoreUser(Status x, UpdateProfileImage UpdateProfileImage, bool ForceUpdate = true)
+
+        public int StoreUser(Status x, bool IconDownloaded, bool ForceUpdate = true)
         {
             //DBにユーザーを入れる RTは先にやらないとキー制約が
-            //UpdateProfileImageを入れるとprofile_image_urlを更新する
+
 
             if (x.Entities.Media == null) { return 0; }    //画像なしツイートは捨てる
             using (MySqlCommand cmd = new MySqlCommand())
             {
-                if (UpdateProfileImage != UpdateProfileImage.False)
+                if (IconDownloaded)
                 {
+                    //アイコンをダウンロードしたときは必ず更新する
+                    //RESTで取得した場合はそもそもアイコンをダウンロードするべきではない
                     cmd.CommandText = @"INSERT
-INTO user (user_id, name, screen_name, isprotected, profile_image_url, updated_at, location, description)
-VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @updated_at, @location, @description)
-ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, profile_image_url=@profile_image_url, updated_at=@updated_at, location=@location, description=@description;";
+INTO user (user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description)
+VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @updated_at, @is_default_profile_image, @location, @description)
+ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, profile_image_url=@profile_image_url, updated_at=@updated_at, is_default_profile_image=@is_default_profile_image, location=@location, description=@description;";
                 }
                 else if (ForceUpdate)
                 {
-                    //updateはよくやる, insertは未保存アカウントかつアイコン取得失敗時のみ
+                    //アイコンを取得しなかった時用, insertは未保存アカウントかつアイコン取得失敗時のみ
                     cmd.CommandText = @"INSERT
-INTO user (user_id, name, screen_name, isprotected, profile_image_url, location, description)
-VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @location, @description)
+INTO user (user_id, name, screen_name, isprotected, profile_image_url, is_default_profile_image, location, description)
+VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description)
 ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, 
 updated_at=(CASE
 WHEN updated_at IS NOT NULL THEN @updated_at
 ELSE NULL
-END)
-,location=@location, description=@description;";
+END),
+location=@location, description=@description;";
                 }
                 else
                 {
                     //RESTで取得した場合はアイコンが変わらない限り何も更新したくない
                     cmd.CommandText = @"INSERT IGNORE
-INTO user (user_id, name, screen_name, isprotected, profile_image_url, location, description)
-VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @location, @description);";
+INTO user (user_id, name, screen_name, isprotected, profile_image_url, is_default_profile_image, location, description)
+VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description);";
                 }
                 cmd.Parameters.AddWithValue("@user_id", x.User.Id);
                 cmd.Parameters.AddWithValue("@name", x.User.Name);
                 cmd.Parameters.AddWithValue("@screen_name", x.User.ScreenName);
                 cmd.Parameters.AddWithValue("@isprotected", x.User.IsProtected);
-                cmd.Parameters.AddWithValue("@profile_image_url", x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl);
-                //↓アイコンが保存されている場合だけ更新される
-                cmd.Parameters.AddWithValue("@updated_at", UpdateProfileImage == UpdateProfileImage.DefaultIcon ? null as object : DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 cmd.Parameters.AddWithValue("@location", x.User.Location);
                 cmd.Parameters.AddWithValue("@description", x.User.Description);
+
+                cmd.Parameters.AddWithValue("@updated_at", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+
+                //↓アイコンを保存したときだけだけ更新される
+                cmd.Parameters.AddWithValue("@profile_image_url", x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl);
+                cmd.Parameters.AddWithValue("@is_default_profile_image", x.User.IsDefaultProfileImage);
 
                 return ExecuteNonQuery(cmd);
             }
