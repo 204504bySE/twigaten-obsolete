@@ -309,7 +309,7 @@ namespace twitenlib
             catch { return null; }
         }
 
-        protected long SelectCount(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted, bool NeverSemaphoreTimeout = false)
+        protected long SelectCount(MySqlCommand cmd, IsolationLevel IsolationLevel = IsolationLevel.ReadCommitted)
         {
             //SELECT COUNT() 用
             try
