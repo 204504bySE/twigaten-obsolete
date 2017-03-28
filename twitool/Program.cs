@@ -36,7 +36,7 @@ namespace twitool
 
     public class DBHandler : twitenlib.DBHandler
     {
-        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address, 600) { }
+        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address, 3600) { }
 
         //ツイートが削除されて参照されなくなった画像を消す
         public int RemoveOrphanMedia()
@@ -50,10 +50,13 @@ namespace twitool
             do
             {
                 using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media
-WHERE source_tweet_id IS NULL LIMIT @limit;"))
+WHERE source_tweet_id IS NULL
+AND NOT EXISTS(SELECT * FROM media_downloaded_at WHERE media_id = media.media_id)
+ORDER BY media_id
+LIMIT @limit;"))
                 {
                     cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                    Table = SelectTable(cmd);
+                    Table = SelectTable(cmd, IsolationLevel.ReadCommitted);
                 }
                 if (Table == null || Table.Rows.Count < 1) { break; }
 
@@ -145,7 +148,7 @@ ORDER BY downloaded_at LIMIT @limit;"))
                 {
                     DataTable Table;
                     using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, profile_image_url FROM user
+user_id, profile_image_url, is_default_profile_image FROM user
 WHERE updated_at IS NOT NULL AND profile_image_url IS NOT NULL
 ORDER BY updated_at LIMIT @limit;"))
                     {
@@ -154,8 +157,11 @@ ORDER BY updated_at LIMIT @limit;"))
                     }
                     foreach (DataRow row in Table.Rows)
                     {
-                        File.Delete(config.crawl.PictPathProfileImage 
-                            + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
+                        if (!row.Field<bool>(2))
+                        {
+                            File.Delete(config.crawl.PictPathProfileImage
+                                + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
+                        }
                     }
                     if (Table.Rows.Count < BulkUnit) { BulkUpdateCmd = BulkCmdStrIn(Table.Rows.Count, head); }
                     using (MySqlCommand upcmd = new MySqlCommand(BulkUpdateCmd))
@@ -183,6 +189,7 @@ ORDER BY updated_at LIMIT @limit;"))
         public int RemoveOrphanTweet()
         {
             const int BulkUnit = 100;
+            const int RangeSeconds = 300;
             const string head = @"DELETE FROM tweet WHERE tweet_id IN";
             string BulkDeleteCmd = BulkCmdStrIn(BulkUnit, head);
 
@@ -196,13 +203,13 @@ AND tweet_id BETWEEN @begin AND @end
 ORDER BY tweet_id DESC;"))
                 {
                     Cmd.Parameters.AddWithValue("@begin", id);
-                    Cmd.Parameters.AddWithValue("@end", id + SnowFlake.msinSnowFlake * 3600 * 1000 - 1);
+                    Cmd.Parameters.AddWithValue("@end", id + SnowFlake.msinSnowFlake * RangeSeconds * 1000 - 1);
                     return SelectTable(Cmd,IsolationLevel.RepeatableRead);
                 }
             }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
 
 
-            DateTimeOffset date = DateTimeOffset.UtcNow.AddDays(-7);
+            DateTimeOffset date = new DateTimeOffset(2017, 3, 7, 0, 0, 0, new TimeSpan(0)); //DateTimeOffset.UtcNow.AddDays(-7);
             for(int i = 0; i < 20; i++)
             {
                 GetTweetBlock.Post(SnowFlake.SecondinSnowFlake(date, false));
@@ -211,16 +218,19 @@ ORDER BY tweet_id DESC;"))
             while(true)
             {
                 DataTable Table = GetTweetBlock.Receive();
-                using (MySqlCommand delcmd = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head)))
+                if (Table.Rows.Count > 0)
                 {
-                    for (int n = 0; n < Table.Rows.Count; n++)
+                    using (MySqlCommand delcmd = new MySqlCommand(BulkCmdStrIn(Table.Rows.Count, head)))
                     {
-                        delcmd.Parameters.AddWithValue("@" + n.ToString(), Table.Rows[n].Field<long>(0));
+                        for (int n = 0; n < Table.Rows.Count; n++)
+                        {
+                            delcmd.Parameters.AddWithValue("@" + n.ToString(), Table.Rows[n].Field<long>(0));
+                        }
+                        Console.WriteLine("{0} {1} Tweets removed", date, ExecuteNonQuery(delcmd));
                     }
-                    Console.WriteLine("{0} {1} Tweets removed", date, ExecuteNonQuery(delcmd));
                 }
                 GetTweetBlock.Post(SnowFlake.SecondinSnowFlake(date, false));
-                date = date.AddHours(-1);
+                date = date.AddSeconds(-RangeSeconds);
             }
         }
 
@@ -230,7 +240,7 @@ ORDER BY tweet_id DESC;"))
         {
             int RemovedCount = 0;
             DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id, profile_image_url FROM user
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id, profile_image_url, is_default_profile_image FROM user
 WHERE NOT EXISTS (SELECT * FROM tweet WHERE tweet.user_id = user.user_id)
 AND NOT EXISTS (SELECT user_id FROM token WHERE token.user_id = user.user_id);"))
             {
@@ -240,20 +250,28 @@ AND NOT EXISTS (SELECT user_id FROM token WHERE token.user_id = user.user_id);")
             Console.WriteLine("{0} {1} Users to remove", DateTime.Now, Table.Rows.Count);
             Console.ReadKey();
             Parallel.ForEach(Table.AsEnumerable(), 
-                new ParallelOptions { MaxDegreeOfParallelism = 4 },
+                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
                 (DataRow row) =>
             {
-                using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM user WHERE user_id = @user_id;"))
+                bool toRemove;
+                using(MySqlCommand cmd = new MySqlCommand(@"SELECT EXISTS(SELECT * FROM tweet WHERE tweet.user_id = @user_id) OR EXISTS(SELECT user_id FROM token WHERE token.user_id = @user_id);"))
                 {
-                    cmd.Parameters.AddWithValue("@user_id", (long)row[0]);
-                    if (ExecuteNonQuery(cmd) >= 1)
+                    cmd.Parameters.AddWithValue("@user_id", row.Field<long>(0));
+                    toRemove = (SelectCount(cmd, IsolationLevel.ReadUncommitted) == 0);
+                }
+                if (toRemove)
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM user WHERE user_id = @user_id;"))
                     {
-                        Interlocked.Increment(ref RemovedCount);
-                        if (row[1] as string != null) { File.Delete(config.crawl.PictPathProfileImage + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string)); }
-                        if (RemovedCount % 1000 == 0) { Console.WriteLine("{0} {1} Users Removed", DateTime.Now, RemovedCount); }
+                        cmd.Parameters.AddWithValue("@user_id", (long)row[0]);
+                        if (ExecuteNonQuery(cmd) >= 1)
+                        {
+                            if (!row.Field<bool>(2) && row.Field<string>(1) != null) { File.Delete(config.crawl.PictPathProfileImage + (row.Field<long>(0)).ToString() + Path.GetExtension(row.Field<string>(1))); }
+                            Interlocked.Increment(ref RemovedCount);
+                            if (RemovedCount % 1000 == 0) { Console.WriteLine("{0} {1} Users Removed", DateTime.Now, RemovedCount); }
+                        }
                     }
                 }
-                if (RemovedCount % 1000 == 0) { Console.WriteLine("{0} {1} Users Removed", DateTime.Now, RemovedCount); }
             });
             return RemovedCount;
         }
@@ -338,7 +356,7 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
                  using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(*) FROM user WHERE user_id = @user_id;"))
                  {
                      cmd.Parameters.AddWithValue("@user_id", Path.GetFileNameWithoutExtension(f));
-                     if (SelectCount(cmd, IsolationLevel.ReadUncommitted, true) == 0)
+                     if (SelectCount(cmd, IsolationLevel.ReadUncommitted) == 0)
                      {
                          File.Delete(f);
                          Interlocked.Increment(ref RemoveCount);
