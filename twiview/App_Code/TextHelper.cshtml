@@ -49,7 +49,7 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet ?? Tweet.tweet;
 
 @helper MediaThumb(TweetData._tweet Tweet, TweetData._media Media)
 {
-    <img class="twigaten-thumb" src="/Content/images/dummy/150.png" data-src="@(Media.media_url)" />
+    <img class="twigaten-thumb" src="~/Content/images/dummy/150.svg" data-src="@(Media.media_url)" />
 }
 
 @helper GoogleMediaLink(TweetData._media Media)
@@ -70,9 +70,9 @@ TweetData._tweet LinkTweet = Tweet.tweet.retweet ?? Tweet.tweet;
 @helper UserIcon(TweetData._user User, bool Retweet = false)
 {
 if(User.profile_image_url != null) {
-    <img src="/Content/images/dummy/48.png" data-src="@(User.profile_image_url)" class="twigaten-icon@(Retweet ? " twigaten-icon-retweet" : "")" />
+    <img src="~/Content/images/dummy/48.svg" data-src="@(User.profile_image_url)" class="twigaten-icon@(Retweet ? " twigaten-icon-retweet" : "")" />
 }
-else { <img src="/Content/images/dummy/48.png" class="twigaten-icon" /> }
+else { <img src="~/Content/images/dummy/48.svg" class="twigaten-icon" /> }
 }
 @helper TweetPermalink(TweetData._tweet Tweet)
 {
