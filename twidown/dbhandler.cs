@@ -25,6 +25,51 @@ namespace twidown
         }
 
         int Selfpid = System.Diagnostics.Process.GetCurrentProcess().Id;
+
+        public enum SelectTokenMode
+        {
+            StreamerAll,
+            RestProcess,
+            RestinStreamer
+        }
+
+        public Tokens[] Selecttoken(SelectTokenMode Mode)
+        {
+            DataTable Table;
+            Tokens[] ret;
+
+            string cmdstr = @"SELECT
+user_id, token, token_secret
+FROM token
+NATURAL JOIN crawlprocess
+WHERE ";
+            switch (Mode)
+            {
+                case SelectTokenMode.StreamerAll:
+                    cmdstr += "pid = @pid;"; break;
+                case SelectTokenMode.RestinStreamer:
+                    cmdstr += "pid = @pid AND rest_needed = 2;"; break;
+                case SelectTokenMode.RestProcess:
+                    cmdstr += "rest_needed IS TRUE;"; break;
+            }
+            using (MySqlCommand cmd = new MySqlCommand(cmdstr))
+            {
+                cmd.Parameters.AddWithValue("@pid", Selfpid);
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
+            }
+            if (Table == null) { return new Tokens[0]; }
+            ret = new Tokens[Table.Rows.Count];
+            for (int i = 0; i < Table.Rows.Count; i++)
+            {
+                ret[i] = (Tokens.Create(config.token.ConsumerKey,
+                    config.token.ConsumerSecret,
+                    Table.Rows[i].Field<string>(1),
+                    Table.Rows[i].Field<string>(2),
+                    Table.Rows[i].Field<long>(0)));
+            }
+            return ret;
+        }
+
         public Tokens[] SelectAlltoken()
         //全tokenを返す
         {
@@ -48,33 +93,6 @@ WHERE pid = @pid;"))
                     Table.Rows[i].Field<string>(1),
                     Table.Rows[i].Field<string>(2),
                     Table.Rows[i].Field<long>(0)));
-            }
-            return ret;
-        }
-
-        public Tokens[] SelectResttoken()
-        //REST待ちのTokenを返す
-        {
-            DataTable Table;
-            Tokens[] ret;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, token, token_secret
-FROM token
-NATURAL JOIN crawlprocess
-WHERE rest_needed IS TRUE;"))
-            {
-                cmd.Parameters.AddWithValue("@pid", Selfpid);
-                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
-            }
-            if (Table == null) { return new Tokens[0]; }
-            ret = new Tokens[Table.Rows.Count];
-            for (int i = 0; i < Table.Rows.Count; i++)
-            {
-                ret[i] = Tokens.Create(config.token.ConsumerKey,
-                        config.token.ConsumerSecret,
-                        Table.Rows[i].Field<string>(1),
-                        Table.Rows[i].Field<string>(2),
-                        Table.Rows[i].Field<long>(0));
             }
             return ret;
         }
@@ -181,8 +199,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         public int StoreUser(Status x, bool IconDownloaded, bool ForceUpdate = true)
         {
             //DBにユーザーを入れる RTは先にやらないとキー制約が
-
-
+            
             if (x.Entities.Media == null) { return 0; }    //画像なしツイートは捨てる
             using (MySqlCommand cmd = new MySqlCommand())
             {
@@ -221,9 +238,8 @@ VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_def
                 cmd.Parameters.AddWithValue("@isprotected", x.User.IsProtected);
                 cmd.Parameters.AddWithValue("@location", x.User.Location);
                 cmd.Parameters.AddWithValue("@description", x.User.Description);
-
-                cmd.Parameters.AddWithValue("@updated_at", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-
+                //卵アイコンではupdated_atは無意味なのでnullに
+                cmd.Parameters.AddWithValue("@updated_at", x.User.IsDefaultProfileImage ? null as long? : DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                 //↓アイコンを保存したときだけだけ更新される
                 cmd.Parameters.AddWithValue("@profile_image_url", x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl);
                 cmd.Parameters.AddWithValue("@is_default_profile_image", x.User.IsDefaultProfileImage);

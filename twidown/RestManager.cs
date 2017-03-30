@@ -35,7 +35,7 @@ namespace twidown
 
         public int Proceed()
         {
-            Tokens[] tokens = db.SelectResttoken();
+            Tokens[] tokens = db.Selecttoken(DBHandler.SelectTokenMode.RestProcess);
             if (tokens.Length > 0) { Console.WriteLine("{0} App: {1} Accounts to REST", DateTime.Now, tokens.Length); }
             Parallel.ForEach(tokens,
                 new ParallelOptions { MaxDegreeOfParallelism = config.crawl.RestTweetThreads },

@@ -67,11 +67,8 @@ namespace twiview
         {   //Viewに使うアイコンのURLを返す
             //user_idとprofile_image_urlが必要
             if (User.profile_image_url == null) { return null; }
-            if (IsCached)
-            {
-                if (IsDefaultProfileImage) { return config.PictPathProfileImage + '_' + Path.GetFileName(User.profile_image_url); }
-                else { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
-            }
+            if (IsDefaultProfileImage) { return config.PictPathProfileImage + '_' + Path.GetFileName(User.profile_image_url); }
+            else if (IsCached) { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
             else { return User.profile_image_url; }
         }
 

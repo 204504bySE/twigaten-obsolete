@@ -17,6 +17,7 @@ namespace twidown
 
         public Exception e { get; private set; }
         public Tokens Token { get; }
+        public bool NeedRestMyTweet { get; set; }   //次のconnect時にRESTでツイートを取得する
         Config config = Config.Instance;
         Counter counter = Counter.Instance;
         DBHandler db = DBHandler.Instance;

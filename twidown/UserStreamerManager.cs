@@ -23,12 +23,20 @@ namespace twidown
 
         public void AddAll()
         {
-            Tokens[] t = db.SelectAlltoken();
-            setMaxConnections(false, t.Length);
-            Console.WriteLine("{0} App: {1} tokens loaded.", DateTime.Now, t.Length);
-            foreach (Tokens tt in t)
+            Tokens[] token = db.Selecttoken(DBHandler.SelectTokenMode.StreamerAll);
+            Tokens[] tokenRest = db.Selecttoken(DBHandler.SelectTokenMode.RestinStreamer);
+            setMaxConnections(false, token.Length);
+            Console.WriteLine("{0} App: {1} tokens loaded.", DateTime.Now, token.Length);
+            foreach(Tokens t in tokenRest)
             {
-                Add(tt);
+                if (Add(t) && Streamers.TryGetValue(t.UserId, out UserStreamer s))
+                {
+                    s.NeedRestMyTweet = true;
+                }
+            }
+            foreach (Tokens t in token)
+            {
+                Add(t);
             }
             setMaxConnections(true);
         }
@@ -75,7 +83,13 @@ namespace twidown
                         case UserStreamer.TokenStatus.Success:                            
                             s.Value.RecieveStream();
                             s.Value.RecieveRestTimeline();
-                            db.StoreRestNeedtoken(s.Key);
+                            if (s.Value.NeedRestMyTweet)
+                            {
+                                s.Value.NeedRestMyTweet = false;
+                                s.Value.RestMyTweet();
+                                db.StoreRestDonetoken(s.Key);
+                            }
+                            else { db.StoreRestNeedtoken(s.Key); }
                             break;
                         case UserStreamer.TokenStatus.Locked:
                             s.Value.PostponeRetry();

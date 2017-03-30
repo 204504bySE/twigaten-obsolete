@@ -33,7 +33,7 @@ namespace twidownparent
             } else { db.DeleteDeadpid(); users = db.SelectNewToken(); }
 
 
-
+            bool GetMyTweet = false;    //後から追加されたアカウントはstreamer側で自分のツイートを取得させる
             while (true)
             {
                 //子プロセスが死んだならその分だけ先に起動する
@@ -58,9 +58,10 @@ namespace twidownparent
                             pid = newpid;
                             db.Insertpid(pid);
                         }
-                        db.Assigntoken(users[usersIndex], pid);
+                        db.Assigntoken(users[usersIndex], pid, GetMyTweet);
                     }
                 }
+                GetMyTweet = true;
                 Thread.Sleep(60000);
                 ForceNewChild = db.DeleteDeadpid();
                 users = db.SelectNewToken();

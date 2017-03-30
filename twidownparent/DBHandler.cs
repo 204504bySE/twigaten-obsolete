@@ -48,12 +48,13 @@ WHERE NOT EXISTS (SELECT * FROM crawlprocess WHERE user_id = token.user_id);"))
             return ret;
         }
 
-        public int Assigntoken(long user_id, int pid)
+        public int Assigntoken(long user_id, int pid, bool RestMyTweet)
         {
             //Console.WriteLine("{0} Assign: {1} to {2}", DateTime.Now, user_id, pid);
-            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO crawlprocess (user_id, pid) VALUES(@user_id, @pid)");
+            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO crawlprocess (user_id, pid, rest_needed) VALUES(@user_id, @pid, @rest_needed)");
             cmd.Parameters.AddWithValue("@user_id", user_id);
             cmd.Parameters.AddWithValue("@pid", pid);
+            cmd.Parameters.AddWithValue("@rest_needed", RestMyTweet ? 2 : 0);
             return ExecuteNonQuery(cmd);
         }
 
