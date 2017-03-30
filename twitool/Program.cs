@@ -27,6 +27,7 @@ namespace twitool
             DBHandler db = new DBHandler();
 
             db.RemoveOldMedia();
+            db.RemoveOrphanMedia();
             db.RemoveOldProfileImage();
             Thread.Sleep(3000);
             return;
@@ -36,57 +37,59 @@ namespace twitool
 
     public class DBHandler : twitenlib.DBHandler
     {
-        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address, 3600) { }
+        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address) { }
 
         //ツイートが削除されて参照されなくなった画像を消す
-        public int RemoveOrphanMedia()
+        public void RemoveOrphanMedia()
         {
-            int i = 0;
+            int RemovedCount = 0;
             const int BulkUnit = 1000;
             const string head = @"DELETE FROM media WHERE media_id IN";
 
             DataTable Table;
             string BulkDeleteCmd = BulkCmdStrIn(BulkUnit, head);
-            do
+            try
             {
-                using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media
+                do
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media
 WHERE source_tweet_id IS NULL
-AND NOT EXISTS(SELECT * FROM media_downloaded_at WHERE media_id = media.media_id)
 ORDER BY media_id
 LIMIT @limit;"))
-                {
-                    cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                    Table = SelectTable(cmd, IsolationLevel.ReadCommitted);
-                }
-                if (Table == null || Table.Rows.Count < 1) { break; }
-
-                foreach (DataRow row in Table.Rows)
-                {
-                    File.Delete(config.crawl.PictPaththumb 
-                        + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
-                }
-
-                if (Table.Rows.Count < BulkUnit)
-                {
-                    BulkDeleteCmd = BulkCmdStrIn(Table.Rows.Count, head);
-                }
-                using (MySqlCommand delcmd = new MySqlCommand(BulkDeleteCmd))
-                {
-                    for (int n = 0; n < Table.Rows.Count; n++)
                     {
-                        delcmd.Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
+                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
+                        Table = SelectTable(cmd);
                     }
-                    i += ExecuteNonQuery(delcmd);
-                }
-                Console.WriteLine("{0}: {1} Media removed", DateTime.Now, i);
-            } while (Table.Rows.Count >= BulkUnit);
-            return i;
+                    if (Table == null || Table.Rows.Count < 1) { break; }
+
+                    foreach (DataRow row in Table.Rows)
+                    {
+                        File.Delete(config.crawl.PictPaththumb
+                            + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
+                    }
+
+                    if (Table.Rows.Count < BulkUnit)
+                    {
+                        BulkDeleteCmd = BulkCmdStrIn(Table.Rows.Count, head);
+                    }
+                    using (MySqlCommand delcmd = new MySqlCommand(BulkDeleteCmd))
+                    {
+                        for (int n = 0; n < Table.Rows.Count; n++)
+                        {
+                            delcmd.Parameters.AddWithValue('@' + n.ToString(), Table.Rows[n][0]);
+                        }
+                        RemovedCount += ExecuteNonQuery(delcmd);
+                    }
+                    Console.WriteLine("{0}: {1} Media removed", DateTime.Now, RemovedCount);
+                } while (Table.Rows.Count >= BulkUnit);
+            }
+            catch (Exception e) { Console.WriteLine(e); return; }
+            Console.WriteLine("{0}: {1} Orphan Media removed.", DateTime.Now, RemovedCount);
         }
 
         public void RemoveOldMedia()
         {
             DriveInfo drive = new DriveInfo(config.crawl.PictPaththumb.Substring(0, 1));
-            int RemovedCountDB = 0;
             int RemovedCountFile = 0;
             const int BulkUnit = 1000;
             Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
@@ -95,11 +98,13 @@ LIMIT @limit;"))
                 while (drive.TotalFreeSpace < drive.TotalSize / 25 << 2)
                 {
                     DataTable Table;
-                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
+                    using (MySqlCommand cmd = new MySqlCommand(@"(SELECT
 media_id, media_url
 FROM media_downloaded_at
 NATURAL JOIN media
-ORDER BY downloaded_at LIMIT @limit;"))
+ORDER BY downloaded_at
+LIMIT @limit)
+ORDER BY media_id;"))
                     {
                         cmd.Parameters.AddWithValue("@limit", BulkUnit);
                         Table = SelectTable(cmd);
@@ -108,8 +113,8 @@ ORDER BY downloaded_at LIMIT @limit;"))
 
                     foreach (DataRow row in Table.Rows)
                     {
-                        File.Delete(config.crawl.PictPaththumb 
-                            + ((long)row[0]).ToString() + Path.GetExtension(row[1] as string));
+                        File.Delete(config.crawl.PictPaththumb
+                            + row.Field<long>(0).ToString() + Path.GetExtension(row.Field<string>(1)));
                     }
 
                     MySqlCommand[] Cmd = new MySqlCommand[] {
@@ -123,14 +128,14 @@ ORDER BY downloaded_at LIMIT @limit;"))
                             Cmd[i].Parameters.AddWithValue(atNum, Table.Rows[n][0]);
                         }
                     }
-                    RemovedCountDB += ExecuteNonQuery(Cmd) - Table.Rows.Count;
+                    ExecuteNonQuery(Cmd);
                     RemovedCountFile += Table.Rows.Count;
-                    Console.WriteLine("{0}: {1} / {2} Media removed", DateTime.Now, RemovedCountDB, RemovedCountFile);
+                    Console.WriteLine("{0}: {1} Media removed", DateTime.Now, RemovedCountFile);
                     Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
                 }
             }
             catch (Exception e) { Console.WriteLine(e); return; }
-            Console.WriteLine("{0}: {1} Media removal completed.", DateTime.Now, RemovedCountFile);
+            Console.WriteLine("{0}: {1} Old Media removed.", DateTime.Now, RemovedCountFile);
         }
 
         //しばらくツイートがないアカウントのprofile_imageを消す
@@ -178,7 +183,7 @@ ORDER BY updated_at LIMIT @limit;"))
                 }
             }
             catch (Exception e) { Console.WriteLine(e); return; }
-            Console.WriteLine("{0}: {1} Icons removal completed.", DateTime.Now, RemovedCount);
+            Console.WriteLine("{0}: {1} Icons removed.", DateTime.Now, RemovedCount);
         }
 
 
