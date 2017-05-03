@@ -265,7 +265,7 @@ namespace twitenlib
                 BulkCmd.Append("),");
             }
             BulkCmd.Remove(BulkCmd.Length - 1, 1)
-                .Append(";");
+                .Append(';');
             return BulkCmd.ToString();
         }
 

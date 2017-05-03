@@ -77,9 +77,10 @@ namespace twidown
 
         //pHashっぽいDCT Hashの自前実装
 
-        public static long? DCTHash(Stream imgStream)
+        public static long? DCTHash(Stream imgStream, bool Crop = false)
         {
-            Vector<float>[] hashbuf = MonoImage(imgStream, 32); //モノクロ縮小画像
+            if(imgStream == null) { return null; }
+            Vector<float>[] hashbuf = MonoImage(imgStream, 32, Crop); //モノクロ縮小画像
             if (hashbuf == null) { return null; }  //正常な場合は0にはならない
 
             //DCTやる phashで必要な成分だけ求める
@@ -127,7 +128,7 @@ namespace twidown
         }
 
         //正方形、モノクロの画像に対応するバイト列を返す
-        static Vector<float>[] MonoImage(Stream imgStream, int size)
+        static Vector<float>[] MonoImage(Stream imgStream, int size, bool Crop = false)
         {
             try
             {
@@ -138,7 +139,17 @@ namespace twidown
                 {
                     g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
                     g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
-                    g.DrawImage(img, 0, 0, size, size);
+                    if (Crop)
+                    {   //Twitterの正方形切り抜きが微妙にずれているのをどうやって再現するか
+                        g.DrawImage(img,
+                            new Rectangle(0, 0, size, size),
+                            img.Width > img.Height ? (img.Width - img.Height) >> 1 : 0,
+                            img.Width < img.Height ? (img.Height - img.Width) >> 1 : 0,
+                            Math.Min(img.Width, img.Height),
+                            Math.Min(img.Width, img.Height),
+                            GraphicsUnit.Pixel);
+                    }
+                    else { g.DrawImage(img, 0, 0, size, size); }
 
                     //バイト配列に取り出す
                     //http://www.84kure.com/blog/2014/07/13/c-%E3%83%93%E3%83%83%E3%83%88%E3%83%9E%E3%83%83%E3%83%97%E3%81%AB%E3%83%94%E3%82%AF%E3%82%BB%E3%83%AB%E5%8D%98%E4%BD%8D%E3%81%A7%E9%AB%98%E9%80%9F%E3%81%AB%E3%82%A2%E3%82%AF%E3%82%BB%E3%82%B9/

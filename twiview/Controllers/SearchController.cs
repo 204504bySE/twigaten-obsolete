@@ -76,8 +76,7 @@ namespace twiview.Controllers
         public ActionResult Media(SearchParameters p)
         {
             p.Validate(Session, Response);
-            long? hash = null;
-            if (p.File != null) { hash = twidown.PictHash.DCTHash(p.File.InputStream); }
+            long? hash = twidown.PictHash.DCTHash(p.File?.InputStream, true); 
             if(hash == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.HashFail)); }
             long? tweet_id = db.HashtoTweet(hash, p.ID);
             if(tweet_id == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.NoTweet)); }

@@ -94,7 +94,7 @@ ORDER BY c LIMIT 1;"))
             {
                 Table = SelectTable(cmd);
             }
-            if (Table == null) { return new int[0]; }
+            if (Table == null) { return null; }
             int[] ret = new int[Table.Rows.Count];
             for (int i = 0; i < Table.Rows.Count; i++)
             {
