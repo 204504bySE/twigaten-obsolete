@@ -64,6 +64,7 @@ namespace twidownparent
                 GetMyTweet = true;
                 Thread.Sleep(60000);
                 ForceNewChild = db.DeleteDeadpid();
+                db.DeleteNotExistpid();
                 users = db.SelectNewToken();
             }
         }

@@ -63,6 +63,8 @@ namespace twidown
         //StreamerLockerのロック解除もここでやる
         public int ConnectStreamers()
         {
+            if (!db.ExistThisPid()) { Environment.Exit(1); }
+
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
             Locker.ActualUnlockAll();
             Counter.Instance.PrintReset();

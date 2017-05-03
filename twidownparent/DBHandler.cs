@@ -129,6 +129,12 @@ ORDER BY c LIMIT 1;"))
             return DeadCount;
         }
 
+        public int DeleteNotExistpid()
+        {
+            //MySQLが落ちた後しばらくの間残る古いクローラーが作っちゃうやつ
+            return ExecuteNonQuery(new MySqlCommand(@"DELETE FROM tweetlock WHERE pid NOT IN(SELECT pid FROM pid);"));
+        }
+
         public int initTruncate()
         {
             List<MySqlCommand> cmd = new List<MySqlCommand>();

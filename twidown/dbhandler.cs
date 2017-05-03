@@ -10,6 +10,8 @@ using CoreTweet;
 using CoreTweet.Streaming;
 
 using twitenlib;
+using System.Diagnostics;
+
 namespace twidown
 {
     class DBHandler : twitenlib.DBHandler
@@ -426,7 +428,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(tweet_id) FROM tweet WHERE tweet_id = @tweet_id;"))
             {
                 cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
-                if (SelectCount(cmd, IsolationLevel.ReadUncommitted) >= 1) { return true; } else { return false; }
+                return SelectCount(cmd, IsolationLevel.ReadUncommitted) >= 1;
             }
         }
 
@@ -564,6 +566,16 @@ VALUES(@media_id, @downloaded_at)") };
                 cmdList.Add(cmdtmp);
             }
             return ExecuteNonQuery(cmdList);
+        }
+
+        //MySQLが落ちてpidが消えてたら自殺したい
+        public bool ExistThisPid()
+        {
+            using(MySqlCommand cmd = new MySqlCommand("SELECT COUNT(*) FROM pid WHERE pid = @pid;"))
+            {
+                cmd.Parameters.AddWithValue("@pid", Process.GetCurrentProcess().Id);
+                return SelectCount(cmd) != 0;   //DBにアクセスできなかったときは存在することにする
+            }
         }
     }
 }

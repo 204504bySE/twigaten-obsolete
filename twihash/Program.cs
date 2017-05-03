@@ -53,13 +53,9 @@ namespace twihash
         public bool EnableAutoRead = true;
         public bool ForceInsert { get; }
 
-        public bool NeedtoInsert(int Index)
+        public bool NeedInsert(int Index)
         {
             return ForceInsert || NewHashes.Contains(Hashes[Index]);
-        }
-        public bool NeedtoInsert(long Hash)
-        {
-            return ForceInsert || NewHashes.Contains(Hash);
         }
 
         public void AutoReadAll()
@@ -168,11 +164,11 @@ namespace twihash
                 (int i) =>
               {
                   long maskedhash_i = basemedia.Hashes[i] & fullmask;
-                  bool NeedtoInsert_i = basemedia.NeedtoInsert(i);
+                  bool NeedInsert_i = basemedia.NeedInsert(i);
                   for (int j = i + 1; j < basemedia.Count; j++)
                   {
                       if (maskedhash_i != (basemedia.Hashes[j] & fullmask)) { break; }
-                      if (!NeedtoInsert_i && !basemedia.NeedtoInsert(j)) { continue; }
+                      if (!NeedInsert_i && !basemedia.NeedInsert(j)) { continue; }
                       //ブロックソートで一致した組のハミング距離を測る
                       sbyte ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
                       if (ham <= maxhammingdistance)
@@ -250,7 +246,7 @@ namespace twihash
             var QuickSortBlock = new TransformBlock<KeyValuePair<int, int>, KeyValuePair<int, int>[]>
                 ((KeyValuePair<int, int> SortRange) => {
                     return QuickSortUnit(SortRange.Key, SortRange.Value, SortMask, SortList);
-                }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount | (Environment.ProcessorCount >> 1) });
+                }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
 
             QuickSortBlock.Post(new KeyValuePair<int, int>(0, SortList.Count - 1));
             int ProcessingCount = 1;
