@@ -234,6 +234,15 @@ ORDER BY p.dcthash_distance, o.created_at LIMIT 1
             else { return null; }
         }
 
+        public bool ExistTweet(long tweet_id)
+        {
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(tweet_id) FROM tweet WHERE tweet_id = @tweet_id;"))
+            {
+                cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
+                return SelectCount(cmd, IsolationLevel.ReadUncommitted) >= 1;
+            }
+        }
+
         //tweet_idのツイートがRTだったら元ツイートのIDを返す
         public long? SourceTweetRT(long tweet_id)
         {

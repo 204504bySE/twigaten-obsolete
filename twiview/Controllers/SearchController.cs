@@ -26,6 +26,8 @@ namespace twiview.Controllers
             public DBHandlerView.SelectUserLikeMode? UserLikeMode { get; set; }
             ///<summary>URL</summary>
             public bool? Direct { get; set; }
+            ///<summary>URL</summary>
+            public HttpPostedFileWrapper File { get; set; }
 
             protected override void ValidateValues(HttpResponseBase Response)
             {
@@ -69,20 +71,20 @@ namespace twiview.Controllers
             }
             else { return RedirectToAction("Index"); }
         }
-        /*
+        
         [Route("search/media")]
-        public ActionResult Media(HttpPostedFileWrapper File)
+        public ActionResult Media(SearchParameters p)
         {
+            p.Validate(Session, Response);
             long? hash = null;
-            if (File != null) { hash = twidown.PictHash.dcthash(File.InputStream, true); }
+            if (p.File != null) { hash = twidown.PictHash.DCTHash(p.File.InputStream); }
             if(hash == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.HashFail)); }
-            LoginHandler Login = new LoginHandler(Session, Request, Response);
-            long? tweet_id = db.HashtoTweet(hash, Login.UserID);
+            long? tweet_id = db.HashtoTweet(hash, p.ID);
             if(tweet_id == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.NoTweet)); }
             //その画像を含む最も古いツイートにリダイレクト
             return RedirectToRoute(new { controller = "SimilarMedia", action = "OneTweet", TweetID = tweet_id });
         }
-        */
+        
 
         [Route("search/users")]
         public ActionResult Users(SearchParameters p)

@@ -51,10 +51,11 @@ namespace twiview
                     SetCookie(nameof(ID), ID.ToString(), Response);
                     SetCookie(nameof(LoginToken), LoginToken, Response);
 
+                    Session["LoginUserID"] = ID;    //メニューバー表示用
                     if (ScreenName == null)
                     {
                         ScreenName = dbView.SelectUser(ID.Value).screen_name;
-                        if (ScreenName != null) { Session[nameof(ScreenName)] = ScreenName; }
+                        if (ScreenName != null) { Session[nameof(ScreenName)] = ScreenName; }   //メニューバー表示用
                     }
                 }
                 else
