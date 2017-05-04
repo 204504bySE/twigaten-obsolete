@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using System.Net;
 using System.IO;
 using System.Data;
-using System.Text.RegularExpressions;
 using MySql.Data.MySqlClient;
 using System.Threading;
 using System.Threading.Tasks.Dataflow;
@@ -37,7 +36,7 @@ namespace twitool
 
     public class DBHandler : twitenlib.DBHandler
     {
-        public DBHandler() : base("tool", "", twitenlib.Config.Instance.database.Address) { }
+        public DBHandler() : base("tool", "", Config.Instance.database.Address) { }
 
         //ツイートが削除されて参照されなくなった画像を消す
         public void RemoveOrphanMedia()

@@ -97,6 +97,15 @@ namespace twiview.Locale {
         }
         
         /// <summary>
+        ///   {0} のツイート に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string Headline_OneTweet {
+            get {
+                return ResourceManager.GetString("Headline_OneTweet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   @{0} のタイムライン に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Headline_Timeline {

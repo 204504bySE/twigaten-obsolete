@@ -11,7 +11,7 @@ using twitenlib;
 
 namespace twiview
 {
-    public class DBHandlerToken : twitenlib.DBHandler
+    public class DBHandlerToken : DBHandler
     {
         public DBHandlerToken() : base("token", "") { }
 
@@ -81,7 +81,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         }
     }
 
-    public class DBHandlerView : twitenlib.DBHandler
+    public class DBHandlerView : DBHandler
     {
         public DBHandlerView() : base("view", "", twiview.config.DBAddress, 15, 40, 600) { }
         public TweetData._user SelectUser(long user_id)
@@ -188,13 +188,13 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
         }
 
         //特定のハッシュ値の画像を含むツイートのうち、表示可能かつ最も古いやつ
-        public long? HashtoTweet(long? dcthash, long? login_user_id)
+        public (long, long)? HashtoTweet(long? dcthash, long? login_user_id)
         {
             if (dcthash == null) { return null; }
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"
 (SELECT
-o.tweet_id
+o.tweet_id, m.media_id
 FROM media m
 INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
 INNER JOIN tweet o ON tweet_media.tweet_id = o.tweet_id
@@ -203,7 +203,7 @@ WHERE m.dcthash = @dcthash
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id))
 ORDER BY o.created_at LIMIT 1
 ) UNION ALL (SELECT
-o.tweet_id
+o.tweet_id, m.media_id
 FROM media m
 INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
 INNER JOIN tweet o ON tweet_media.tweet_id = o.tweet_id
@@ -212,8 +212,9 @@ WHERE m.dcthash IN (@0,@1,@2,@3,@4,@5,@6,@7,@8,@9,@10,@11,@12,@13,@14,@15,@16,@1
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id))
 ORDER BY o.created_at LIMIT 1
 ) UNION ALL (SELECT 
-o.tweet_id
-FROM dcthashpair p INNER JOIN media m ON p.hash_sub = m.dcthash
+o.tweet_id, m.media_id
+FROM dcthashpair p 
+INNER JOIN media m ON p.hash_sub = m.dcthash
 INNER JOIN tweet_media ON m.media_id = tweet_media.media_id
 INNER JOIN tweet o ON tweet_media.tweet_id = o.tweet_id
 INNER JOIN user ou ON o.user_id = ou.user_id
@@ -230,7 +231,7 @@ ORDER BY p.dcthash_distance, o.created_at LIMIT 1
                 cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
                 Table = SelectTable(cmd);
             }
-            if (Table.Rows.Count >= 1) { return Table.Rows[0].Field<long?>(0); }
+            if (Table.Rows.Count >= 1) { return (Table.Rows[0].Field<long>(0), Table.Rows[0].Field<long>(1)); }
             else { return null; }
         }
 

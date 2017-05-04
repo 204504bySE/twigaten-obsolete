@@ -199,7 +199,7 @@
     <value>Tweet({0}) Not Found</value>
   </data>
   <data name="Title_OneTweet" xml:space="preserve">
-    <value>Tweet of @{0} Having Similar Images({1})</value>
+    <value>Tweet of @{0} and Similar Images({1})</value>
   </data>
   <data name="Title_Timeline" xml:space="preserve">
     <value>Timeline of @{0} Having Similar Images{1}</value>
@@ -236,5 +236,8 @@
   </data>
   <data name="Title_SignIn_Failure" xml:space="preserve">
     <value>Sign in Failed</value>
+  </data>
+  <data name="Headline_OneTweet" xml:space="preserve">
+    <value>Tweet of {0}</value>
   </data>
 </root>

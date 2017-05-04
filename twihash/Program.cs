@@ -242,38 +242,35 @@ namespace twihash
         void QuickSortAll(long SortMask, MediaHashArray SortList)
         {
             SortList.EnableAutoRead = false;
-            //Key:ソート開始位置 Value:ソート終了位置
-            var QuickSortBlock = new TransformBlock<KeyValuePair<int, int>, KeyValuePair<int, int>[]>
-                ((KeyValuePair<int, int> SortRange) => {
-                    return QuickSortUnit(SortRange.Key, SortRange.Value, SortMask, SortList);
+            var QuickSortBlock = new TransformBlock<(int Begin, int End), (int Begin1, int End1, int Begin2, int End2)?>
+                (((int Begin, int End) SortRange) => {
+                    return QuickSortUnit(SortRange, SortMask, SortList);
                 }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
 
-            QuickSortBlock.Post(new KeyValuePair<int, int>(0, SortList.Count - 1));
+            QuickSortBlock.Post((0, SortList.Count - 1));
             int ProcessingCount = 1;
             do
             {
-                KeyValuePair<int, int>[] NextSortRange = QuickSortBlock.Receive();
+                (int Begin1, int End1, int Begin2, int End2)? NextSortRange = QuickSortBlock.Receive();
                 if (NextSortRange != null)
                 {
-                    foreach(KeyValuePair<int,int> r in NextSortRange)
-                    {
-                        QuickSortBlock.Post(r);
-                        ProcessingCount++;
-                    }
+                    QuickSortBlock.Post((NextSortRange.Value.Begin1, NextSortRange.Value.End1));
+                    QuickSortBlock.Post((NextSortRange.Value.Begin2, NextSortRange.Value.End2));
+                    ProcessingCount++;  //↑で1個終わって2個始めたから1個増える
                 }
-                ProcessingCount--;
+                else { ProcessingCount--; } 
             } while (ProcessingCount > 0);
             SortList.EnableAutoRead = true;
         }
 
-        KeyValuePair<int,int>[] QuickSortUnit(int Left, int Right, long SortMask, MediaHashArray SortList)
+        (int Begin1, int End1, int Begin2, int End2)? QuickSortUnit((int Begin, int End) SortRange, long SortMask, MediaHashArray SortList)
         {
-            if (Left >= Right) { return null; }
+            if (SortRange.Begin >= SortRange.End) { return null; }
             
             //要素数が少なかったら挿入ソートしたい
-            if (Right - Left <= 16)
+            if (SortRange.End - SortRange.Begin <= 16)
             {
-                for (int k = Left + 1; k <= Right; k++)
+                for (int k = SortRange.Begin + 1; k <= SortRange.End; k++)
                 {
                     long TempHash = SortList.Hashes[k];
                     long TempMasked = SortList.Hashes[k] & SortMask;
@@ -284,7 +281,7 @@ namespace twihash
                         {
                             SortList.Hashes[m] = SortList.Hashes[m - 1];
                             m--;
-                        } while (m > Left
+                        } while (m > SortRange.Begin
                         && (SortList.Hashes[m - 1] & SortMask) > TempMasked);
                         SortList.Hashes[m] = TempHash;
                     }
@@ -292,11 +289,11 @@ namespace twihash
                 return null;
             }
             
-            long PivotMasked = new long[] { SortList.Hashes[Left] & SortMask,
-                        SortList.Hashes[(Left >> 1) + (Right >> 1)] & SortMask,
-                        SortList.Hashes[Right] & SortMask }
+            long PivotMasked = new long[] { SortList.Hashes[SortRange.Begin] & SortMask,
+                        SortList.Hashes[(SortRange.Begin >> 1) + (SortRange.End >> 1)] & SortMask,
+                        SortList.Hashes[SortRange.End] & SortMask }
                 .OrderBy((long a) => a).Skip(1).First();
-            int i = Left; int j = Right;
+            int i = SortRange.Begin; int j = SortRange.End;
             while (true)
             {
                 while ((SortList.Hashes[i] & SortMask) < PivotMasked) { i++; }
@@ -307,11 +304,7 @@ namespace twihash
                 SortList.Hashes[j] = SwapHash;
                 i++; j--;
             }
-            return new KeyValuePair<int, int>[]
-            {
-                new KeyValuePair<int, int>(Left, i - 1),
-                new KeyValuePair<int, int>(j + 1, Right)
-            };
+            return (SortRange.Begin, i - 1, j + 1, SortRange.End);
         }
         
         //ハミング距離を計算する

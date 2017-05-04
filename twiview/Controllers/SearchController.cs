@@ -78,10 +78,10 @@ namespace twiview.Controllers
             p.Validate(Session, Response);
             long? hash = twidown.PictHash.DCTHash(p.File?.InputStream, true); 
             if(hash == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.HashFail)); }
-            long? tweet_id = db.HashtoTweet(hash, p.ID);
-            if(tweet_id == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.NoTweet)); }
+            (long tweet_id, long media_id)? MatchMedia = db.HashtoTweet(hash, p.ID);
+            if(MatchMedia == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.NoTweet)); }
             //その画像を含む最も古いツイートにリダイレクト
-            return RedirectToRoute(new { controller = "SimilarMedia", action = "OneTweet", TweetID = tweet_id });
+            return Redirect(Url.RouteUrl(new { controller = "SimilarMedia", action = "OneTweet", TweetID = MatchMedia.Value.tweet_id }) + "#" + MatchMedia.Value.media_id.ToString());
         }
         
 
