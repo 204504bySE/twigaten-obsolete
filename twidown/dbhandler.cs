@@ -16,7 +16,7 @@ namespace twidown
 {
     class DBHandler : twitenlib.DBHandler
     {
-        readonly int pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+        readonly int pid = Process.GetCurrentProcess().Id;
 
         private DBHandler() : base("crawl", "", Config.Instance.database.Address, 10, (uint)Config.Instance.crawl.MaxDBConnections) { }
         private static DBHandler _db = new DBHandler();
@@ -26,7 +26,7 @@ namespace twidown
             get { return _db; }
         }
 
-        int Selfpid = System.Diagnostics.Process.GetCurrentProcess().Id;
+        int Selfpid = Process.GetCurrentProcess().Id;
 
         public enum SelectTokenMode
         {

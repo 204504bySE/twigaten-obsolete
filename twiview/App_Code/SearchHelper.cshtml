@@ -13,10 +13,11 @@
 
 @helper MediaSearch()
 {
-    <p>画像で検索(仮)</p>
+    <p>画像で検索(仮)<br />
+    出てこないときも多いけどしょうがないね(´・ω・`)</p>
     <div class="container">
         <form action="/Search/Media" method="post" enctype="multipart/form-data" class="form-inline">
-            <input name="File" type="file" />
+            <input name="File" accept="image/*" type="file" />
             <br />
             <button type="submit" class="btn btn-primary">うｐ</button>
         </form>

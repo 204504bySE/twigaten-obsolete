@@ -123,9 +123,7 @@ namespace twihash
         DBHandler db;
         int maxhammingdistance;
         int extrablock;
-        Combinations combi;
-        ConcurrentQueue<MediaPair> SimilarMedia = new ConcurrentQueue<MediaPair>();   //media_idのペアとハミング距離(処理結果)
-        
+        Combinations combi;        
         public MediaHashSorter(MediaHashArray media, DBHandler db, int maxhammingdistance, int extrablock)
         {
             this.media = media;
@@ -141,15 +139,15 @@ namespace twihash
             for (int i = 0; i < combi.Length; i++)
             {
                 sw.Restart();
-                long count = MultipleSortUnit(media, combi, combi[i]);
+                (int db, int sort) = MultipleSortUnit(media, combi, combi[i]);
                 sw.Stop();
-                Console.WriteLine("{0} {1}\t{2}\t{3}\t{4}ms ", DateTime.Now, i, count, combi.CombiString(i), sw.ElapsedMilliseconds);
+                Console.WriteLine("{0} {1}\t{2} / {3}\t{4}\t{5}ms ", DateTime.Now, i, db, sort, combi.CombiString(i), sw.ElapsedMilliseconds);
             }
             //Console.WriteLine("{0} Pairs found", similarmedia.Count);
         }
 
         const int bitcount = 64;    //longのbit数
-        int MultipleSortUnit(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
+        (int db, int sort) MultipleSortUnit(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
         {
             int startblock = baseblocks.Last();
             long fullmask = UnMask(baseblocks, combi.Count);
@@ -157,8 +155,13 @@ namespace twihash
 
             int ret = 0;
             int dbcount = 0;
-            int dbthreads = 0;
-            
+
+            BatchBlock<MediaPair> PairBatchBlock = new BatchBlock<MediaPair>(DBHandler.StoreMediaPairsUnit);
+            ActionBlock<MediaPair[]> PairStoreBlock = new ActionBlock<MediaPair[]>(
+                (MediaPair[] p) => { Interlocked.Add(ref dbcount, db.StoreMediaPairs(p)); },
+                new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount });
+            PairBatchBlock.LinkTo(PairStoreBlock, new DataflowLinkOptions() { PropagateCompletion = true });
+
             Parallel.For(0, basemedia.Count,
                 new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
                 (int i) =>
@@ -170,7 +173,7 @@ namespace twihash
                       if (maskedhash_i != (basemedia.Hashes[j] & fullmask)) { break; }
                       if (!NeedInsert_i && !basemedia.NeedInsert(j)) { continue; }
                       //ブロックソートで一致した組のハミング距離を測る
-                      sbyte ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
+                      int ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
                       if (ham <= maxhammingdistance)
                       {
                           //一致したペアが見つかる最初の組合せを調べる
@@ -197,28 +200,15 @@ namespace twihash
                           if (x == startblock)
                           {
                               Interlocked.Increment(ref ret);
-                              SimilarMedia.Enqueue(new MediaPair(basemedia.Hashes[i], basemedia.Hashes[j], ham));
-                              if (SimilarMedia.Count >= (dbthreads + 1) * DBHandler.StoreMediaPairsUnit)
-                              {   //溜まったらDBに入れる
-                                  Interlocked.Increment(ref dbthreads);
-                                  List<MediaPair> PairstoStore = new List<MediaPair>(DBHandler.StoreMediaPairsUnit);
-                                  while (PairstoStore.Count < DBHandler.StoreMediaPairsUnit)
-                                  {
-                                      if(!SimilarMedia.TryDequeue(out MediaPair outpair)) { break; }
-                                      PairstoStore.Add(outpair);
-                                  }
-                                  int c = db.StoreMediaPairs(PairstoStore);
-                                  Interlocked.Add(ref dbcount, c);
-                                  Interlocked.Decrement(ref dbthreads);
-                              }
-                              //Console.WriteLine("{0} {1} Rows, {2} Pairs\t{3}, {4}", DateTime.Now, dbcount, ret, i, j);
+                              PairBatchBlock.Post(new MediaPair(basemedia.Hashes[i], basemedia.Hashes[j], (sbyte)ham));
                           }
                       }
                   }
               });
-            dbcount += db.StoreMediaPairs(SimilarMedia.ToList());   //余りをDBに入れる
-            Console.WriteLine("{0} {1} Rows affected", DateTime.Now, dbcount);
-            return ret;
+            //余りをDBに入れる
+            PairBatchBlock.Complete();
+            PairStoreBlock.Completion.Wait();
+            return (dbcount, ret);
         }
 
         long UnMask(int block, int blockcount)
@@ -308,7 +298,7 @@ namespace twihash
         }
         
         //ハミング距離を計算する
-        sbyte HammingDistance(ulong a, ulong b)
+        int HammingDistance(ulong a, ulong b)
         {
             //xorしてpopcnt
             ulong value = a ^ b;
@@ -316,7 +306,7 @@ namespace twihash
             //http://stackoverflow.com/questions/6097635/checking-cpu-popcount-from-c-sharp
             ulong result = value - ((value >> 1) & 0x5555555555555555UL);
             result = (result & 0x3333333333333333UL) + ((result >> 2) & 0x3333333333333333UL);
-            return (sbyte)(unchecked(((result + (result >> 4)) & 0xF0F0F0F0F0F0F0FUL) * 0x101010101010101UL) >> 56);
+            return (int)(unchecked(((result + (result >> 4)) & 0xF0F0F0F0F0F0F0FUL) * 0x101010101010101UL) >> 56);
         }
     }
 }

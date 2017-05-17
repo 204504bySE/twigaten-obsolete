@@ -12,9 +12,9 @@ namespace twidown
 {
     class RestManager
     {
-        Config config = Config.Instance;
-        DBHandler db = DBHandler.Instance;
-        StreamerLocker Locker = StreamerLocker.Instance;
+        static readonly Config config = Config.Instance;
+        static readonly DBHandler db = DBHandler.Instance;
+        static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
         public RestManager()
         {

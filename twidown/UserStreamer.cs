@@ -8,24 +8,27 @@ using System.Reactive.Linq;
 using CoreTweet;
 using CoreTweet.Streaming;
 using twitenlib;
+using System.Threading;
 
 namespace twidown
 {
-    class UserStreamer
+    class UserStreamer : IDisposable
     {
         // 各TokenのUserstreamを受信したり仕分けたりする
 
         public Exception e { get; private set; }
         public Tokens Token { get; }
         public bool NeedRestMyTweet { get; set; }   //次のconnect時にRESTでツイートを取得する
-        Config config = Config.Instance;
-        Counter counter = Counter.Instance;
-        DBHandler db = DBHandler.Instance;
-        IDisposable StreamDisposable = null;
+        IDisposable StreamSubscriber;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
-        TweetTimeList TweetTime = new TweetTimeList();
+        readonly TweetTimeList TweetTime = new TweetTimeList();
         bool isAttemptingConnect = false;
-        StreamerLocker Locker = StreamerLocker.Instance;
+
+        //Singleton
+        static readonly Config config = Config.Instance;
+        static readonly Counter counter = Counter.Instance;
+        static readonly DBHandler db = DBHandler.Instance;
+        static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
         public UserStreamer(Tokens t)
         {
@@ -34,17 +37,25 @@ namespace twidown
             Token.ConnectionOptions.UseCompression = true;
             Token.ConnectionOptions.UseCompressionOnStreaming = true;
         }
+
+        public void Dispose()
+        {
+            StreamSubscriber?.Dispose();
+            StreamSubscriber = null;
+            e = null;
+        }
+
         ~UserStreamer()
         {
-            if (StreamDisposable != null) { StreamDisposable.Dispose(); }
+            Dispose();
         }
 
         //最近受信したツイートの時刻を一定数保持する
         //Userstreamの場合は実際に受信した時刻を使う
         class TweetTimeList
         {
-            SortedSet<DateTimeOffset> TweetTime = new SortedSet<DateTimeOffset>();
-            Config config = Config.Instance;
+            readonly SortedSet<DateTimeOffset> TweetTime = new SortedSet<DateTimeOffset>();
+            static readonly Config config = Config.Instance;
             public void Add(DateTimeOffset Time)
             {
                 lock (TweetTime)
@@ -70,7 +81,7 @@ namespace twidown
             }
         }
 
-        DateTimeOffset? PostponedTime = null;    //ロックされたアカウントが再試行する時刻
+        DateTimeOffset? PostponedTime;    //ロックされたアカウントが再試行する時刻
         public void PostponeRetry()
         {
             PostponedTime = DateTimeOffset.Now.AddSeconds(config.crawl.LockedTokenPostpone);
@@ -98,7 +109,7 @@ namespace twidown
                 { return NeedRetryResult.Verify; }
                 else { return NeedRetryResult.JustNeeded; }
             }
-            else if (!isAttemptingConnect && StreamDisposable == null) { return NeedRetryResult.JustNeeded; }
+            else if (!isAttemptingConnect && StreamSubscriber == null) { return NeedRetryResult.JustNeeded; }
             else if ((DateTimeOffset.Now - LastStreamingMessageTime).TotalSeconds
                 > Math.Max(config.crawl.UserStreamTimeout, (LastStreamingMessageTime - TweetTime.Min).TotalSeconds))
             {
@@ -116,7 +127,7 @@ namespace twidown
             try
             {
                 isAttemptingConnect = true;
-                if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
+                 StreamSubscriber?.Dispose(); StreamSubscriber = null; 
                 //Console.WriteLine("{0} {1}: Verifying token", DateTime.Now, Token.UserId);
                 db.StoreUserProfile(Token.Account.VerifyCredentials());
                 Console.WriteLine("{0} {1}: Token verification success", DateTime.Now, Token.UserId);
@@ -145,11 +156,11 @@ namespace twidown
 
         public void RecieveStream()
         {
+            StreamSubscriber?.Dispose(); StreamSubscriber = null;
             e = null;
-            if (StreamDisposable != null) { StreamDisposable.Dispose(); StreamDisposable = null; }
             LastStreamingMessageTime = DateTimeOffset.Now;
             TweetTime.Add(LastStreamingMessageTime);
-            StreamDisposable = Token.Streaming.UserAsObservable().Subscribe(
+            StreamSubscriber = Token.Streaming.UserAsObservable().Subscribe(
                 (StreamingMessage m) =>
                 {
                     DateTimeOffset now = DateTimeOffset.Now;
@@ -175,7 +186,7 @@ namespace twidown
             try
             {
                 CoreTweet.Core.ListedResponse<Status> Timeline;
-                Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.extended);
+                Timeline = Token.Statuses.HomeTimeline(count => 200, tweet_mode => TweetMode.Extended);
 
                 //Console.WriteLine("{0} {1}: Handling {2} RESTed timeline", DateTime.Now, Token.UserId, Timeline.Count);
                 DateTimeOffset[] RestTweetTime = new DateTimeOffset[Timeline.Count];
@@ -222,7 +233,7 @@ namespace twidown
             //RESTで取得してツイートをDBに突っ込む
             try
             {
-                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.extended);
+                CoreTweet.Core.ListedResponse<Status> Tweets = Token.Statuses.UserTimeline(user_id => Token.UserId, count => 200, tweet_mode => TweetMode.Extended);
 
                 //Console.WriteLine("{0} {1}: Handling {2} RESTed tweets", DateTime.Now, Token.UserId, Tweets.Count);
                 foreach (Status s in Tweets)
@@ -355,7 +366,7 @@ namespace twidown
             try
             {
                 if (db.ExistTweet(StatusId)) { return 0; }
-                var res = Token.Statuses.Lookup(id => StatusId, include_entities => true, tweet_mode => TweetMode.extended);
+                var res = Token.Statuses.Lookup(id => StatusId, include_entities => true, tweet_mode => TweetMode.Extended);
                 if (res.RateLimit.Remaining < 1) { OneTweetReset = res.RateLimit.Reset.AddMinutes(1); }  //とりあえず1分延長奴
                 return HandleTweet(res.First(), true, true);
             }

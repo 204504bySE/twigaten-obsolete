@@ -13,11 +13,12 @@ namespace twidown
     class UserStreamerManager
     //UserStreamerの追加, 保持, 削除をこれで行う
     {
-        readonly Config config = Config.Instance;
         ConcurrentDictionary<long, UserStreamer> Streamers = new ConcurrentDictionary<long, UserStreamer>();   //longはUserID
         HashSet<long> RevokeRetryUserID = new HashSet<long>();
-        DBHandler db = DBHandler.Instance;
-        StreamerLocker Locker = StreamerLocker.Instance;
+
+        static readonly Config config = Config.Instance;
+        static readonly DBHandler db = DBHandler.Instance;
+        static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
         public UserStreamerManager() { AddAll(); }
 
@@ -103,7 +104,7 @@ namespace twidown
                                 {
                                     db.DeleteToken(s.Key);
                                     RevokeRetryUserID.Remove(s.Key);
-                                    UserStreamer_Finish(s.Value);
+                                    RemoveStreamer(s.Value);
                                 }
                                 else { RevokeRetryUserID.Add(s.Key); }
                             }
@@ -125,12 +126,13 @@ namespace twidown
             return ActiveStreamers;
         }
 
-        void UserStreamer_Finish(UserStreamer set)
+        void RemoveStreamer(UserStreamer Streamer)
         //Revokeされた後の処理
         {
-            Streamers.TryRemove(set.Token.UserId, out UserStreamer z);  //つまり死んだStreamerは除外される
+            Streamer.Dispose();
+            Streamers.TryRemove(Streamer.Token.UserId, out UserStreamer z);  //つまり死んだStreamerは除外される
             setMaxConnections(true);
-            Console.WriteLine("{0} {1}: Streamer removed", DateTime.Now, set.Token.UserId);
+            Console.WriteLine("{0} {1}: Streamer removed", DateTime.Now, Streamer.Token.UserId);
         }
 
         private void setMaxConnections(bool Force = false, int basecount = 0)

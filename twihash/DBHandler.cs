@@ -19,47 +19,39 @@ namespace twihash
         const string StoreMediaPairsHead = @"INSERT IGNORE INTO dcthashpair VALUES";
         readonly string StoreMediaPairsStrFull;
         public const int StoreMediaPairsUnit = 1000;
-        public int StoreMediaPairs(List<MediaPair> StorePairs)
+        public int StoreMediaPairs(MediaPair[] StorePairs)
         //類似画像のペアをDBに保存
         {
-            int ret = 0;
-            MediaPair[] SortPairs;
-            MySqlCommand Cmd;
-            if (StorePairs.Count >= StoreMediaPairsUnit)
+            if (StorePairs.Length > StoreMediaPairsUnit) { throw new ArgumentOutOfRangeException(); }
+            else if (StorePairs.Length == 0) { return 0; }
+            else if (StorePairs.Length == StoreMediaPairsUnit)
             {
-                Cmd = new MySqlCommand(StoreMediaPairsStrFull);
-                for (int i = 0; i < StoreMediaPairsUnit; i++)
+                using (MySqlCommand Cmd = new MySqlCommand(StoreMediaPairsStrFull))
                 {
-                    string numstr = i.ToString();
-                    Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
-                    Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
-                    Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
-                }
-                SortPairs = new MediaPair[StoreMediaPairsUnit];
-                for (int i = 0; i < StorePairs.Count / StoreMediaPairsUnit; i++)
-                {
-                    StorePairs.CopyTo(i * StoreMediaPairsUnit, SortPairs, 0, StoreMediaPairsUnit);
-                    ret += StoreMediaPairsInner(Cmd, SortPairs);
+                    for (int i = 0; i < StoreMediaPairsUnit; i++)
+                    {
+                        string numstr = i.ToString();
+                        Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
+                        Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
+                        Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
+                    }
+                    return StoreMediaPairsInner(Cmd, StorePairs);
                 }
             }
-            //余りを処理
-            int LastCount = StorePairs.Count % StoreMediaPairsUnit;
-            if (LastCount > 0)
+            else
             {
-                int LastOffset = StorePairs.Count / StoreMediaPairsUnit * StoreMediaPairsUnit;
-                Cmd = new MySqlCommand(BulkCmdStr(LastCount, 3, StoreMediaPairsHead));
-                for (int i = 0; i < LastCount; i++)
-                {
-                    string numstr = i.ToString();
-                    Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
-                    Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
-                    Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
+                using (MySqlCommand Cmd = new MySqlCommand(BulkCmdStr(StorePairs.Length, 3, StoreMediaPairsHead)))
+                { 
+                    for (int i = 0; i < StorePairs.Length; i++)
+                    {
+                        string numstr = i.ToString();
+                        Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
+                        Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
+                        Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
+                    }
+                    return StoreMediaPairsInner(Cmd, StorePairs);
                 }
-                SortPairs = new MediaPair[LastCount];
-                StorePairs.CopyTo(LastOffset, SortPairs, 0, LastCount);
-                ret += StoreMediaPairsInner(Cmd, SortPairs);
             }
-            return ret;
         }
 
         MediaPair.OrderPri OrderPri = new MediaPair.OrderPri();
@@ -76,10 +68,10 @@ namespace twihash
             }
             int ret = ExecuteNonQuery(Cmd);
 
-            Array.Sort(StorePairs, OrderSub);
+            Array.Sort(StorePairs, OrderSub);   //deadlock防止
             for (int i = 0; i < StorePairs.Length; i++)
             {
-                string numstr = i.ToString();   //deadlock防止
+                string numstr = i.ToString(); 
                 Cmd.Parameters["@a" + numstr].Value = StorePairs[i].media1;   //↑とは逆
                 Cmd.Parameters["@b" + numstr].Value = StorePairs[i].media0;
                 Cmd.Parameters["@c" + numstr].Value = StorePairs[i].hammingdistance;
@@ -112,16 +104,16 @@ GROUP BY dcthash;"))
                         Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
                     }
                     if (Table == null) { throw new Exception("Hash load failed"); }
-                    int retIndex;
+                    int Cursor;
                     lock (ret)
                     {
-                        retIndex = ret.Count;
+                        Cursor = ret.Count;
                         ret.Count += Table.Rows.Count;
                     }
                     foreach (DataRow row in Table.Rows)
                     {
-                        ret.Hashes[retIndex] = row.Field<long>(0);
-                        retIndex++;
+                        ret.Hashes[Cursor] = row.Field<long>(0);
+                        Cursor++;
                     }
                 });
                 config.hash.NewLastHashCount(ret.Count);
