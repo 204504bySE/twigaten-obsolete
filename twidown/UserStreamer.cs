@@ -5,10 +5,11 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Net;
 using System.Reactive.Linq;
+using System.Reactive.Concurrency;
 using CoreTweet;
 using CoreTweet.Streaming;
 using twitenlib;
-using System.Threading;
+using System.Threading.Tasks.Dataflow;
 
 namespace twidown
 {
@@ -105,6 +106,7 @@ namespace twidown
             if (isPostponed()) { return NeedRetryResult.None; }
             else if (e != null)
             {
+                StreamSubscriber?.Dispose(); StreamSubscriber = null;
                 if ((e is TwitterException ex) && ex.Status == HttpStatusCode.Unauthorized)
                 { return NeedRetryResult.Verify; }
                 else { return NeedRetryResult.JustNeeded; }
@@ -160,7 +162,9 @@ namespace twidown
             e = null;
             LastStreamingMessageTime = DateTimeOffset.Now;
             TweetTime.Add(LastStreamingMessageTime);
-            StreamSubscriber = Token.Streaming.UserAsObservable().Subscribe(
+            StreamSubscriber = Token.Streaming.UserAsObservable()
+                .ObserveOn(CurrentThreadScheduler.Instance)
+                .Subscribe(
                 (StreamingMessage m) =>
                 {
                     DateTimeOffset now = DateTimeOffset.Now;
@@ -343,7 +347,7 @@ namespace twidown
             if (x.RetweetedStatus != null) { ret += HandleTweet(x.RetweetedStatus, update); }
             if (Locker.LockUser(x.User.Id))
             {
-                if (update) { DownloadStoreProfileImage(x).Wait(); }
+                if (update) { db.StoreUser(x, false); DownloadStoreProfileImage(x); }
                 else { db.StoreUser(x, false, false); }
             }
             int ret2;
@@ -374,7 +378,7 @@ namespace twidown
             finally { Locker.UnlockTweet(StatusId); }
         }
 
-        async Task DownloadStoreProfileImage(Status x)
+        static void DownloadStoreProfileImage(Status x)
         {
             //アイコンが更新または未保存ならダウンロードする
             //RTは自動でやらない
@@ -392,18 +396,29 @@ namespace twidown
 
             bool DownloadOK = true; //卵アイコンのダウンロード不要でもtrue
             if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
-            { 
+            {
+                bool RetryFlag = false;
+                RetryLabel:
                 try
                 {
                     HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
                     req.Referer = StatusUrl(x);
-                    using (WebResponse res = await req.GetResponseAsync())
+                    if (config.crawl.PreferIPv6) { req.ServicePoint.BindIPEndPointDelegate = PreferIPv6; }
+                    using (WebResponse res = req.GetResponse())
                     using (FileStream file = File.Create(LocalPath))
                     {
-                        await res.GetResponseStream().CopyToAsync(file);
+                        res.GetResponseStream().CopyTo(file);
                     }
                 }
-                catch { DownloadOK = false; }
+                catch (Exception ex)
+                {   //404等じゃなければ1回だけリトライする
+                    if(!RetryFlag && !(ex is WebException we && we.Status == WebExceptionStatus.ProtocolError))
+                    { 
+                        RetryFlag = true;
+                        goto RetryLabel;
+                    }
+                    else { DownloadOK = false; }
+                }
             }
             if (DownloadOK)
             {
@@ -414,23 +429,13 @@ namespace twidown
                 db.StoreUser(x, true);
             }
             else { db.StoreUser(x, false); }
-
         }
 
-        async Task DownloadStoreMedia(Status x)
+        static ActionBlock<Status> DownloadStoreMediaBlock = new ActionBlock<Status>((Status x) =>
         {
-            if (x.RetweetedStatus != null)
-            {   //そもそもRTに対してこれを呼ぶべきではない
-                await DownloadStoreMedia(x.RetweetedStatus);
-                return;
-            }
             foreach (MediaEntity m in x.ExtendedEntities.Media)
             {
                 counter.MediaTotal.Increment();
-                if (m.SourceStatusId != null && m.SourceStatusId != x.Id)
-                {
-                    DownloadOneTweet((long)m.SourceStatusId);
-                }
                 //画像の情報はあるのにsource_tweet_idがない場合だけここでやる
                 switch (db.ExistMedia_source_tweet_id(m.Id))
                 {
@@ -447,15 +452,18 @@ namespace twidown
                 string LocalPaththumb = config.crawl.PictPaththumb + m.Id.ToString() + Path.GetExtension(MediaUrl);  //m.Urlとm.MediaUrlは違う
                 string uri = MediaUrl + (MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
 
+                bool RetryFlag = false;
+                RetryLabel:
                 try
                 {
                     HttpWebRequest req = WebRequest.Create(uri) as HttpWebRequest;
                     req.Referer = StatusUrl(x);
+                    if (config.crawl.PreferIPv6) { req.ServicePoint.BindIPEndPointDelegate = PreferIPv6; }
 
-                    using (WebResponse res = await req.GetResponseAsync())
+                    using (WebResponse res = req.GetResponse())
                     using (MemoryStream mem = new MemoryStream((int)res.ContentLength))
                     {
-                        await res.GetResponseStream().CopyToAsync(mem);
+                        res.GetResponseStream().CopyTo(mem);
                         res.Close();
                         long? dcthash = PictHash.DCTHash(mem);
                         if (dcthash != null && (db.StoreMedia(m, x, (long)dcthash)) > 0)
@@ -463,13 +471,20 @@ namespace twidown
                             using (FileStream file = File.Create(LocalPaththumb))
                             {
                                 mem.Position = 0;   //こいつは必要だった
-                                await mem.CopyToAsync(file);
+                                mem.CopyTo(file);
                             }
                             counter.MediaSuccess.Increment();
                         }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {   //404等じゃなければ1回だけリトライする
+                    if (!RetryFlag && !(ex is WebException && (ex as WebException).Status == WebExceptionStatus.ProtocolError))
+                    {
+                        RetryFlag = true;
+                        goto RetryLabel;
+                    }
+                }
                 counter.MediaToStore.Increment();
                 //URL転載元もペアを記録する
                 if (m.SourceStatusId != null && m.SourceStatusId != x.Id)
@@ -477,12 +492,35 @@ namespace twidown
                     db.Storetweet_media(m.SourceStatusId.Value, m.Id);
                 }
             }
+        }, new ExecutionDataflowBlockOptions()
+        {
+            MaxDegreeOfParallelism = config.crawl.MediaDownloadThreads,
+            MaxMessagesPerTask = 1
+        });
+
+        static void DownloadStoreMedia(Status x)
+        {
+            if (x.RetweetedStatus != null)
+            {   //そもそもRTに対してこれを呼ぶべきではない
+                DownloadStoreMedia(x.RetweetedStatus);
+                return;
+            }
+            DownloadStoreMediaBlock.Post(x);
         }
 
         //ツイートのURLを作る
-        string StatusUrl(Status x)
+        static string StatusUrl(Status x)
         {
             return "https://twitter.com/" + x.User.ScreenName + "/status/" + x.Id;
         }
+
+        //IPv6アドレスがあればそっちにつなぐ
+        //  https://stackoverflow.com/questions/3345387/how-to-change-originating-ip-in-httpwebrequest
+        static BindIPEndPoint PreferIPv6 = (servicePount, remoteEndPoint, retryCount) =>
+        {
+            if (remoteEndPoint.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+            { return new IPEndPoint(IPAddress.IPv6Any, 0); }
+            else { return new IPEndPoint(IPAddress.Any, 0); }
+        };
     }
 }

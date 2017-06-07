@@ -93,17 +93,19 @@ namespace twihash
                     (long i) =>
                 {
                     DataTable Table;
-                    using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
+                    do
+                    {
+                        using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
 FROM media
 WHERE dcthash BETWEEN @begin AND @end
 GROUP BY dcthash;"))
-                    {
-                        Cmd.Parameters.AddWithValue("@lastupdate", config.hash.LastUpdate);
-                        Cmd.Parameters.AddWithValue("@begin", i << HashUnitBits);
-                        Cmd.Parameters.AddWithValue("@end", unchecked(((i + 1) << HashUnitBits) - 1));
-                        Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
-                    }
-                    if (Table == null) { throw new Exception("Hash load failed"); }
+                        {
+                            Cmd.Parameters.AddWithValue("@lastupdate", config.hash.LastUpdate);
+                            Cmd.Parameters.AddWithValue("@begin", i << HashUnitBits);
+                            Cmd.Parameters.AddWithValue("@end", unchecked(((i + 1) << HashUnitBits) - 1));
+                            Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
+                        }
+                    } while (Table == null);    //大変安易な対応
                     int Cursor;
                     lock (ret)
                     {
@@ -119,7 +121,7 @@ GROUP BY dcthash;"))
                 config.hash.NewLastHashCount(ret.Count);
                 return ret;
             }
-            catch { return null; }
+            catch(Exception e) { Console.WriteLine(e); return null; }
         }
 
         //dcthashpairに追加する必要があるハッシュを取得するやつ
@@ -133,16 +135,18 @@ GROUP BY dcthash;"))
                 (long i) => 
                 {
                     DataTable Table;
-                    using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
+                    do
+                    {
+                        using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
 FROM media_downloaded_at
 NATURAL JOIN media
 WHERE downloaded_at BETWEEN @begin AND @end;"))
-                    {
-                        Cmd.Parameters.AddWithValue("@begin", config.hash.LastUpdate + QueryRangeSeconds * i);
-                        Cmd.Parameters.AddWithValue("@end", config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1);
-                        Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
-                    }
-                    if (Table == null) { throw new Exception("Hash load failed"); }
+                        {
+                            Cmd.Parameters.AddWithValue("@begin", config.hash.LastUpdate + QueryRangeSeconds * i);
+                            Cmd.Parameters.AddWithValue("@end", config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1);
+                            Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
+                        }
+                    } while (Table == null);    //大変安易な対応
                     lock (ret.NewHashes)
                     {
                         foreach (DataRow row in Table.Rows)

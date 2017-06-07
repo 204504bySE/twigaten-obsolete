@@ -29,7 +29,7 @@
                         <li class="dropdown">
                             <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">@@@Session["ScreenName"].ToString()<span class="caret"></span></a>
                             <ul class="dropdown-menu" role="menu">
-                                <li>@Html.ActionLink(Locale.Menu_MyTweet, "UserTweet", "SimilarMedia", new{ UserID = Session["LoginUserID"] }, null)</li>
+                                <li>@Html.ActionLink(Locale.Menu_MyTweet, "UserTweet", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
                                 <li>@Html.ActionLink(Locale.Menu_Timeline, "Timeline", "SimilarMedia", new { UserID = Session["LoginUserID"] }, null)</li>
                                 <li class="divider"></li>
                                 <li>@Html.ActionLink(Locale.Menu_Logout, "Logout", "Auth")</li>
@@ -67,6 +67,13 @@
         @RenderBody()
         <hr />
         <footer>
+            @if (IPAddress.TryParse(HttpContext.Current.Request.UserHostAddress, out IPAddress Address))
+            {
+                if (Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                { <p><span class="label label-info">Connected via IPv6</span></p> }
+                else if (Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                { <p><span class="label label-warning">Connected via IPv4</span></p>  }
+            }
             <p class="text-muted"><a class="text-muted" href="/">twigaten.204504byse.info</a> by つ(*ﾟーﾟ) ◆204504bySE</p>
         </footer>
     </div>

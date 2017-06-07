@@ -156,15 +156,16 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
             List<TweetData._user> ret = new List<TweetData._user>(Table.Rows.Count);
             foreach (DataRow row in Table.Rows)
             {
-                TweetData._user rettmp = new TweetData._user();
-                rettmp.user_id = row.Field<long>(0);
-                rettmp.name = row.Field<string>(1);
-                rettmp.screen_name = row.Field<string>(2);
-                rettmp.isprotected = row.Field<bool?>(3) ?? row.Field<sbyte>(3) != 0;
-                rettmp.profile_image_url = row.Field<string>(4);
-                rettmp.location = row.Field<string>(7);
-                rettmp.description = LocalText.TextToLink(row.Field<string>(8));    //htmlにしておく
-
+                TweetData._user rettmp = new TweetData._user()
+                {
+                    user_id = row.Field<long>(0),
+                    name = row.Field<string>(1),
+                    screen_name = row.Field<string>(2),
+                    isprotected = row.Field<bool?>(3) ?? row.Field<sbyte>(3) != 0,
+                    profile_image_url = row.Field<string>(4),
+                    location = row.Field<string>(7),
+                    description = LocalText.TextToLink(row.Field<string>(8))    //htmlにしておく
+                };
                 rettmp.profile_image_url = LocalText.ProfileImageUrl(rettmp, !row.IsNull(5), row.Field<bool>(6));
                 ret.Add(rettmp);
             }
@@ -315,10 +316,11 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
             int QueryTick = Environment.TickCount;
 
             CancellationTokenSource CancelToken = new CancellationTokenSource();
-            ExecutionDataflowBlockOptions op = new ExecutionDataflowBlockOptions();
-            op.CancellationToken = CancelToken.Token;
-            op.MaxDegreeOfParallelism = ThreadCount;
-
+            ExecutionDataflowBlockOptions op = new ExecutionDataflowBlockOptions()
+            {
+                CancellationToken = CancelToken.Token,
+                MaxDegreeOfParallelism = ThreadCount
+            };
             string QueryText;
             if (GetRetweet)
             {

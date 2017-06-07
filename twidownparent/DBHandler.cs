@@ -108,16 +108,20 @@ ORDER BY c LIMIT 1;"))
             List<MySqlCommand> cmdList = new List<MySqlCommand>();
             ChildProcessHandler ch = new ChildProcessHandler();
             int DeadCount = 0;
-            foreach (int pid in Selectpid())
+            int[] pids = Selectpid();
+            if(pids == null) { return 0; }
+            foreach (int pid in pids)
             {
                 if (!ch.isAlive(pid))
                 {
                     DeadCount++;
                     Console.WriteLine("{0} Dead PID: {1}", DateTime.Now, pid);
-                    List<MySqlCommand> cmd = new List<MySqlCommand>();
-                    cmd.Add(new MySqlCommand(@"DELETE FROM crawlprocess WHERE pid = @pid;"));
-                    cmd.Add(new MySqlCommand(@"DELETE FROM tweetlock WHERE pid = @pid;"));
-                    cmd.Add(new MySqlCommand(@"DELETE FROM pid WHERE pid = @pid;"));
+                    List<MySqlCommand> cmd = new List<MySqlCommand>
+                    {
+                        new MySqlCommand(@"DELETE FROM crawlprocess WHERE pid = @pid;"),
+                        new MySqlCommand(@"DELETE FROM tweetlock WHERE pid = @pid;"),
+                        new MySqlCommand(@"DELETE FROM pid WHERE pid = @pid;")
+                    };
                     foreach (MySqlCommand c in cmd)
                     {
                         c.Parameters.AddWithValue("@pid", pid);
@@ -135,12 +139,14 @@ ORDER BY c LIMIT 1;"))
             return ExecuteNonQuery(new MySqlCommand(@"DELETE FROM tweetlock WHERE pid NOT IN(SELECT pid FROM pid);"));
         }
 
-        public int initTruncate()
+        public int InitTruncate()
         {
-            List<MySqlCommand> cmd = new List<MySqlCommand>();
-            cmd.Add(new MySqlCommand(@"TRUNCATE TABLE crawlprocess;"));
-            cmd.Add(new MySqlCommand(@"TRUNCATE TABLE tweetlock;"));
-            cmd.Add(new MySqlCommand(@"TRUNCATE TABLE pid;"));
+            List<MySqlCommand> cmd = new List<MySqlCommand>
+            {
+                new MySqlCommand(@"TRUNCATE TABLE crawlprocess;"),
+                new MySqlCommand(@"TRUNCATE TABLE tweetlock;"),
+                new MySqlCommand(@"TRUNCATE TABLE pid;")
+            };
             return ExecuteNonQuery(cmd);
         }
     }

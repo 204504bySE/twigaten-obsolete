@@ -23,7 +23,7 @@ namespace twihash
             Console.WriteLine("{0} Loading hash", DateTime.Now);
             sw.Restart();
             MediaHashArray AllMediaHash = db.AllMediaHash();
-            if(AllMediaHash == null) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
+            if(AllMediaHash == null) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Console.ReadKey(); Environment.Exit(1); }
             sw.Stop();
             Console.WriteLine("{0} {1} Hash loaded in {2} ms", DateTime.Now, AllMediaHash.Count, sw.ElapsedMilliseconds);
             Console.WriteLine("{0} {1} New hash", DateTime.Now, AllMediaHash.NewHashes.Count);
@@ -50,7 +50,6 @@ namespace twihash
             if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
         public int Count = 0;  //実際に使ってる個数
-        public bool EnableAutoRead = true;
         public bool ForceInsert { get; }
 
         public bool NeedInsert(int Index)
@@ -66,7 +65,7 @@ namespace twihash
                 Thread.CurrentThread.Priority = ThreadPriority.Lowest;
                 while (true)
                 {
-                    for (int i = 0; EnableAutoRead && i < Hashes.Length; i++)
+                    for (int i = 0; i < Hashes.Length; i++)
                     {
                         long a = Hashes[i];
                     }
@@ -231,7 +230,6 @@ namespace twihash
 
         void QuickSortAll(long SortMask, MediaHashArray SortList)
         {
-            SortList.EnableAutoRead = false;
             var QuickSortBlock = new TransformBlock<(int Begin, int End), (int Begin1, int End1, int Begin2, int End2)?>
                 (((int Begin, int End) SortRange) => {
                     return QuickSortUnit(SortRange, SortMask, SortList);
@@ -250,7 +248,6 @@ namespace twihash
                 }
                 else { ProcessingCount--; } 
             } while (ProcessingCount > 0);
-            SortList.EnableAutoRead = true;
         }
 
         (int Begin1, int End1, int Begin2, int End2)? QuickSortUnit((int Begin, int End) SortRange, long SortMask, MediaHashArray SortList)

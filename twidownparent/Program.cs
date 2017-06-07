@@ -22,7 +22,7 @@ namespace twidownparent
 
             if (config.crawlparent.InitTruncate)
             {
-                db.initTruncate();
+                db.InitTruncate();
                 users = db.SelectNewToken();
                 for (int i = 0; i <= users.Length / config.crawlparent.AccountLimit; i++)
                 {

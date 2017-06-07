@@ -7,20 +7,24 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using CoreTweet;
 using twitenlib;
+using System.Threading.Tasks.Dataflow;
 
 namespace twidown
 {
     class UserStreamerManager
     //UserStreamerの追加, 保持, 削除をこれで行う
     {
-        ConcurrentDictionary<long, UserStreamer> Streamers = new ConcurrentDictionary<long, UserStreamer>();   //longはUserID
-        HashSet<long> RevokeRetryUserID = new HashSet<long>();
+        readonly ConcurrentDictionary<long, UserStreamer> Streamers = new ConcurrentDictionary<long, UserStreamer>();   //longはUserID
+        readonly HashSet<long> RevokeRetryUserID = new HashSet<long>();
 
         static readonly Config config = Config.Instance;
         static readonly DBHandler db = DBHandler.Instance;
         static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
-        public UserStreamerManager() { AddAll(); }
+        public UserStreamerManager()
+        {
+            AddAll();
+        }
 
         public void AddAll()
         {
@@ -59,7 +63,55 @@ namespace twidown
         }
 
         public int Count { get { return Streamers.Count; } }
-        
+
+        readonly ConcurrentDictionary<long, byte> ConnectWaiting = new ConcurrentDictionary<long, byte>();
+        ActionBlock<(long, UserStreamer, UserStreamer.NeedRetryResult)> ConnectBlock;
+        void InitConnectBlock()
+        {
+            ConnectBlock = new ActionBlock<(long Id, UserStreamer Streamer, UserStreamer.NeedRetryResult NeedRetry)>(
+            (s) =>
+            {
+                //必要なときだけVerifyCredentials()する
+                switch (s.NeedRetry == UserStreamer.NeedRetryResult.Verify
+                    ? s.Streamer.VerifyCredentials() : UserStreamer.TokenStatus.Success)
+                {
+                    case UserStreamer.TokenStatus.Success:
+                        s.Streamer.RecieveStream();
+                        s.Streamer.RecieveRestTimeline();
+                        if (s.Streamer.NeedRestMyTweet)
+                        {
+                            s.Streamer.NeedRestMyTweet = false;
+                            s.Streamer.RestMyTweet();
+                            db.StoreRestDonetoken(s.Id);
+                        }
+                        else { db.StoreRestNeedtoken(s.Id); }
+                        break;
+                    case UserStreamer.TokenStatus.Locked:
+                        s.Streamer.PostponeRetry();
+                        break;
+                    case UserStreamer.TokenStatus.Revoked:
+                        lock (RevokeRetryUserID)
+                        {
+                            if (RevokeRetryUserID.Contains(s.Id))
+                            {
+                                db.DeleteToken(s.Id);
+                                RevokeRetryUserID.Remove(s.Id);
+                                RemoveStreamer(s.Streamer);
+                            }
+                            else { RevokeRetryUserID.Add(s.Id); }
+                        }
+                        break;
+                    case UserStreamer.TokenStatus.Failure:
+                        break;  //何もしない
+                }
+                ConnectWaiting.TryRemove(s.Id, out byte gomi);
+            }, new ExecutionDataflowBlockOptions()
+            {
+                MaxDegreeOfParallelism = config.crawl.ReconnectThreads,
+                MaxMessagesPerTask = 1
+            });
+        }
+
         //これを定期的に呼んで再接続やFriendの取得をやらせる
         //StreamerLockerのロック解除もここでやる
         public int ConnectStreamers()
@@ -71,58 +123,30 @@ namespace twidown
             Counter.Instance.PrintReset();
 
             TickCount Tick = new TickCount(0);
-            SemaphoreSlim UnlockSemaphore = new SemaphoreSlim(1);
-            Parallel.ForEach (Streamers,
-                new ParallelOptions { MaxDegreeOfParallelism = config.crawl.ReconnectThreads },
-                (KeyValuePair<long, UserStreamer> s) =>
+            foreach (KeyValuePair<long, UserStreamer> s in Streamers.ToArray() )  //ここでスナップショットを作る
             {
                 UserStreamer.NeedRetryResult NeedRetry = s.Value.NeedRetry();
                 if (NeedRetry != UserStreamer.NeedRetryResult.None)
                 {
-                    //必要なときだけVerifyCredentials()する
-                    switch (NeedRetry == UserStreamer.NeedRetryResult.Verify
-                        ? s.Value.VerifyCredentials() : UserStreamer.TokenStatus.Success)
+                    if (ConnectWaiting.TryAdd(s.Key, 0))
                     {
-                        case UserStreamer.TokenStatus.Success:                            
-                            s.Value.RecieveStream();
-                            s.Value.RecieveRestTimeline();
-                            if (s.Value.NeedRestMyTweet)
-                            {
-                                s.Value.NeedRestMyTweet = false;
-                                s.Value.RestMyTweet();
-                                db.StoreRestDonetoken(s.Key);
-                            }
-                            else { db.StoreRestNeedtoken(s.Key); }
-                            break;
-                        case UserStreamer.TokenStatus.Locked:
-                            s.Value.PostponeRetry();
-                            break;
-                        case UserStreamer.TokenStatus.Revoked:
-                            lock (RevokeRetryUserID)
-                            {
-                                if (RevokeRetryUserID.Contains(s.Key))
-                                {
-                                    db.DeleteToken(s.Key);
-                                    RevokeRetryUserID.Remove(s.Key);
-                                    RemoveStreamer(s.Value);
-                                }
-                                else { RevokeRetryUserID.Add(s.Key); }
-                            }
-                            break;
-                        case UserStreamer.TokenStatus.Failure:
-                            break;  //何もしない
+                        if(ConnectBlock == null) { InitConnectBlock(); }
+                        ConnectBlock.Post((s.Key, s.Value, NeedRetry));
                     }
                 }
                 else { Interlocked.Increment(ref ActiveStreamers); }
-
-                if (Tick.Elasped >= 60000 && UnlockSemaphore.Wait(0))
+                if (Tick.Elasped >= 60000)
                 {
                     Tick.Update();
                     Locker.ActualUnlockAll();
                     Counter.Instance.PrintReset();
-                    UnlockSemaphore.Release();
                 }
-            });
+            }
+            if (ConnectBlock != null)
+            {
+                if (ConnectBlock.InputCount > 0) { Console.WriteLine("{0} App: {1} Accounts waiting connect", DateTime.Now, ConnectBlock.InputCount); }
+                else { ConnectBlock.Complete(); ConnectBlock.Completion.Wait(); ConnectBlock = null; }
+            }
             return ActiveStreamers;
         }
 

@@ -18,9 +18,11 @@ namespace twidownparent
             Config config = Config.Instance;
             try
             {
-                ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.ChildPath);
-                info.WorkingDirectory = Path.GetDirectoryName(config.crawlparent.ChildPath);
-                info.WindowStyle = ProcessWindowStyle.Minimized;
+                ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.ChildPath)
+                {
+                    WorkingDirectory = Path.GetDirectoryName(config.crawlparent.ChildPath),
+                    WindowStyle = ProcessWindowStyle.Minimized
+                };
                 Process retProcess = Process.Start(info);
                 return retProcess.Id;
             }

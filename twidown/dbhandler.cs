@@ -129,7 +129,7 @@ WHERE pid = @pid;"))
             }
         }
 
-        string ExpandUrls(Status x)
+        static string ExpandUrls(Status x)
         {
             string ret;
 
@@ -291,44 +291,53 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             if(DeleteID == null || DeleteID.Length == 0) { return 0; }
             const int BulkUnit = 100;
             const string head = @"DELETE FROM tweet WHERE tweet_id IN";
-            int i, j;
-            string BulkInsertCmdFull = "";
+            int i = 0, j;
             int DeletedCountTotal = 0;
 
             Array.Sort(DeleteID);
 
-            for (i = 0; i < DeleteID.Length / BulkUnit; i++)
+            if (DeleteID.Length >= BulkUnit)
             {
-                if (i == 0) { BulkInsertCmdFull = BulkCmdStrIn(BulkUnit, head); }
-                MySqlCommand cmd = new MySqlCommand(BulkInsertCmdFull);
-                for (j = 0; j < BulkUnit; j++)
+                using (MySqlCommand cmd = new MySqlCommand(BulkCmdStrIn(BulkUnit, head)))
                 {
-                    cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
-                }
-                int DeletedCount = ExecuteNonQuery(cmd);
-                if (DeletedCount >= 0)
-                {
-                    DeletedCountTotal += DeletedCount;
                     for (j = 0; j < BulkUnit; j++)
                     {
-                        Deleted.Add(DeleteID[BulkUnit * i + j]);
+                        cmd.Parameters.Add("@" + j.ToString(), MySqlDbType.Int64);
+                    }                    
+                    for (i = 0; i < DeleteID.Length / BulkUnit; i++)
+                    {
+                        for (j = 0; j < BulkUnit; j++)
+                        {
+                            cmd.Parameters["@" + j.ToString()].Value = DeleteID[BulkUnit * i + j];
+                        }
+                        int DeletedCount = ExecuteNonQuery(cmd);
+                        if (DeletedCount >= 0)
+                        {
+                            DeletedCountTotal += DeletedCount;
+                            for (j = 0; j < BulkUnit; j++)
+                            {
+                                Deleted.Add(DeleteID[BulkUnit * i + j]);
+                            }
+                        }
                     }
                 }
             }
             if (DeleteID.Length % BulkUnit != 0)
             {
-                MySqlCommand cmd = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head));
-                for (j = 0; j < DeleteID.Length % BulkUnit; j++)
+                using (MySqlCommand cmd = new MySqlCommand(BulkCmdStrIn(DeleteID.Length % BulkUnit, head)))
                 {
-                    cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
-                }
-                int DeletedCount = ExecuteNonQuery(cmd);
-                if (DeletedCount >= 0)
-                {
-                    DeletedCountTotal += DeletedCount;
                     for (j = 0; j < DeleteID.Length % BulkUnit; j++)
                     {
-                        Deleted.Add(DeleteID[BulkUnit * i + j]);
+                        cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
+                    }
+                    int DeletedCount = ExecuteNonQuery(cmd);
+                    if (DeletedCount >= 0)
+                    {
+                        DeletedCountTotal += DeletedCount;
+                        for (j = 0; j < DeleteID.Length % BulkUnit; j++)
+                        {
+                            Deleted.Add(DeleteID[BulkUnit * i + j]);
+                        }
                     }
                 }
             }

@@ -111,7 +111,9 @@ namespace twitenlib
             public int MaxDBConnections { get; }
             public int RestTweetThreads { get; }
             public int ReconnectThreads { get; }
+            public int MediaDownloadThreads { get; }
             public int LockedTokenPostpone { get; }
+            public bool PreferIPv6 { get; }
             public _crawl(IniFileHandler ini)
             {
                 PictPathProfileImage = ini.GetValue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image\");
@@ -122,7 +124,9 @@ namespace twitenlib
                 MaxDBConnections = int.Parse(ini.GetValue("crawl", "MaxDBConnections", "10"));
                 RestTweetThreads = int.Parse(ini.GetValue("crawl", "RestTweetThreads", Environment.ProcessorCount.ToString()));
                 ReconnectThreads = int.Parse(ini.GetValue("crawl", "ReconnectThreads", Environment.ProcessorCount.ToString()));
+                MediaDownloadThreads = int.Parse(ini.GetValue("crawl", "MediaDownloadThreads", Environment.ProcessorCount.ToString()));
                 LockedTokenPostpone = int.Parse(ini.GetValue("crawl", "LockedTokenPostpone", "86400"));
+                PreferIPv6 = bool.Parse(ini.GetValue("crawl", "PreferIPv6", "false"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -223,21 +227,23 @@ namespace twitenlib
 
     public class DBHandler
     {
-        protected Config config = Config.Instance;
+        protected static readonly Config config = Config.Instance;
         readonly string ConnectionStr;
         public DBHandler(string user, string pass, string server ="localhost", uint timeout = 20, uint poolsize = 40, uint lifetime = 3600)
         {
             if(lifetime < timeout) { throw new ArgumentException("lifetime < timeout"); }
-            MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder();
-            builder.Server = server;
-            builder.Database = "twiten";
-            builder.UserID = user;
-            builder.Password = pass;
-            builder.MinimumPoolSize = 1;
-            builder.MaximumPoolSize = poolsize;    //デフォルトは100
-            builder.ConnectionLifeTime = lifetime;
-            builder.CharacterSet = "utf8mb4";
-            builder.DefaultCommandTimeout = timeout;    //デフォルトは20(秒
+            MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder()
+            {
+                Server = server,
+                Database = "twiten",
+                UserID = user,
+                Password = pass,
+                MinimumPoolSize = 1,
+                MaximumPoolSize = poolsize,    //デフォルトは100
+                ConnectionLifeTime = lifetime,
+                CharacterSet = "utf8mb4",
+                DefaultCommandTimeout = timeout    //デフォルトは20(秒
+            };
             ConnectionStr = builder.ToString();            
         }
         MySqlConnection NewConnection()
@@ -247,7 +253,7 @@ namespace twitenlib
 
         //"(@a1,@b1),(@a2,@b2)…;" という文字列を出すだけ
         //bulk insertとかこれ使おうな
-        protected string BulkCmdStr(int count, int unit, string head)
+        protected static string BulkCmdStr(int count, int unit, string head)
         {
             if(26 < unit) { throw new ArgumentOutOfRangeException("26 < unit"); }
             StringBuilder BulkCmd = new StringBuilder(head);
@@ -270,7 +276,7 @@ namespace twitenlib
         }
 
         //(@1,@2,@3…);  という文字列
-        protected string BulkCmdStrIn(int count, string head)
+        protected static string BulkCmdStrIn(int count, string head)
         {
             StringBuilder BulkCmd = new StringBuilder(head);
             BulkCmd.Append("(@");
@@ -314,7 +320,7 @@ namespace twitenlib
             //SELECT COUNT() 用
             try
             {
-                long ret;
+                long? ret;
                 using (MySqlConnection conn = NewConnection())
                 {
                     conn.Open();
@@ -322,11 +328,11 @@ namespace twitenlib
                     {
                         cmd.Connection = conn;
                         cmd.Transaction = tran;
-                        ret = (long)cmd.ExecuteScalar();
+                        ret = cmd.ExecuteScalar() as long?;
                         tran.Commit();
                     }
                 }
-                return ret;
+                return ret ?? -1;
             }
             catch { return -1; }
         }
