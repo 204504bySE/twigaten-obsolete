@@ -19,7 +19,6 @@ namespace twidown
 
         static readonly Config config = Config.Instance;
         static readonly DBHandler db = DBHandler.Instance;
-        static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
         public UserStreamerManager()
         {
@@ -119,11 +118,11 @@ namespace twidown
             if (!db.ExistThisPid()) { Environment.Exit(1); }
 
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
-            Locker.ActualUnlockAll();
-            Counter.Instance.PrintReset();
+            UserStreamer.StreamerLocker.Unlock();
+            UserStreamer.Counter.PrintReset();
 
             TickCount Tick = new TickCount(0);
-            foreach (KeyValuePair<long, UserStreamer> s in Streamers.ToArray() )  //ここでスナップショットを作る
+            foreach (KeyValuePair<long, UserStreamer> s in Streamers.ToArray())  //ここでスナップショットを作る
             {
                 UserStreamer.NeedRetryResult NeedRetry = s.Value.NeedRetry();
                 if (NeedRetry != UserStreamer.NeedRetryResult.None)
@@ -138,8 +137,8 @@ namespace twidown
                 if (Tick.Elasped >= 60000)
                 {
                     Tick.Update();
-                    Locker.ActualUnlockAll();
-                    Counter.Instance.PrintReset();
+                    UserStreamer.StreamerLocker.Unlock();
+                    UserStreamer.Counter.PrintReset();
                 }
             }
             if (ConnectBlock != null)

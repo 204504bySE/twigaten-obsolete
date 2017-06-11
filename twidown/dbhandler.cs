@@ -285,14 +285,14 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         //<summary>
         //消されたツイートをDBから消す
         //</summary>
-        public int StoreDelete(long[] DeleteID, out List<long> Deleted)
+        public bool StoreDelete(long[] DeleteID, out int DeletedCountTotal)
         {
-            Deleted = new List<long>(DeleteID.Length);
-            if(DeleteID == null || DeleteID.Length == 0) { return 0; }
+            bool SuccessAll = true;
+            DeletedCountTotal = 0;
+            if (DeleteID == null || DeleteID.Length == 0) { return true; }
             const int BulkUnit = 100;
             const string head = @"DELETE FROM tweet WHERE tweet_id IN";
             int i = 0, j;
-            int DeletedCountTotal = 0;
 
             Array.Sort(DeleteID);
 
@@ -314,11 +314,8 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                         if (DeletedCount >= 0)
                         {
                             DeletedCountTotal += DeletedCount;
-                            for (j = 0; j < BulkUnit; j++)
-                            {
-                                Deleted.Add(DeleteID[BulkUnit * i + j]);
-                            }
                         }
+                        else { SuccessAll = false; }
                     }
                 }
             }
@@ -334,14 +331,11 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                     if (DeletedCount >= 0)
                     {
                         DeletedCountTotal += DeletedCount;
-                        for (j = 0; j < DeleteID.Length % BulkUnit; j++)
-                        {
-                            Deleted.Add(DeleteID[BulkUnit * i + j]);
-                        }
                     }
+                    else { SuccessAll = false; }
                 }
             }
-            return DeletedCountTotal;
+            return SuccessAll;
         }
 
         public int StoreFriends(FriendsMessage x, long UserID)

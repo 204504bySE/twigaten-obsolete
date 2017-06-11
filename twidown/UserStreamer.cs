@@ -10,6 +10,8 @@ using CoreTweet;
 using CoreTweet.Streaming;
 using twitenlib;
 using System.Threading.Tasks.Dataflow;
+using System.Collections.Concurrent;
+using System.Threading;
 
 namespace twidown
 {
@@ -27,9 +29,7 @@ namespace twidown
 
         //Singleton
         static readonly Config config = Config.Instance;
-        static readonly Counter counter = Counter.Instance;
         static readonly DBHandler db = DBHandler.Instance;
-        static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
         public UserStreamer(Tokens t)
         {
@@ -291,7 +291,7 @@ namespace twidown
                     HandleTweet((x as StatusMessage).Status);
                     break;
                 case MessageType.DeleteStatus:
-                    Locker.LockDelete((x as DeleteMessage).Id);    //ここでは削除しないで後でLocker側で消す
+                    StaticMethods.DeleteTweet((x as DeleteMessage).Id);
                     break;
                 case MessageType.Friends:
                     //UserStream接続時に届く(10000フォロー超だと届かない)
@@ -341,23 +341,23 @@ namespace twidown
         {
             //画像なしツイートは捨てる
             if ((x.ExtendedEntities ?? x.Entities).Media == null) { return 0; }
-            if (!locked && !Locker.LockTweet(x.Id)) { return 0; }
+            if (!locked && !StreamerLocker.LockTweet(x.Id)) { return 0; }
             int ret = 0;
             //RTを先にやる(キー制約)
             if (x.RetweetedStatus != null) { ret += HandleTweet(x.RetweetedStatus, update); }
-            if (Locker.LockUser(x.User.Id))
+            if (StreamerLocker.LockUser(x.User.Id))
             {
-                if (update) { db.StoreUser(x, false); DownloadStoreProfileImage(x); }
+                if (update) { db.StoreUser(x, false); StaticMethods.DownloadStoreProfileImage(x); }
                 else { db.StoreUser(x, false, false); }
             }
             int ret2;
-            counter.TweetToStore.Increment();
+            Counter.TweetToStore.Increment();
             if ((ret2 = db.StoreTweet(x, update)) > 0)
             {
-                counter.TweetStored.Increment();
-                if (x.RetweetedStatus == null) { DownloadStoreMedia(x); }
+                Counter.TweetStored.Increment();
+                if (x.RetweetedStatus == null) { StaticMethods.DownloadStoreMedia(x); }
             }
-            if (!locked) { Locker.UnlockTweet(x.Id); }
+            if (!locked) { StreamerLocker.UnlockTweet(x.Id); }
             return ret + ret2;
         }
 
@@ -366,7 +366,7 @@ namespace twidown
         {
             if (OneTweetReset != null && OneTweetReset > DateTimeOffset.Now) { return 0; }
             OneTweetReset = null;
-            if (!Locker.LockTweet(StatusId)) { return 0; }
+            if (!StreamerLocker.LockTweet(StatusId)) { return 0; }
             try
             {
                 if (db.ExistTweet(StatusId)) { return 0; }
@@ -375,152 +375,240 @@ namespace twidown
                 return HandleTweet(res.First(), true, true);
             }
             catch { Console.WriteLine("{0} {1} REST Tweet failed: {2}", DateTime.Now, Token.UserId, StatusId); return 0; }
-            finally { Locker.UnlockTweet(StatusId); }
+            finally { StreamerLocker.UnlockTweet(StatusId); }
         }
 
-        static void DownloadStoreProfileImage(Status x)
+
+
+        static class StaticMethods
         {
-            //アイコンが更新または未保存ならダウンロードする
-            //RTは自動でやらない
-            //ダウンロード成功してもしなくてもそれなりにDBに反映する
-            //(古い奴のURLがDBにあれば古いままになる)
-            if (x.User.Id == null) { return; }  
-            string ProfileImageUrl = x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl;
-            DBHandler.ProfileImageInfo d = db.NeedtoDownloadProfileImage(x.User.Id.Value, ProfileImageUrl);
-            if (!d.NeedDownload || !Locker.LockProfileImage((long)x.User.Id)) { return; }
-
-            //新しいアイコンの保存先 卵アイコンは'_'をつけただけの名前で保存するお
-            string LocalPath = x.User.IsDefaultProfileImage ?
-                config.crawl.PictPathProfileImage + '_' + Path.GetFileName(ProfileImageUrl) :
-                config.crawl.PictPathProfileImage + x.User.Id.ToString() + Path.GetExtension(ProfileImageUrl);
-
-            bool DownloadOK = true; //卵アイコンのダウンロード不要でもtrue
-            if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
+            static StaticMethods()
             {
-                bool RetryFlag = false;
-                RetryLabel:
-                try
-                {
-                    HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
-                    req.Referer = StatusUrl(x);
-                    if (config.crawl.PreferIPv6) { req.ServicePoint.BindIPEndPointDelegate = PreferIPv6; }
-                    using (WebResponse res = req.GetResponse())
-                    using (FileStream file = File.Create(LocalPath))
-                    {
-                        res.GetResponseStream().CopyTo(file);
-                    }
-                }
-                catch (Exception ex)
-                {   //404等じゃなければ1回だけリトライする
-                    if(!RetryFlag && !(ex is WebException we && we.Status == WebExceptionStatus.ProtocolError))
-                    { 
-                        RetryFlag = true;
-                        goto RetryLabel;
-                    }
-                    else { DownloadOK = false; }
-                }
+                DeleteTweetBatch.LinkTo(DeleteTweetBlock, new DataflowLinkOptions() { PropagateCompletion = true });
             }
-            if (DownloadOK)
+
+            public static void DownloadStoreProfileImage(Status x)
             {
-                string oldext = Path.GetExtension(d.OldProfileImageUrl);
-                string newext = Path.GetExtension(ProfileImageUrl);
-                if (!d.isDefaultProfileImage && oldext != null && oldext != newext)  //卵アイコンはこのパスじゃないしそもそも消さない
-                { File.Delete(config.crawl.PictPathProfileImage + x.User.Id.ToString() + oldext); }
-                db.StoreUser(x, true);
-            }
-            else { db.StoreUser(x, false); }
-        }
+                //アイコンが更新または未保存ならダウンロードする
+                //RTは自動でやらない
+                //ダウンロード成功してもしなくてもそれなりにDBに反映する
+                //(古い奴のURLがDBにあれば古いままになる)
+                if (x.User.Id == null) { return; }
+                string ProfileImageUrl = x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl;
+                DBHandler.ProfileImageInfo d = db.NeedtoDownloadProfileImage(x.User.Id.Value, ProfileImageUrl);
+                if (!d.NeedDownload || !StreamerLocker.LockProfileImage((long)x.User.Id)) { return; }
 
-        static ActionBlock<Status> DownloadStoreMediaBlock = new ActionBlock<Status>((Status x) =>
-        {
-            foreach (MediaEntity m in x.ExtendedEntities.Media)
-            {
-                counter.MediaTotal.Increment();
-                //画像の情報はあるのにsource_tweet_idがない場合だけここでやる
-                switch (db.ExistMedia_source_tweet_id(m.Id))
+                //新しいアイコンの保存先 卵アイコンは'_'をつけただけの名前で保存するお
+                string LocalPath = x.User.IsDefaultProfileImage ?
+                    config.crawl.PictPathProfileImage + '_' + Path.GetFileName(ProfileImageUrl) :
+                    config.crawl.PictPathProfileImage + x.User.Id.ToString() + Path.GetExtension(ProfileImageUrl);
+
+                bool DownloadOK = true; //卵アイコンのダウンロード不要でもtrue
+                if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
                 {
-                    case null:
-                        db.Storetweet_media(x.Id, m.Id);
-                        db.UpdateMedia_source_tweet_id(m, x);
-                        continue;
-                    case true:
-                        db.Storetweet_media(x.Id, m.Id);
-                        continue;
-                }
-                //ハッシュがない時だけ落とす
-                string MediaUrl = m.MediaUrlHttps ?? m.MediaUrl;
-                string LocalPaththumb = config.crawl.PictPaththumb + m.Id.ToString() + Path.GetExtension(MediaUrl);  //m.Urlとm.MediaUrlは違う
-                string uri = MediaUrl + (MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
-
-                bool RetryFlag = false;
-                RetryLabel:
-                try
-                {
-                    HttpWebRequest req = WebRequest.Create(uri) as HttpWebRequest;
-                    req.Referer = StatusUrl(x);
-                    if (config.crawl.PreferIPv6) { req.ServicePoint.BindIPEndPointDelegate = PreferIPv6; }
-
-                    using (WebResponse res = req.GetResponse())
-                    using (MemoryStream mem = new MemoryStream((int)res.ContentLength))
+                    bool RetryFlag = false;
+                    RetryLabel:
+                    try
                     {
-                        res.GetResponseStream().CopyTo(mem);
-                        res.Close();
-                        long? dcthash = PictHash.DCTHash(mem);
-                        if (dcthash != null && (db.StoreMedia(m, x, (long)dcthash)) > 0)
+                        HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
+                        req.Referer = StatusUrl(x);
+                        using (WebResponse res = req.GetResponse())
+                        using (FileStream file = File.Create(LocalPath))
                         {
-                            using (FileStream file = File.Create(LocalPaththumb))
-                            {
-                                mem.Position = 0;   //こいつは必要だった
-                                mem.CopyTo(file);
-                            }
-                            counter.MediaSuccess.Increment();
+                            res.GetResponseStream().CopyTo(file);
                         }
                     }
-                }
-                catch (Exception ex)
-                {   //404等じゃなければ1回だけリトライする
-                    if (!RetryFlag && !(ex is WebException && (ex as WebException).Status == WebExceptionStatus.ProtocolError))
-                    {
-                        RetryFlag = true;
-                        goto RetryLabel;
+                    catch (Exception ex)
+                    {   //404等じゃなければ1回だけリトライする
+                        if (!RetryFlag && !(ex is WebException we && we.Status == WebExceptionStatus.ProtocolError))
+                        {
+                            RetryFlag = true;
+                            goto RetryLabel;
+                        }
+                        else { DownloadOK = false; }
                     }
                 }
-                counter.MediaToStore.Increment();
+                if (DownloadOK)
+                {
+                    string oldext = Path.GetExtension(d.OldProfileImageUrl);
+                    string newext = Path.GetExtension(ProfileImageUrl);
+                    if (!d.isDefaultProfileImage && oldext != null && oldext != newext)  //卵アイコンはこのパスじゃないしそもそも消さない
+                    { File.Delete(config.crawl.PictPathProfileImage + x.User.Id.ToString() + oldext); }
+                    db.StoreUser(x, true);
+                }
+                else { db.StoreUser(x, false); }
+            }
+
+            static ActionBlock<Status> DownloadStoreMediaBlock = new ActionBlock<Status>((Status x) =>
+            {
+                foreach (MediaEntity m in x.ExtendedEntities.Media)
+                {
+                    Counter.MediaTotal.Increment();
+                //画像の情報はあるのにsource_tweet_idがない場合だけここでやる
+                switch (db.ExistMedia_source_tweet_id(m.Id))
+                    {
+                        case null:
+                            db.Storetweet_media(x.Id, m.Id);
+                            db.UpdateMedia_source_tweet_id(m, x);
+                            continue;
+                        case true:
+                            db.Storetweet_media(x.Id, m.Id);
+                            continue;
+                    }
+                //ハッシュがない時だけ落とす
+                string MediaUrl = m.MediaUrlHttps ?? m.MediaUrl;
+                    string LocalPaththumb = config.crawl.PictPaththumb + m.Id.ToString() + Path.GetExtension(MediaUrl);  //m.Urlとm.MediaUrlは違う
+                string uri = MediaUrl + (MediaUrl.IndexOf("twimg.com") >= 0 ? ":thumb" : "");
+
+                    bool RetryFlag = false;
+                    RetryLabel:
+                    try
+                    {
+                        HttpWebRequest req = WebRequest.Create(uri) as HttpWebRequest;
+                        req.Referer = StatusUrl(x);
+                        using (WebResponse res = req.GetResponse())
+                        using (MemoryStream mem = new MemoryStream((int)res.ContentLength))
+                        {
+                            res.GetResponseStream().CopyTo(mem);
+                            res.Close();
+                            long? dcthash = PictHash.DCTHash(mem);
+                            if (dcthash != null && (db.StoreMedia(m, x, (long)dcthash)) > 0)
+                            {
+                                using (FileStream file = File.Create(LocalPaththumb))
+                                {
+                                    mem.Position = 0;   //こいつは必要だった
+                                mem.CopyTo(file);
+                                }
+                                Counter.MediaSuccess.Increment();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {   //404等じゃなければ1回だけリトライする
+                    if (!RetryFlag && !(ex is WebException && (ex as WebException).Status == WebExceptionStatus.ProtocolError))
+                        {
+                            RetryFlag = true;
+                            goto RetryLabel;
+                        }
+                    }
+                    Counter.MediaToStore.Increment();
                 //URL転載元もペアを記録する
                 if (m.SourceStatusId != null && m.SourceStatusId != x.Id)
-                {
-                    db.Storetweet_media(m.SourceStatusId.Value, m.Id);
+                    {
+                        db.Storetweet_media(m.SourceStatusId.Value, m.Id);
+                    }
                 }
-            }
-        }, new ExecutionDataflowBlockOptions()
-        {
-            MaxDegreeOfParallelism = config.crawl.MediaDownloadThreads,
-            MaxMessagesPerTask = 1
-        });
+            }, new ExecutionDataflowBlockOptions()
+            {
+                MaxDegreeOfParallelism = config.crawl.MediaDownloadThreads,
+                MaxMessagesPerTask = 1
+            });
 
-        static void DownloadStoreMedia(Status x)
-        {
-            if (x.RetweetedStatus != null)
-            {   //そもそもRTに対してこれを呼ぶべきではない
-                DownloadStoreMedia(x.RetweetedStatus);
-                return;
+            public static void DownloadStoreMedia(Status x)
+            {
+                if (x.RetweetedStatus != null)
+                {   //そもそもRTに対してこれを呼ぶべきではない
+                    DownloadStoreMedia(x.RetweetedStatus);
+                    return;
+                }
+                DownloadStoreMediaBlock.Post(x);
             }
-            DownloadStoreMediaBlock.Post(x);
+            
+            static bool DeleteTweetInit = false;
+            static BatchBlock<long> DeleteTweetBatch = new BatchBlock<long>(config.crawl.TweetDeleteUnit);
+            static ActionBlock<long[]> DeleteTweetBlock = new ActionBlock<long[]>
+                ((long[] ToDelete) => {
+                    //ツイ消しはここでDBに投げることにした
+                    int DeletedCount;
+                    if (db.StoreDelete(ToDelete, out DeletedCount)) { foreach (long d in ToDelete) { byte gomi; DeleteTweetLock.TryRemove(d, out gomi); } }
+                    else { foreach(long d in ToDelete) { DeleteTweetBatch.Post(d); } }
+                    Counter.TweetToDelete.Add(ToDelete.Length);
+                    Counter.TweetDeleted.Add(DeletedCount);
+                }, new ExecutionDataflowBlockOptions()
+                {
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    MaxMessagesPerTask = 1
+                });
+
+            static ConcurrentDictionary<long, byte> DeleteTweetLock = new ConcurrentDictionary<long, byte>();
+            public static void DeleteTweet(long StatusId)
+            {
+                if (DeleteTweetLock.TryAdd(StatusId, 0)) { DeleteTweetBatch.Post(StatusId); }
+            }
+
+            //ツイートのURLを作る
+            public static string StatusUrl(Status x)
+            {
+                return "https://twitter.com/" + x.User.ScreenName + "/status/" + x.Id;
+            }
         }
 
-        //ツイートのURLを作る
-        static string StatusUrl(Status x)
+
+
+        //ツイートの処理を調停する感じの奴
+        public static class StreamerLocker
         {
-            return "https://twitter.com/" + x.User.ScreenName + "/status/" + x.Id;
+            //storetweet用
+            static ConcurrentDictionary<long, byte> LockedTweets = new ConcurrentDictionary<long, byte>();
+            public static bool LockTweet(long Id) { return LockedTweets.TryAdd(Id, 0) && db.LockTweet(Id); }
+            static ConcurrentQueue<long> UnlockTweets = new ConcurrentQueue<long>();
+            public static void UnlockTweet(long Id) { UnlockTweets.Enqueue(Id); }
+
+            //storeuser用
+            //UnlockUser()はない Unlock()で処理する
+            static ConcurrentDictionary<long, byte> LockedUsers = new ConcurrentDictionary<long, byte>();
+            public static bool LockUser(long? Id) { return Id != null && LockedUsers.TryAdd((long)Id, 0); }
+
+            //DownloadProfileImage用
+            static ConcurrentDictionary<long, byte> LockedProfileImages = new ConcurrentDictionary<long, byte>();
+            public static bool LockProfileImage(long Id) { return LockedProfileImages.TryAdd(Id, 0); }
+
+            static List<long> UnlockTweetID = new List<long>();
+
+            //これを外から呼び出してロックを解除する
+            public static void Unlock()
+            {
+                LockedUsers.Clear();
+                LockedProfileImages.Clear();
+
+                //UnlockTweetID, DBのtweetlockは1周遅れでロック解除する
+                if (db.UnlockTweet(UnlockTweetID) > 0)
+                {
+                    foreach (long Id in UnlockTweetID) { LockedTweets.TryRemove(Id, out byte z); }
+                    UnlockTweetID.Clear();
+                }
+                while (UnlockTweets.TryDequeue(out long tmp)) { UnlockTweetID.Add(tmp); }
+            }
         }
 
-        //IPv6アドレスがあればそっちにつなぐ
-        //  https://stackoverflow.com/questions/3345387/how-to-change-originating-ip-in-httpwebrequest
-        static BindIPEndPoint PreferIPv6 = (servicePount, remoteEndPoint, retryCount) =>
+
+
+        public static class Counter
         {
-            if (remoteEndPoint.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
-            { return new IPEndPoint(IPAddress.IPv6Any, 0); }
-            else { return new IPEndPoint(IPAddress.Any, 0); }
-        };
+            //パフォーマンスカウンター的な何か
+            public class CounterValue
+            {
+                int Value = 0;
+                public void Increment() { Interlocked.Increment(ref Value); }
+                public void Add(int v) { Interlocked.Add(ref Value, v); }
+                public int Get() { return Value; }
+                public int GetReset() { return Interlocked.Exchange(ref Value, 0); }
+            }
+
+            public static CounterValue MediaSuccess = new CounterValue();
+            public static CounterValue MediaToStore = new CounterValue();
+            public static CounterValue MediaTotal = new CounterValue();
+            public static CounterValue TweetStored = new CounterValue();
+            public static CounterValue TweetToStore = new CounterValue();
+            public static CounterValue TweetToDelete = new CounterValue();
+            public static CounterValue TweetDeleted = new CounterValue();
+            //ひとまずアイコンは除外しようか
+            public static void PrintReset()
+            {
+                if (MediaToStore.Get() > 0) { Console.WriteLine("{0} App: {1} / {2} / {3} Media Stored", DateTime.Now, MediaSuccess.GetReset(), MediaToStore.GetReset(), MediaTotal.GetReset()); }
+                if (TweetToStore.Get() > 0) { Console.WriteLine("{0} App: {1} / {2} Tweet Stored", DateTime.Now, TweetStored.GetReset(), TweetToStore.GetReset()); }
+                if (TweetToDelete.Get() > 0) { Console.WriteLine("{0} App: {1} / {2} Tweet Deleted", DateTime.Now, TweetDeleted.GetReset(), TweetToDelete.GetReset()); }
+            }
+        }
     }
 }

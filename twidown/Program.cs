@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Runtime;
 using System.Net;
 using System.Diagnostics;
-using twitenlib;
 
 namespace twidown
 {
@@ -15,6 +14,7 @@ namespace twidown
         {
             ServicePointManager.ReusePort = true;
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.EnableDnsRoundRobin = true;
             Thread.Sleep(10000);
           
             if (args.Length >= 1 && args[0] == "/REST")
@@ -36,7 +36,7 @@ namespace twidown
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce; //これは毎回必要らしい
                 GC.Collect();
-                Thread.Sleep(60000);
+                Task.Delay(60000).Wait();   //Thread.Sleepだと帰ってこなくなるあるある(´・ω・`)
                 manager.AddAll();
             }
         }

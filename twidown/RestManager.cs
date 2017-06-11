@@ -14,7 +14,6 @@ namespace twidown
     {
         static readonly Config config = Config.Instance;
         static readonly DBHandler db = DBHandler.Instance;
-        static readonly StreamerLocker Locker = StreamerLocker.Instance;
 
         public RestManager()
         {
@@ -27,8 +26,8 @@ namespace twidown
             Thread.CurrentThread.Priority = ThreadPriority.Highest;
             while (true)
             {
-                Locker.ActualUnlockAll();
-                Counter.Instance.PrintReset();
+                UserStreamer.StreamerLocker.Unlock();
+                UserStreamer.Counter.PrintReset();
                 Thread.Sleep(60000);
             }
         }

@@ -62,11 +62,9 @@ namespace twitenlib
         }
     }
 
+    ///<summary>iniファイル読むやつ</summary>
     public class Config
     {
-        //<summary>
-        //iniファイル読むやつ Singleton
-        //</summary>
         private static Config _config = new Config();
         private Config()
         {
@@ -112,8 +110,8 @@ namespace twitenlib
             public int RestTweetThreads { get; }
             public int ReconnectThreads { get; }
             public int MediaDownloadThreads { get; }
+            public int TweetDeleteUnit { get; }
             public int LockedTokenPostpone { get; }
-            public bool PreferIPv6 { get; }
             public _crawl(IniFileHandler ini)
             {
                 PictPathProfileImage = ini.GetValue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image\");
@@ -125,8 +123,8 @@ namespace twitenlib
                 RestTweetThreads = int.Parse(ini.GetValue("crawl", "RestTweetThreads", Environment.ProcessorCount.ToString()));
                 ReconnectThreads = int.Parse(ini.GetValue("crawl", "ReconnectThreads", Environment.ProcessorCount.ToString()));
                 MediaDownloadThreads = int.Parse(ini.GetValue("crawl", "MediaDownloadThreads", Environment.ProcessorCount.ToString()));
+                TweetDeleteUnit = int.Parse(ini.GetValue("crawl", "TweetDeleteUnit", "100"));
                 LockedTokenPostpone = int.Parse(ini.GetValue("crawl", "LockedTokenPostpone", "86400"));
-                PreferIPv6 = bool.Parse(ini.GetValue("crawl", "PreferIPv6", "false"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
