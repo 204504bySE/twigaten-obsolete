@@ -106,7 +106,6 @@ namespace twidown
             if (isPostponed()) { return NeedRetryResult.None; }
             else if (e != null)
             {
-                StreamSubscriber?.Dispose(); StreamSubscriber = null;
                 if ((e is TwitterException ex) && ex.Status == HttpStatusCode.Unauthorized)
                 { return NeedRetryResult.Verify; }
                 else { return NeedRetryResult.JustNeeded; }
@@ -477,7 +476,7 @@ namespace twidown
                                 using (FileStream file = File.Create(LocalPaththumb))
                                 {
                                     mem.Position = 0;   //こいつは必要だった
-                                mem.CopyTo(file);
+                                    mem.CopyTo(file);
                                 }
                                 Counter.MediaSuccess.Increment();
                             }
@@ -514,7 +513,6 @@ namespace twidown
                 DownloadStoreMediaBlock.Post(x);
             }
             
-            static bool DeleteTweetInit = false;
             static BatchBlock<long> DeleteTweetBatch = new BatchBlock<long>(config.crawl.TweetDeleteUnit);
             static ActionBlock<long[]> DeleteTweetBlock = new ActionBlock<long[]>
                 ((long[] ToDelete) => {

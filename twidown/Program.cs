@@ -27,22 +27,22 @@ namespace twidown
                 return;
             }
 
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;
-            
+            Thread.CurrentThread.Priority = ThreadPriority.Highest;                        
             UserStreamerManager manager = new UserStreamerManager();
             while (true)
             {
                 int Connected = manager.ConnectStreamers();
                 Console.WriteLine("{0} App: {1} / {2} Streamers active.", DateTime.Now, Connected, manager.Count);
+                TickCount SleepTick = new TickCount(0);
                 GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce; //これは毎回必要らしい
                 GC.Collect();
-                Task.Delay(60000).Wait();   //Thread.Sleepだと帰ってこなくなるあるある(´・ω・`)
+                do { Thread.Sleep(100); } while (SleepTick.Elasped < 60000);    //やけくそ
                 manager.AddAll();
             }
         }
     }
 
-    //ある処理と現在時刻との差を把握する奴
+    //ある処理と現在時刻との差を把握する奴(ミリ秒単位)
     //stopwatchほどの精度はいらない時用
     struct TickCount
     {

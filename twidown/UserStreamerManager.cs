@@ -133,7 +133,7 @@ namespace twidown
                         ConnectBlock.Post((s.Key, s.Value, NeedRetry));
                     }
                 }
-                else { Interlocked.Increment(ref ActiveStreamers); }
+                else { ActiveStreamers++; }
                 if (Tick.Elasped >= 60000)
                 {
                     Tick.Update();
@@ -144,7 +144,7 @@ namespace twidown
             if (ConnectBlock != null)
             {
                 if (ConnectBlock.InputCount > 0) { Console.WriteLine("{0} App: {1} Accounts waiting connect", DateTime.Now, ConnectBlock.InputCount); }
-                else { ConnectBlock.Complete(); ConnectBlock.Completion.Wait(); ConnectBlock = null; }
+                else { ConnectBlock.Complete(); ConnectBlock = null; }
             }
             return ActiveStreamers;
         }
