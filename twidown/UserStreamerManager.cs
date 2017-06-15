@@ -15,7 +15,7 @@ namespace twidown
     //UserStreamerの追加, 保持, 削除をこれで行う
     {
         readonly ConcurrentDictionary<long, UserStreamer> Streamers = new ConcurrentDictionary<long, UserStreamer>();   //longはUserID
-        readonly HashSet<long> RevokeRetryUserID = new HashSet<long>();
+        readonly ConcurrentDictionary<long, byte> RevokeRetryUserID = new ConcurrentDictionary<long, byte>();
 
         static readonly Config config = Config.Instance;
         static readonly DBHandler db = DBHandler.Instance;
@@ -62,8 +62,7 @@ namespace twidown
         }
 
         public int Count { get { return Streamers.Count; } }
-
-        readonly ConcurrentDictionary<long, byte> ConnectWaiting = new ConcurrentDictionary<long, byte>();
+        
         ActionBlock<(long, UserStreamer, UserStreamer.NeedRetryResult)> ConnectBlock;
         void InitConnectBlock()
         {
@@ -89,21 +88,18 @@ namespace twidown
                         s.Streamer.PostponeRetry();
                         break;
                     case UserStreamer.TokenStatus.Revoked:
-                        lock (RevokeRetryUserID)
+                        if (RevokeRetryUserID.ContainsKey(s.Id))
                         {
-                            if (RevokeRetryUserID.Contains(s.Id))
-                            {
-                                db.DeleteToken(s.Id);
-                                RevokeRetryUserID.Remove(s.Id);
-                                RemoveStreamer(s.Streamer);
-                            }
-                            else { RevokeRetryUserID.Add(s.Id); }
+                            db.DeleteToken(s.Id);
+                            RevokeRetryUserID.TryRemove(s.Id, out byte z);
+                            RemoveStreamer(s.Streamer);
                         }
+                        else { s.Streamer.PostponeRetry(60); RevokeRetryUserID.TryAdd(s.Id, 0); }   //延期しないと一瞬で死ぬ
                         break;
                     case UserStreamer.TokenStatus.Failure:
                         break;  //何もしない
                 }
-                ConnectWaiting.TryRemove(s.Id, out byte gomi);
+                s.Streamer.ConnectWaiting = false;
             }, new ExecutionDataflowBlockOptions()
             {
                 MaxDegreeOfParallelism = config.crawl.ReconnectThreads,
@@ -127,8 +123,9 @@ namespace twidown
                 UserStreamer.NeedRetryResult NeedRetry = s.Value.NeedRetry();
                 if (NeedRetry != UserStreamer.NeedRetryResult.None)
                 {
-                    if (ConnectWaiting.TryAdd(s.Key, 0))
+                    if (!s.Value.ConnectWaiting)
                     {
+                        s.Value.ConnectWaiting = true;
                         if(ConnectBlock == null) { InitConnectBlock(); }
                         ConnectBlock.Post((s.Key, s.Value, NeedRetry));
                     }

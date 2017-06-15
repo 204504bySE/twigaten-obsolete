@@ -22,6 +22,7 @@ namespace twidown
         public Exception e { get; private set; }
         public Tokens Token { get; }
         public bool NeedRestMyTweet { get; set; }   //次のconnect時にRESTでツイートを取得する
+        public bool ConnectWaiting { get; set; }    //UserStreamerManager.ConnectBlockに入っているかどうか
         IDisposable StreamSubscriber;
         DateTimeOffset LastStreamingMessageTime = DateTimeOffset.Now;
         readonly TweetTimeList TweetTime = new TweetTimeList();
@@ -83,10 +84,8 @@ namespace twidown
         }
 
         DateTimeOffset? PostponedTime;    //ロックされたアカウントが再試行する時刻
-        public void PostponeRetry()
-        {
-            PostponedTime = DateTimeOffset.Now.AddSeconds(config.crawl.LockedTokenPostpone);
-        }
+        public void PostponeRetry() { PostponedTime = DateTimeOffset.Now.AddSeconds(config.crawl.LockedTokenPostpone); }
+        public void PostponeRetry(int Seconds) { PostponedTime = DateTimeOffset.Now.AddSeconds(Seconds); }
         bool isPostponed() {
             if (PostponedTime == null) { return false; }
             else if (DateTimeOffset.Now > PostponedTime.Value) { return true; }
@@ -524,7 +523,6 @@ namespace twidown
                     Counter.TweetDeleted.Add(DeletedCount);
                 }, new ExecutionDataflowBlockOptions()
                 {
-                    MaxDegreeOfParallelism = Environment.ProcessorCount,
                     MaxMessagesPerTask = 1
                 });
 

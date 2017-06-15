@@ -282,9 +282,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                 return ExecuteNonQuery(cmd);
             }
         }
-        //<summary>
-        //消されたツイートをDBから消す
-        //</summary>
+        ///<summary> 消されたツイートをDBから消す</summary>
         public bool StoreDelete(long[] DeleteID, out int DeletedCountTotal)
         {
             bool SuccessAll = true;
