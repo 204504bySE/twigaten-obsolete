@@ -71,7 +71,7 @@ namespace twiview.Controllers
             SimilarMediaModelOneTweet Model;
             if (p.More.Value) { Model = new SimilarMediaModelOneTweet(p.TweetID, p.ID, 100, false); }
             else { Model = new SimilarMediaModelOneTweet(p.TweetID, p.ID, 7, true); }
-            if(Model.isNotFound) { Response.StatusCode = 404; }
+            if(Model.IsNotFound) { Response.StatusCode = 404; }
             return View(Model);
         }
 
@@ -137,7 +137,7 @@ namespace twiview.Controllers
             }
 
             SimilarMediaModel Model = new SimilarMediaModelTimeline((long)(p.UserID ?? p.ID), p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, RangeMode);
-            if (Model.isNotFound) { Response.StatusCode = 404; }
+            if (Model.IsNotFound) { Response.StatusCode = 404; }
             return View("TLUser", Model);
         }
         [Route("users/{UserID:long?}")]
@@ -173,7 +173,7 @@ namespace twiview.Controllers
             }
 
             SimilarMediaModel Model = new SimilarMediaModelUserTweet(p.UserID.Value, p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, RangeMode);
-            if (Model.isNotFound) { Response.StatusCode = 404; }
+            if (Model.IsNotFound) { Response.StatusCode = 404; }
             return View("TLUser", Model);
         }
 

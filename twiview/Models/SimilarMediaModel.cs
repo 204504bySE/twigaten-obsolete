@@ -17,7 +17,7 @@ namespace twiview.Models
         public long QueryElapsedMilliseconds { get; protected set; }
         public int SimilarLimit { get; protected set; }
         public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet).ToLocalTime(); } }
-        public bool isNotFound { get { return TargetUser == null || Tweets.Length == 0; } }
+        public bool IsNotFound { get { return Tweets.Length == 0; } }
 
         public enum RangeModes { None, Date, Before, After }    //なし, 日付指定, 古い, 新しい
         public RangeModes RangeMode { get; protected set; }
