@@ -350,9 +350,9 @@ namespace twidown
             }
             int ret2;
             Counter.TweetToStore.Increment();
-            if ((ret2 = db.StoreTweet(x, update)) > 0)
+            if ((ret2 = db.StoreTweet(x, update)) >= 0)
             {
-                Counter.TweetStored.Increment();
+                if (ret2 > 0) { Counter.TweetStored.Increment(); }
                 if (x.RetweetedStatus == null) { StaticMethods.DownloadStoreMedia(x); }
             }
             if (!locked) { StreamerLocker.UnlockTweet(x.Id); }
