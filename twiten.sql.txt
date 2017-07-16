@@ -114,7 +114,7 @@ create table pakurier(
 );
 */
 
-create user token, crawl, hash, tool, view/* , bot */;
+create user token, crawl, hash, tool, view;
 
 grant select, insert, update on twiten.token to token;
 grant select, insert, update on twiten.user to token;
@@ -152,12 +152,3 @@ grant select, delete on twiten.media_downloaded_at to tool;
 grant select, insert, delete on tweet_media to tool;
 grant select, delete on media to tool;
 grant select on token to tool;
-/*
-grant select on user to bot;
-grant select on tweet to bot;
-grant select on tweet_media to bot;
-grant select on media to bot;
-grant select on dcthashpair to bot;
-grant select, insert, drop on pakurier to bot;
-grant select on twiten.block to bot;
-*/

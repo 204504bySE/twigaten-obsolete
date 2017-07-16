@@ -3,8 +3,6 @@ Twitter上の類似画像を一覧表示するやつ。
 <https://twigaten.204504byse.info/>
 
 # 各フォルダの中身
-* twibot
-  * botの残骸(どうでもいい)
 * twidown
   * ツイートと画像を収集する奴
 * twidownparent
