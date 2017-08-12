@@ -18,3 +18,4 @@
 
 # This is not written in JS
 *.json linguist-documentation
+*.js linguist-documentation

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26228.4
+VisualStudioVersion = 15.0.26430.15
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twidown", "twidown\twidown.csproj", "{92C7383E-C1FA-4CF4-99CB-E7FBB42701F8}"
 EndProject
@@ -10,8 +10,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twiview", "twiview\twiview.csproj", "{DD765712-464E-4B9B-AE66-8A3D5A49A1B8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twitool", "twitool\twitool.csproj", "{5FB441A4-854C-4B92-9691-5020BB2D2D11}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twibot", "twibot\twibot.csproj", "{5F2CD01E-F16A-4084-ABCD-769C104EFA8A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twidownparent", "twidownparent\twidownparent.csproj", "{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}"
 EndProject
@@ -37,10 +35,6 @@ Global
 		{5FB441A4-854C-4B92-9691-5020BB2D2D11}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5FB441A4-854C-4B92-9691-5020BB2D2D11}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5FB441A4-854C-4B92-9691-5020BB2D2D11}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5F2CD01E-F16A-4084-ABCD-769C104EFA8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5F2CD01E-F16A-4084-ABCD-769C104EFA8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5F2CD01E-F16A-4084-ABCD-769C104EFA8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5F2CD01E-F16A-4084-ABCD-769C104EFA8A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}.Release|Any CPU.ActiveCfg = Release|Any CPU

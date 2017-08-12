@@ -50,7 +50,7 @@ namespace twihash
             if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
         public int Count = 0;  //実際に使ってる個数
-        public bool ForceInsert { get; }
+        public readonly bool ForceInsert;
 
         public bool NeedInsert(int Index)
         {
@@ -65,10 +65,7 @@ namespace twihash
                 Thread.CurrentThread.Priority = ThreadPriority.Lowest;
                 while (true)
                 {
-                    for (int i = 0; i < Hashes.Length; i++)
-                    {
-                        long a = Hashes[i];
-                    }
+                    foreach (long h in Hashes) { }  //foreachは値をローカル変数にコピーする
                     Thread.Sleep(60000);
                 }
             });
@@ -78,9 +75,9 @@ namespace twihash
     //ハミング距離が一定以下のハッシュ値のペア
     public struct MediaPair
     {
-        public long media0 { get; }
-        public long media1 { get; }
-        public sbyte hammingdistance { get; }
+        public readonly long media0;
+        public readonly long media1;
+        public readonly sbyte hammingdistance;
         public MediaPair(long _media0, long _media1, sbyte _ham)
         {
             media0 = _media0;
