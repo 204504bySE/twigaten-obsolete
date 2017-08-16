@@ -29,7 +29,7 @@ namespace twidown
         {
             Tokens[] token = db.Selecttoken(DBHandler.SelectTokenMode.StreamerAll);
             Tokens[] tokenRest = db.Selecttoken(DBHandler.SelectTokenMode.RestinStreamer);
-            setMaxConnections(false, token.Length);
+            SetMaxConnections(false, token.Length);
             Console.WriteLine("{0} App: {1} tokens loaded.", DateTime.Now, token.Length);
             foreach(Tokens t in tokenRest)
             {
@@ -42,7 +42,7 @@ namespace twidown
             {
                 Add(t);
             }
-            setMaxConnections(true);
+            SetMaxConnections(true);
         }
 
         bool Add(Tokens t)
@@ -116,6 +116,7 @@ namespace twidown
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
             UserStreamer.StreamerLocker.Unlock();
             UserStreamer.Counter.PrintReset();
+            UserStreamer.StaticMethods.ShowCount();
 
             TickCount Tick = new TickCount(0);
             foreach (KeyValuePair<long, UserStreamer> s in Streamers.ToArray())  //ここでスナップショットを作る
@@ -151,11 +152,11 @@ namespace twidown
         {
             Streamer.Dispose();
             Streamers.TryRemove(Streamer.Token.UserId, out UserStreamer z);  //つまり死んだStreamerは除外される
-            setMaxConnections(true);
+            SetMaxConnections(true);
             Console.WriteLine("{0} {1}: Streamer removed", DateTime.Now, Streamer.Token.UserId);
         }
 
-        private void setMaxConnections(bool Force = false, int basecount = 0)
+        private void SetMaxConnections(bool Force = false, int basecount = 0)
         {
             int MaxConnections = Math.Max(basecount, Streamers.Count) + config.crawl.DefaultConnections;
             if (Force || ServicePointManager.DefaultConnectionLimit < MaxConnections)

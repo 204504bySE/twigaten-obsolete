@@ -282,16 +282,14 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                 return ExecuteNonQuery(cmd);
             }
         }
-        ///<summary> 消されたツイートをDBから消す</summary>
-        public bool StoreDelete(long[] DeleteID, out int DeletedCountTotal)
+        ///<summary> 消されたツイートをDBから消す 戻り値は削除に失敗したツイート Counterもここで処理する</summary>
+        public IEnumerable<long> StoreDelete(long[] DeleteID)
         {
-            bool SuccessAll = true;
-            DeletedCountTotal = 0;
-            if (DeleteID == null || DeleteID.Length == 0) { return true; }
+            if (DeleteID == null || DeleteID.Length == 0) { yield break; }
             const int BulkUnit = 100;
             const string head = @"DELETE FROM tweet WHERE tweet_id IN";
             int i = 0, j;
-
+            UserStreamer.Counter.TweetToDelete.Add(DeleteID.Length);
             Array.Sort(DeleteID);
 
             if (DeleteID.Length >= BulkUnit)
@@ -309,11 +307,9 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                             cmd.Parameters["@" + j.ToString()].Value = DeleteID[BulkUnit * i + j];
                         }
                         int DeletedCount = ExecuteNonQuery(cmd);
-                        if (DeletedCount >= 0)
-                        {
-                            DeletedCountTotal += DeletedCount;
-                        }
-                        else { SuccessAll = false; }
+                        if (DeletedCount >= 0) { UserStreamer.Counter.TweetDeleted.Add(DeletedCount); }
+                        else { foreach (long f in DeleteID.Skip(BulkUnit * i).Take(BulkUnit)) { yield return f; } }
+                        
                     }
                 }
             }
@@ -326,14 +322,10 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                         cmd.Parameters.AddWithValue('@' + j.ToString(), DeleteID[BulkUnit * i + j]);
                     }
                     int DeletedCount = ExecuteNonQuery(cmd);
-                    if (DeletedCount >= 0)
-                    {
-                        DeletedCountTotal += DeletedCount;
-                    }
-                    else { SuccessAll = false; }
+                    if (DeletedCount >= 0) { UserStreamer.Counter.TweetDeleted.Add(DeletedCount); }
+                    else { foreach (long f in DeleteID.Skip(BulkUnit * i)) { yield return f; } }
                 }
             }
-            return SuccessAll;
         }
 
         public int StoreFriends(FriendsMessage x, long UserID)
@@ -538,35 +530,13 @@ VALUES(@media_id, @downloaded_at)") };
             }
         }
 
-        public int UnlockTweet(List<long> tweet_id)
+        public int UnlockTweet()
         {
-            const int BulkUnit = 1000;
-            const string head = @"DELETE FROM tweetlock WHERE tweet_id IN";
-            List<MySqlCommand> cmdList = new List<MySqlCommand>();
-            MySqlCommand cmdtmp;
-            int i, j;
-
-            string BulkCmdFull = "";
-            for (i = 0; i < tweet_id.Count / BulkUnit; i++)
+            using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM tweetlock WHERE pid = @pid;"))
             {
-                if (i == 0) { BulkCmdFull = BulkCmdStrIn(BulkUnit, head); }
-                cmdtmp = new MySqlCommand(BulkCmdFull);
-                for (j = 0; j < BulkUnit; j++)
-                {
-                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), tweet_id[BulkUnit * i + j]);
-                }
-                cmdList.Add(cmdtmp);
+                cmd.Parameters.AddWithValue("@pid", pid);
+                return ExecuteNonQuery(cmd);
             }
-            if (tweet_id.Count % BulkUnit != 0)
-            {
-                cmdtmp = new MySqlCommand(BulkCmdStrIn(tweet_id.Count % BulkUnit, head));
-                for (j = 0; j < tweet_id.Count % BulkUnit; j++)
-                {
-                    cmdtmp.Parameters.AddWithValue('@' + j.ToString(), tweet_id[BulkUnit * i + j]);
-                }
-                cmdList.Add(cmdtmp);
-            }
-            return ExecuteNonQuery(cmdList);
         }
 
         //MySQLが落ちてpidが消えてたら自殺したい

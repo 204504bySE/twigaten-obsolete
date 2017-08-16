@@ -110,21 +110,21 @@ namespace twitenlib
             public int RestTweetThreads { get; }
             public int ReconnectThreads { get; }
             public int MediaDownloadThreads { get; }
-            public int TweetDeleteUnit { get; }
+            public int DeleteTweetBufferSize { get; }
             public int LockedTokenPostpone { get; }
             public _crawl(IniFileHandler ini)
             {
-                PictPathProfileImage = ini.GetValue("crawl", "PictPathProfileImage", Directory.GetCurrentDirectory() + @"\pict\profile_image\");
-                PictPaththumb = ini.GetValue("crawl", "PictPaththumb", Directory.GetCurrentDirectory() + @"\pict\thumb\");
-                UserStreamTimeout = int.Parse(ini.GetValue("crawl", "UserStreamTimeout", "180"));
-                UserStreamTimeoutTweets = int.Parse(ini.GetValue("crawl", "UserStreamTimeoutTweets", "50"));
-                DefaultConnections = int.Parse(ini.GetValue("crawl", "DefaultConnections", "100"));
-                MaxDBConnections = int.Parse(ini.GetValue("crawl", "MaxDBConnections", "10"));
-                RestTweetThreads = int.Parse(ini.GetValue("crawl", "RestTweetThreads", Environment.ProcessorCount.ToString()));
-                ReconnectThreads = int.Parse(ini.GetValue("crawl", "ReconnectThreads", Environment.ProcessorCount.ToString()));
-                MediaDownloadThreads = int.Parse(ini.GetValue("crawl", "MediaDownloadThreads", Environment.ProcessorCount.ToString()));
-                TweetDeleteUnit = int.Parse(ini.GetValue("crawl", "TweetDeleteUnit", "100"));
-                LockedTokenPostpone = int.Parse(ini.GetValue("crawl", "LockedTokenPostpone", "86400"));
+                PictPathProfileImage = ini.GetValue("crawl", nameof(PictPathProfileImage), Directory.GetCurrentDirectory() + @"\pict\profile_image\");
+                PictPaththumb = ini.GetValue("crawl", nameof(PictPaththumb), Directory.GetCurrentDirectory() + @"\pict\thumb\");
+                UserStreamTimeout = int.Parse(ini.GetValue("crawl", nameof(UserStreamTimeout), "180"));
+                UserStreamTimeoutTweets = int.Parse(ini.GetValue("crawl", nameof(UserStreamTimeoutTweets), "50"));
+                DefaultConnections = int.Parse(ini.GetValue("crawl", nameof(DefaultConnections), "100"));
+                MaxDBConnections = int.Parse(ini.GetValue("crawl", nameof(MaxDBConnections), "10"));
+                RestTweetThreads = int.Parse(ini.GetValue("crawl", nameof(RestTweetThreads), Environment.ProcessorCount.ToString()));
+                ReconnectThreads = int.Parse(ini.GetValue("crawl", nameof(ReconnectThreads), Environment.ProcessorCount.ToString()));
+                MediaDownloadThreads = int.Parse(ini.GetValue("crawl", nameof(MediaDownloadThreads), Environment.ProcessorCount.ToString()));
+                DeleteTweetBufferSize = int.Parse(ini.GetValue("crawl", nameof(DeleteTweetBufferSize), "1000"));
+                LockedTokenPostpone = int.Parse(ini.GetValue("crawl", nameof(LockedTokenPostpone), "86400"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -139,10 +139,10 @@ namespace twitenlib
             public bool InitTruncate { get; }
             public _crawlparent(IniFileHandler ini)
             {
-                AccountLimit = int.Parse(ini.GetValue("crawlparent", "AccountLimit", "250"));
-                ChildPath = ini.GetValue("crawlparent", "ChildPath", "");
-                ChildName = ini.GetValue("crawlparent", "ChildName", "twidown");
-                InitTruncate = bool.Parse(ini.GetValue("crawlparent", "InitTruncate", "true"));
+                AccountLimit = int.Parse(ini.GetValue("crawlparent", nameof(AccountLimit), "250"));
+                ChildPath = ini.GetValue("crawlparent", nameof(ChildPath), "");
+                ChildName = ini.GetValue("crawlparent", nameof(ChildName), "twidown");
+                InitTruncate = bool.Parse(ini.GetValue("crawlparent", nameof(InitTruncate), "true"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -157,24 +157,22 @@ namespace twitenlib
             public long LastUpdate { get; }
             public int LastHashCount { get; }
             public int HashCountOffset { get; }
-            public bool KeepDataRAM { get; }
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
-                MaxHammingDistance = int.Parse(ini.GetValue("hash", "MaxHammingDistance", "3"));
-                ExtraBlocks = int.Parse(ini.GetValue("hash", "ExtraBlocks", "1"));
-                LastUpdate = long.Parse(ini.GetValue("hash", "LastUpdate", "0"));
-                LastHashCount = int.Parse(ini.GetValue("hash", "LastHashCount", "0"));
-                HashCountOffset = int.Parse(ini.GetValue("hash", "HashCountOffset", "5000000"));
-                KeepDataRAM = bool.Parse(ini.GetValue("hash", "KeepDataRAM", "false"));
+                MaxHammingDistance = int.Parse(ini.GetValue("hash", nameof(MaxHammingDistance), "3"));
+                ExtraBlocks = int.Parse(ini.GetValue("hash", nameof(ExtraBlocks), "1"));
+                LastUpdate = long.Parse(ini.GetValue("hash", nameof(LastUpdate), "0"));
+                LastHashCount = int.Parse(ini.GetValue("hash", nameof(LastHashCount), "0"));
+                HashCountOffset = int.Parse(ini.GetValue("hash", nameof(HashCountOffset), "5000000"));
             }
             public void NewLastUpdate(long time)
             {
-                ini.SetValue("hash", "LastUpdate", time.ToString());
+                ini.SetValue("hash", nameof(LastUpdate), time.ToString());
             }
             public void NewLastHashCount(int Count)
             {
-                ini.SetValue("hash", "LastHashCount", Count.ToString());
+                ini.SetValue("hash", nameof(LastHashCount), Count.ToString());
             }
         }
         public _hash hash;
@@ -184,7 +182,7 @@ namespace twitenlib
             public string Address { get; }
             public _database(IniFileHandler ini)
             {
-                Address = ini.GetValue("database", "Address", "localhost");
+                Address = ini.GetValue("database", nameof(Address), "localhost");
             }
         }
         public _database database;
@@ -203,21 +201,21 @@ namespace twitenlib
             public _bot(IniFileHandler ini)
             {
                 this.ini = ini;
-                ConsumerKey = ini.GetValue("bot", "ConsumerKey","");
-                ConsumerSecret = ini.GetValue("bot", "ConsumerSecret", "");
-                AccessToken = ini.GetValue("bot", "AccessToken", "");
-                AccessTokenSecret = ini.GetValue("bot", "AccessTokenSecret", "");
-                LastTweetTime = int.Parse(ini.GetValue("bot", "LastTweetTime", "0"));
-                LastPakurierTime = int.Parse(ini.GetValue("bot", "LastPakurierTime", "0"));
+                ConsumerKey = ini.GetValue("bot", nameof(ConsumerKey),"");
+                ConsumerSecret = ini.GetValue("bot", nameof(ConsumerSecret), "");
+                AccessToken = ini.GetValue("bot", nameof(AccessToken), "");
+                AccessTokenSecret = ini.GetValue("bot", nameof(AccessTokenSecret), "");
+                LastTweetTime = int.Parse(ini.GetValue("bot", nameof(LastTweetTime), "0"));
+                LastPakurierTime = int.Parse(ini.GetValue("bot", nameof(LastPakurierTime), "0"));
             }
 
             public void NewLastTweetTime(long time)
             {
-                ini.SetValue("bot", "LastTweetTime", time.ToString());
+                ini.SetValue("bot", nameof(LastTweetTime), time.ToString());
             }
             public void NewLastPakurierTime(long time)
             {
-                ini.SetValue("bot", "LastPakurierTime", time.ToString());
+                ini.SetValue("bot", nameof(LastPakurierTime), time.ToString());
             }
         }
         public _bot bot;
@@ -417,7 +415,7 @@ namespace twitenlib
             {
                 if (p.Id != CurrentProc.Id)
                 {
-                    Console.WriteLine("{0} Another Instance of {1} is Runnning.", DateTime.Now, CurrentProc.ProcessName);
+                    Console.WriteLine("{0} Another Instance of {1} is Running.", DateTime.Now, CurrentProc.ProcessName);
                     Thread.Sleep(5000);
                     Environment.Exit(1);
                 }

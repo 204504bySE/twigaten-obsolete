@@ -24,6 +24,10 @@ namespace twitool
             //CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
+            db.RemoveOrphanTweet();
+            Console.WriteLine("＼(^o^)／");
+            Console.ReadKey();
+            return;
             db.RemoveOldMedia();
             db.RemoveOrphanMedia();
             db.RemoveOldProfileImage();
@@ -212,7 +216,7 @@ ORDER BY tweet_id DESC;"))
             }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
 
 
-            DateTimeOffset date = new DateTimeOffset(2017, 5, 5, 22, 0, 0, new TimeSpan(0)); //DateTimeOffset.UtcNow.AddDays(-7);
+            DateTimeOffset date = DateTimeOffset.UtcNow.AddDays(-7);
             for(int i = 0; i < 20; i++)
             {
                 GetTweetBlock.Post(SnowFlake.SecondinSnowFlake(date, false));

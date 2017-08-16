@@ -6,9 +6,6 @@ using System.Drawing.Imaging;
 using System.Linq;
 using System.Numerics;
 
-//using System.Windows.Media;
-//using System.Windows.Media.Imaging;
-
 namespace twidown
 {
     static class PictHash
@@ -184,64 +181,5 @@ namespace twidown
                 return null;
             }
         }
-        
-        /*
-        static Vector<float>[] monoimagewpf(Stream imgStream, int size, bool crop = false)
-        {
-            //try
-            {
-                sww.Start();
-
-                BitmapImage img = new BitmapImage();
-                img.BeginInit();
-                img.CacheOption = BitmapCacheOption.OnLoad;
-                img.StreamSource = imgStream;
-                img.EndInit();
-                img.Freeze();
-                
-                TransformedBitmap miniimage = new TransformedBitmap();
-                miniimage.BeginInit();
-                if (img.Format != PixelFormats.Bgr32 && img.Format != PixelFormats.Bgra32)
-                {
-                    FormatConvertedBitmap imgrgb32 = new FormatConvertedBitmap(img, PixelFormats.Bgr32, null, 0);
-                    miniimage.Source = imgrgb32;
-                }
-                else
-                {
-                    miniimage.Source = img;
-                }
-                miniimage.Transform = new ScaleTransform((double)size / (double)img.PixelWidth, (double)size / (double)img.PixelHeight);
-                RenderOptions.SetBitmapScalingMode(miniimage, BitmapScalingMode.NearestNeighbor);
-                miniimage.EndInit();
-                miniimage.Freeze();
-
-                //バイト配列に取り出す
-                int nStride = (miniimage.PixelWidth * miniimage.Format.BitsPerPixel + 7) >> 3;
-                byte[] imgbuf = new byte[miniimage.PixelHeight * nStride];
-                miniimage.CopyPixels(imgbuf, nStride, 0);
-
-                //モノクロに変換
-                float[] hashbuf = new float[VectorCount]; //モノクロにしたやつを入れる
-                Vector<float>[] ret = new Vector<float>[size * size / VectorCount];  //VectorCount個ごとに並べたやつ
-                int i = 0;
-                for (int y = 0; y < size; y++)
-                    for (int x = 0; x < size; x += VectorCount)
-                    {
-                        for (int n = 0; n < VectorCount; n++)
-                        {
-                            hashbuf[n] = (0.299F * imgbuf[y * size + x + n << 2] + 0.587F * imgbuf[(y * size + x + n << 2) + 1] + 0.114F * imgbuf[(y * size + x + n << 2) + 2]);    //RとBの係数が逆になっているが今更どうしようもない
-                        }
-                        ret[i] = new Vector<float>(hashbuf);
-                        i++;
-                    }
-                sww.Stop();
-                return ret;
-            }
-            //catch
-            {
-                return null;
-            }
-        }
-*/
     }
 }
