@@ -112,6 +112,7 @@ namespace twitenlib
             public int MediaDownloadThreads { get; }
             public int DeleteTweetBufferSize { get; }
             public int LockedTokenPostpone { get; }
+            public int ParentUdpPort { get; }
             public _crawl(IniFileHandler ini)
             {
                 PictPathProfileImage = ini.GetValue("crawl", nameof(PictPathProfileImage), Directory.GetCurrentDirectory() + @"\pict\profile_image\");
@@ -125,6 +126,7 @@ namespace twitenlib
                 MediaDownloadThreads = int.Parse(ini.GetValue("crawl", nameof(MediaDownloadThreads), Environment.ProcessorCount.ToString()));
                 DeleteTweetBufferSize = int.Parse(ini.GetValue("crawl", nameof(DeleteTweetBufferSize), "1000"));
                 LockedTokenPostpone = int.Parse(ini.GetValue("crawl", nameof(LockedTokenPostpone), "86400"));
+                ParentUdpPort = int.Parse(ini.GetValue("crawl", nameof(ParentUdpPort), "48250"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -137,12 +139,16 @@ namespace twitenlib
             public string ChildPath { get; }
             public string ChildName { get; }
             public bool InitTruncate { get; }
+            public int UdpPort { get; }
+            public int TweetLockSize { get; }
             public _crawlparent(IniFileHandler ini)
             {
                 AccountLimit = int.Parse(ini.GetValue("crawlparent", nameof(AccountLimit), "250"));
                 ChildPath = ini.GetValue("crawlparent", nameof(ChildPath), "");
                 ChildName = ini.GetValue("crawlparent", nameof(ChildName), "twidown");
                 InitTruncate = bool.Parse(ini.GetValue("crawlparent", nameof(InitTruncate), "true"));
+                UdpPort = int.Parse(ini.GetValue("crawlparent", nameof(UdpPort), "48250"));
+                TweetLockSize = int.Parse(ini.GetValue("crawlparent", nameof(TweetLockSize), "65536"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -157,6 +163,7 @@ namespace twitenlib
             public long LastUpdate { get; }
             public int LastHashCount { get; }
             public int HashCountOffset { get; }
+            public bool KeepDataRAM { get; }
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
@@ -165,6 +172,7 @@ namespace twitenlib
                 LastUpdate = long.Parse(ini.GetValue("hash", nameof(LastUpdate), "0"));
                 LastHashCount = int.Parse(ini.GetValue("hash", nameof(LastHashCount), "0"));
                 HashCountOffset = int.Parse(ini.GetValue("hash", nameof(HashCountOffset), "5000000"));
+                KeepDataRAM = bool.Parse(ini.GetValue("hash", nameof(KeepDataRAM), "false"));
             }
             public void NewLastUpdate(long time)
             {

@@ -47,6 +47,7 @@ namespace twihash
             Hashes = new long[Length];
             NewHashes = new HashSet<long>();
             ForceInsert = Config.Instance.hash.LastUpdate <= 0;
+            if (Config.Instance.hash.KeepDataRAM) { AutoReadAll(); }
         }
         public int Count = 0;  //実際に使ってる個数
         public readonly bool ForceInsert;
@@ -54,6 +55,17 @@ namespace twihash
         public bool NeedInsert(int Index)
         {
             return ForceInsert || NewHashes.Contains(Hashes[Index]);
+        }
+
+        void AutoReadAll()
+        {
+            Task.Run(() => {
+                while (true)
+                {
+                    for(int i = 0; i < Hashes.Length; i++) { long a = Hashes[i]; }
+                    Thread.Sleep(60000);
+                }
+            });
         }
     }
 

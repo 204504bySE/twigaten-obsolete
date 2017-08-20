@@ -12,6 +12,7 @@ using twitenlib;
 using System.Threading.Tasks.Dataflow;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Net.Sockets;
 
 namespace twidown
 {
@@ -340,6 +341,7 @@ namespace twidown
             {
                 DeleteTweetBatch.LinkTo(DeleteTweetBlock, new DataflowLinkOptions { PropagateCompletion = true });
                 TweetDistinctBlock.LinkTo(HandleTweetBlock, new DataflowLinkOptions { PropagateCompletion = true });
+                Udp.Client.ReceiveTimeout = 1000;
             }
 
             public static void ShowCount()
@@ -370,12 +372,26 @@ namespace twidown
                 DeleteTweetBatch.Post(x.Id);
             }
 
-            static HashSet<long> LockedTweets = new HashSet<long>();
+            //static HashSet<long> LockedTweets = new HashSet<long>();
+            static UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, (config.crawl.ParentUdpPort | (System.Diagnostics.Process.GetCurrentProcess().Id & 0x3FFE)) + 1)) { DontFragment = true };
+            static IPEndPoint ParentEndPoint = new IPEndPoint(IPAddress.Loopback, config.crawl.ParentUdpPort);
+            static bool LockTweetUdp(long tweet_id)
+            {
+                try
+                {
+                    Udp.Send(BitConverter.GetBytes(tweet_id), sizeof(long), ParentEndPoint);
+                    IPEndPoint RemoteUdp = null;
+                    return BitConverter.ToBoolean(Udp.Receive(ref RemoteUdp), 0);
+                }
+                catch(Exception e) { Console.WriteLine(e); return false; }
+            }
+
             static TransformBlock<Tuple<Status, Tokens, bool>, Tuple<Status, Tokens, bool>> TweetDistinctBlock
                 = new TransformBlock<Tuple<Status, Tokens, bool>, Tuple<Status, Tokens, bool>>(x =>
                 {   //ここでLockする(1スレッドなのでHashSetでおｋ
-                    if (StreamerLocker.LockTweetClearFlag) { LockedTweets.Clear(); StreamerLocker.LockTweetClearFlag = false; }
-                    if (LockedTweets.Add(x.Item1.Id) && db.LockTweet(x.Item1.Id)) { return x; }
+                    //if (StreamerLocker.LockTweetClearFlag) { LockedTweets.Clear(); StreamerLocker.LockTweetClearFlag = false; }
+                    //if (LockedTweets.Add(x.Item1.Id) && db.LockTweet(x.Item1.Id)) { return x; }
+                    if (LockTweetUdp(x.Item1.Id)) { return x; }
                     else { return null; }
                 }, new ExecutionDataflowBlockOptions()
                 {
@@ -588,10 +604,6 @@ namespace twidown
         //ツイートの処理を調停する感じの奴
         public static class StreamerLocker
         {
-            //TweetDistinctBlock用 
-            public static bool LockTweetClearFlag;  //これがtrueだったらClear()してfalseに戻す
-            //DB側のUnlockは↓のUnlock()で行う
-
             //storeuser用
             //UnlockUser()はない Unlock()で処理する
             static ConcurrentDictionary<long, byte> LockedUsers = new ConcurrentDictionary<long, byte>();
@@ -601,19 +613,13 @@ namespace twidown
             static ConcurrentDictionary<long, byte> LockedProfileImages = new ConcurrentDictionary<long, byte>();
             public static bool LockProfileImage(long Id) { return LockedProfileImages.TryAdd(Id, 0); }
 
-            //static List<long> UnlockTweetID = new List<long>();
-
             //これを外から呼び出してロックを解除する
             public static void Unlock()
             {
                 LockedUsers.Clear();
                 LockedProfileImages.Clear();
-                db.UnlockTweet();
-                LockTweetClearFlag = true;
             }
         }
-
-
 
         public static class Counter
         {

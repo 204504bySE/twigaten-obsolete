@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
-
+using System.Threading.Tasks;
 using twitenlib;
 
 namespace twidownparent
@@ -19,6 +21,8 @@ namespace twidownparent
             long[] users;
             int usersIndex = 0;
             int ForceNewChild = 0;
+
+            TweetLockThread();
 
             if (config.crawlparent.InitTruncate)
             {
@@ -71,6 +75,29 @@ namespace twidownparent
 
                 users = db.SelectNewToken();
             }
+        }
+
+        static HashSet<long> LockedTweets = new HashSet<long>();
+        static Queue<long> LockedTweetsQueue = new Queue<long>(Config.Instance.crawlparent.TweetLockSize);
+        ///<summary>ツイートIDを受け取ってプロセスを跨いで排他制御する(DBのdeadlock防止)</summary>
+        static void TweetLockThread()
+        {
+            UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, Config.Instance.crawlparent.UdpPort)) { DontFragment = true};
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    IPEndPoint CrawlEndPoint = null;
+                    long tweet_id = BitConverter.ToInt64(Udp.Receive(ref CrawlEndPoint), 0);
+                    if (LockedTweets.Add(tweet_id))
+                    {
+                        Udp.Send(BitConverter.GetBytes(true), sizeof(bool), CrawlEndPoint); //Lockできたらtrue
+                        while (LockedTweetsQueue.Count >= Config.Instance.crawlparent.TweetLockSize)
+                        { LockedTweets.Remove(LockedTweetsQueue.Dequeue()); }
+                    }
+                    else { Udp.Send(BitConverter.GetBytes(false), sizeof(bool), CrawlEndPoint); }//Lockできなかったらfalse
+                }
+            });
         }
     }
 }

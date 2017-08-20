@@ -6,19 +6,29 @@ using System.Data;
 using MySql.Data.MySqlClient;
 using System.Threading.Tasks;
 using twitenlib;
+using System.Threading;
 
 namespace twihash
 {
     class DBHandler : twitenlib.DBHandler
     {
-        public DBHandler() : base("hash", "", Config.Instance.database.Address, 300)
-        {
-            StoreMediaPairsStrFull = BulkCmdStr(StoreMediaPairsUnit, 3, StoreMediaPairsHead);
-        }
-
+        public DBHandler() : base("hash", "", Config.Instance.database.Address, 300) { }
+        
         const string StoreMediaPairsHead = @"INSERT IGNORE INTO dcthashpair VALUES";
-        readonly string StoreMediaPairsStrFull;
         public const int StoreMediaPairsUnit = 1000;
+
+        ThreadLocal<MySqlCommand> StoreMediaPairsCmdFull = new ThreadLocal<MySqlCommand>(() => {
+            MySqlCommand Cmd = new MySqlCommand(BulkCmdStr(StoreMediaPairsUnit, 3, StoreMediaPairsHead));
+            for (int i = 0; i < StoreMediaPairsUnit; i++)
+            {
+                string numstr = i.ToString();
+                Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
+                Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
+                Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
+            }
+            return Cmd;
+        });
+
         public int StoreMediaPairs(MediaPair[] StorePairs)
         //類似画像のペアをDBに保存
         {
@@ -26,17 +36,7 @@ namespace twihash
             else if (StorePairs.Length == 0) { return 0; }
             else if (StorePairs.Length == StoreMediaPairsUnit)
             {
-                using (MySqlCommand Cmd = new MySqlCommand(StoreMediaPairsStrFull))
-                {
-                    for (int i = 0; i < StoreMediaPairsUnit; i++)
-                    {
-                        string numstr = i.ToString();
-                        Cmd.Parameters.Add("@a" + numstr, MySqlDbType.Int64);
-                        Cmd.Parameters.Add("@b" + numstr, MySqlDbType.Int64);
-                        Cmd.Parameters.Add("@c" + numstr, MySqlDbType.Byte);
-                    }
-                    return StoreMediaPairsInner(Cmd, StorePairs);
-                }
+                return StoreMediaPairsInner(StoreMediaPairsCmdFull.Value, StorePairs);
             }
             else
             {
@@ -80,6 +80,17 @@ namespace twihash
         }
 
 
+        ThreadLocal<MySqlCommand> GetMediaHashCmd = new ThreadLocal<MySqlCommand>(() => {
+            MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
+FROM media
+WHERE dcthash BETWEEN @begin AND @end
+GROUP BY dcthash;");
+            Cmd.Parameters.Add("@lastupdate", MySqlDbType.Int64);
+            Cmd.Parameters.Add("@begin", MySqlDbType.Int64);
+            Cmd.Parameters.Add("@end", MySqlDbType.Int64);
+            return Cmd;
+        });
+
         //全mediaのhashを読み込んだりする
         public MediaHashArray AllMediaHash()
         {
@@ -95,16 +106,10 @@ namespace twihash
                     DataTable Table;
                     do
                     {
-                        using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
-FROM media
-WHERE dcthash BETWEEN @begin AND @end
-GROUP BY dcthash;"))
-                        {
-                            Cmd.Parameters.AddWithValue("@lastupdate", config.hash.LastUpdate);
-                            Cmd.Parameters.AddWithValue("@begin", i << HashUnitBits);
-                            Cmd.Parameters.AddWithValue("@end", unchecked(((i + 1) << HashUnitBits) - 1));
-                            Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
-                        }
+                        GetMediaHashCmd.Value.Parameters["@lastupdate"].Value = config.hash.LastUpdate;
+                        GetMediaHashCmd.Value.Parameters["@begin"].Value = i << HashUnitBits;
+                        GetMediaHashCmd.Value.Parameters["@end"].Value = unchecked(((i + 1) << HashUnitBits) - 1);
+                        Table = SelectTable(GetMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
                     } while (Table == null);    //大変安易な対応
                     int Cursor;
                     lock (ret)
@@ -127,6 +132,17 @@ GROUP BY dcthash;"))
         //dcthashpairに追加する必要があるハッシュを取得するやつ
         //これが始まった後に追加されたハッシュは無視されるが
         //次回の実行で拾われるから問題ない
+
+        ThreadLocal<MySqlCommand> NewerMediaHashCmd = new ThreadLocal<MySqlCommand>(() => {
+            MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
+FROM media_downloaded_at
+NATURAL JOIN media
+WHERE downloaded_at BETWEEN @begin AND @end;");
+            Cmd.Parameters.Add("@begin", MySqlDbType.Int64);
+            Cmd.Parameters.Add("@end", MySqlDbType.Int64);
+            return Cmd;
+        });
+
         public void NewerMediaHash(MediaHashArray ret)
         {
             const int QueryRangeSeconds = 600;
@@ -137,15 +153,9 @@ GROUP BY dcthash;"))
                     DataTable Table;
                     do
                     {
-                        using (MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
-FROM media_downloaded_at
-NATURAL JOIN media
-WHERE downloaded_at BETWEEN @begin AND @end;"))
-                        {
-                            Cmd.Parameters.AddWithValue("@begin", config.hash.LastUpdate + QueryRangeSeconds * i);
-                            Cmd.Parameters.AddWithValue("@end", config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1);
-                            Table = SelectTable(Cmd, IsolationLevel.ReadUncommitted);
-                        }
+                        NewerMediaHashCmd.Value.Parameters["@begin"].Value = config.hash.LastUpdate + QueryRangeSeconds * i;
+                        NewerMediaHashCmd.Value.Parameters["@end"].Value = config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1;
+                        Table = SelectTable(NewerMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
                     } while (Table == null);    //大変安易な対応
                     lock (ret.NewHashes)
                     {

@@ -12,10 +12,9 @@ namespace twidownparent
     class DBHandler : twitenlib.DBHandler
     {
         public DBHandler() : base("crawl", "", Config.Instance.database.Address) { }
-        public long[] SelectAlltoken()
-        //<summary>
+
         //全tokenを返す 失敗したらnull
-        //</summary>
+        public long[] SelectAlltoken()
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand("SELECT user_id FROM token;"))
@@ -144,7 +143,6 @@ ORDER BY c LIMIT 1;"))
             List<MySqlCommand> cmd = new List<MySqlCommand>
             {
                 new MySqlCommand(@"TRUNCATE TABLE crawlprocess;"),
-                new MySqlCommand(@"TRUNCATE TABLE tweetlock;"),
                 new MySqlCommand(@"TRUNCATE TABLE pid;")
             };
             return ExecuteNonQuery(cmd);
