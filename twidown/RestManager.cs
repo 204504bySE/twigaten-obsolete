@@ -26,8 +26,8 @@ namespace twidown
             Thread.CurrentThread.Priority = ThreadPriority.Highest;
             while (true)
             {
-                UserStreamer.StreamerLocker.Unlock();
-                UserStreamer.Counter.PrintReset();
+                StreamerLocker.Unlock();
+                Counter.PrintReset();
                 Thread.Sleep(60000);
             }
         }

@@ -51,9 +51,9 @@ WHERE NOT EXISTS (SELECT * FROM crawlprocess WHERE user_id = token.user_id);"))
         {
             //Console.WriteLine("{0} Assign: {1} to {2}", DateTime.Now, user_id, pid);
             MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO crawlprocess (user_id, pid, rest_needed) VALUES(@user_id, @pid, @rest_needed)");
-            cmd.Parameters.AddWithValue("@user_id", user_id);
-            cmd.Parameters.AddWithValue("@pid", pid);
-            cmd.Parameters.AddWithValue("@rest_needed", RestMyTweet ? 2 : 0);
+            cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
+            cmd.Parameters.Add("@pid", MySqlDbType.Int32).Value = pid;
+            cmd.Parameters.Add("@rest_needed", MySqlDbType.Byte).Value = RestMyTweet ? 2 : 0;
             return ExecuteNonQuery(cmd);
         }
 
@@ -68,7 +68,6 @@ pid LEFT JOIN (SELECT pid, COUNT(user_id) as c FROM crawlprocess
 GROUP BY pid HAVING COUNT(user_id)) cp ON pid.pid = cp.pid
 ORDER BY c LIMIT 1;"))
             {
-                cmd.Parameters.AddWithValue("@count", config.crawlparent.AccountLimit);
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
             if (Table == null || Table.Rows.Count < 1
@@ -81,7 +80,7 @@ ORDER BY c LIMIT 1;"))
             Console.WriteLine("{0} New PID {1}", DateTime.Now, pid); 
             using (MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO pid VALUES(@pid)"))
             {
-                cmd.Parameters.AddWithValue("@pid", pid);
+                cmd.Parameters.Add("@pid", MySqlDbType.Int32).Value = pid;
                 return ExecuteNonQuery(cmd);
             }
         }
@@ -111,31 +110,24 @@ ORDER BY c LIMIT 1;"))
             if(pids == null) { return 0; }
             foreach (int pid in pids)
             {
-                if (!ch.isAlive(pid))
+                if (!ch.Alive(pid))
                 {
                     DeadCount++;
                     Console.WriteLine("{0} Dead PID: {1}", DateTime.Now, pid);
                     List<MySqlCommand> cmd = new List<MySqlCommand>
                     {
                         new MySqlCommand(@"DELETE FROM crawlprocess WHERE pid = @pid;"),
-                        new MySqlCommand(@"DELETE FROM tweetlock WHERE pid = @pid;"),
                         new MySqlCommand(@"DELETE FROM pid WHERE pid = @pid;")
                     };
                     foreach (MySqlCommand c in cmd)
                     {
-                        c.Parameters.AddWithValue("@pid", pid);
+                        c.Parameters.Add("@pid", MySqlDbType.Int32).Value = pid;
                     }
                     cmdList.AddRange(cmd);
                 }
             }
             if (cmdList.Count > 0) { ExecuteNonQuery(cmdList); }
             return DeadCount;
-        }
-
-        public int DeleteNotExistpid()
-        {
-            //MySQLが落ちた後しばらくの間残る古いクローラーが作っちゃうやつ
-            return ExecuteNonQuery(new MySqlCommand(@"DELETE FROM tweetlock WHERE pid NOT IN(SELECT pid FROM pid);"));
         }
 
         public int InitTruncate()

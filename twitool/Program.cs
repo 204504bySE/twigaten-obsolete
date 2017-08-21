@@ -24,10 +24,10 @@ namespace twitool
             //CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
-            db.RemoveOrphanTweet();
-            Console.WriteLine("＼(^o^)／");
-            Console.ReadKey();
-            return;
+            //db.RemoveOrphanTweet();
+            //Console.WriteLine("＼(^o^)／");
+            //Console.ReadKey();
+            //return;
             db.RemoveOldMedia();
             db.RemoveOrphanMedia();
             db.RemoveOldProfileImage();

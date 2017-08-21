@@ -71,7 +71,6 @@ namespace twidownparent
                 //MySQLが落ちた時はクローラーを必要数新しく起動する それ以外は死んだ分だけ
                 if (db.Selectpid()?.Length == 0) { ForceNewChild = users.Length / config.crawlparent.AccountLimit + 1; } 
                 else { ForceNewChild = db.DeleteDeadpid(); }
-                db.DeleteNotExistpid();
 
                 users = db.SelectNewToken();
             }

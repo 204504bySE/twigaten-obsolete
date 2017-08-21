@@ -118,10 +118,8 @@ WHERE pid = @pid;"))
             }
         }
 
+        ///<summary>無効化されたっぽいTokenを消す</summary>
         public int DeleteToken(long user_id)
-        //<summary>
-        //無効化されたっぽいtokenを消す
-        //</summary>
         {
             using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM token WHERE user_id = @user_id;"))
             {
@@ -130,6 +128,7 @@ WHERE pid = @pid;"))
             }
         }
 
+        ///<summary>本文の短縮URLを全て展開する</summary>
         static string ExpandUrls(Status x)
         {
             string ret;
@@ -199,25 +198,23 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
             else { return new ProfileImageInfo { NeedDownload = false }; }
         }
 
-        //コピペつらい
-        ThreadLocal<MySqlCommand> StoreUserIconCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"INSERT
+        public int StoreUser(Status x, bool IconDownloaded, bool ForceUpdate = true)
+        {
+            //DBにユーザーを入れる RTは先にやらないとキー制約が
+            
+            if (x.Entities.Media == null) { return 0; }    //画像なしツイートは捨てる
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+
+                if (IconDownloaded) {
+                    cmd.CommandText = @"INSERT
 INTO user (user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description)
 VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @updated_at, @is_default_profile_image, @location, @description)
-ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, profile_image_url=@profile_image_url, updated_at=@updated_at, is_default_profile_image=@is_default_profile_image, location=@location, description=@description;");
-            cmd.Parameters.Add("@user_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@name", MySqlDbType.VarChar);
-            cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar);
-            cmd.Parameters.Add("@isprotected", MySqlDbType.Byte);
-            cmd.Parameters.Add("@location", MySqlDbType.TinyText);
-            cmd.Parameters.Add("@description", MySqlDbType.Text);
-            cmd.Parameters.Add("@updated_at", MySqlDbType.Int64);
-            cmd.Parameters.Add("@profile_image_url", MySqlDbType.Text);
-            cmd.Parameters.Add("@is_default_profile_image", MySqlDbType.Byte);
-            return cmd;
-        });
-        ThreadLocal<MySqlCommand> StoreUserNoIconCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"INSERT
+ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, profile_image_url=@profile_image_url, updated_at=@updated_at, is_default_profile_image=@is_default_profile_image, location=@location, description=@description;"; }
+                else if (ForceUpdate)
+                {
+                    //アイコンを取得しなかった時用, insertは未保存アカウントかつアイコン取得失敗時のみ
+                    cmd.CommandText = @"INSERT
 INTO user (user_id, name, screen_name, isprotected, profile_image_url, is_default_profile_image, location, description)
 VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description)
 ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, 
@@ -225,94 +222,30 @@ updated_at=(CASE
 WHEN updated_at IS NOT NULL THEN @updated_at
 ELSE NULL
 END),
-location=@location, description=@description;");
-            cmd.Parameters.Add("@user_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@name", MySqlDbType.VarChar);
-            cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar);
-            cmd.Parameters.Add("@isprotected", MySqlDbType.Byte);
-            cmd.Parameters.Add("@location", MySqlDbType.TinyText);
-            cmd.Parameters.Add("@description", MySqlDbType.Text);
-            cmd.Parameters.Add("@updated_at", MySqlDbType.Int64);
-            cmd.Parameters.Add("@profile_image_url", MySqlDbType.Text);
-            cmd.Parameters.Add("@is_default_profile_image", MySqlDbType.Byte);
-            return cmd;
-        });
-        ThreadLocal<MySqlCommand> StoreUserRestCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE
+location=@location, description=@description;";
+                }
+                else
+                {
+                    //RESTで取得した場合はアイコンが変わらない限り何も更新したくない
+                    cmd.CommandText = @"INSERT IGNORE
 INTO user (user_id, name, screen_name, isprotected, profile_image_url, is_default_profile_image, location, description)
-VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description);");
-            cmd.Parameters.Add("@user_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@name", MySqlDbType.VarChar);
-            cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar);
-            cmd.Parameters.Add("@isprotected", MySqlDbType.Byte);
-            cmd.Parameters.Add("@location", MySqlDbType.TinyText);
-            cmd.Parameters.Add("@description", MySqlDbType.Text);
-            cmd.Parameters.Add("@updated_at", MySqlDbType.Int64);
-            cmd.Parameters.Add("@profile_image_url", MySqlDbType.Text);
-            cmd.Parameters.Add("@is_default_profile_image", MySqlDbType.Byte);
-            return cmd;
-        });
-
-        public int StoreUser(Status x, bool IconDownloaded, bool ForceUpdate = true)
-        {
-            //DBにユーザーを入れる RTは先にやらないとキー制約が
-            
-            if (x.Entities.Media == null) { return 0; }    //画像なしツイートは捨てる
-            MySqlCommand cmd;
-
-            if (IconDownloaded) { cmd = StoreUserIconCmd.Value; }
-            else if (ForceUpdate)
-            {
-                //アイコンを取得しなかった時用, insertは未保存アカウントかつアイコン取得失敗時のみ
-                cmd = StoreUserNoIconCmd.Value;
-            }
-            else
-            {
-                //RESTで取得した場合はアイコンが変わらない限り何も更新したくない
-                cmd = StoreUserRestCmd.Value;
-            }
-                cmd.Parameters["@user_id"].Value = x.User.Id;
-                cmd.Parameters["@name"].Value = x.User.Name;
-                cmd.Parameters["@screen_name"].Value = x.User.ScreenName;
-                cmd.Parameters["@isprotected"].Value = x.User.IsProtected;
-                cmd.Parameters["@location"].Value = x.User.Location;
-                cmd.Parameters["@description"].Value = x.User.Description;
+VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description);";
+                }
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = x.User.Id; ;
+                cmd.Parameters.Add("@name", MySqlDbType.VarChar).Value = x.User.Name;
+                cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar).Value = x.User.ScreenName;
+                cmd.Parameters.Add("@isprotected", MySqlDbType.Byte).Value = x.User.IsProtected;
+                cmd.Parameters.Add("@location", MySqlDbType.TinyText).Value = x.User.Location;
+                cmd.Parameters.Add("@description", MySqlDbType.Text).Value = x.User.Description;
                 //卵アイコンではupdated_atは無意味なのでnullに
-                cmd.Parameters["@updated_at"].Value = x.User.IsDefaultProfileImage ? null as long? : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                cmd.Parameters.Add("@updated_at", MySqlDbType.Int64).Value = x.User.IsDefaultProfileImage ? null as long? : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 //↓アイコンを保存したときだけだけ更新される
-                cmd.Parameters["@profile_image_url"].Value = x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl;
-                cmd.Parameters["@is_default_profile_image"].Value = x.User.IsDefaultProfileImage;
+                cmd.Parameters.Add("@profile_image_url", MySqlDbType.Text).Value = x.User.ProfileImageUrlHttps ?? x.User.ProfileImageUrl;
+                cmd.Parameters.Add("@is_default_profile_image", MySqlDbType.Byte).Value = x.User.IsDefaultProfileImage;
 
                 return ExecuteNonQuery(cmd);
+            }
         }
-
-        ThreadLocal<MySqlCommand> StoreTweetUpdateCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"INSERT
-INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count)
-VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count)
-ON DUPLICATE KEY UPDATE retweet_count=@retweet_count, favorite_count=@favorite_count;");
-            cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@user_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@created_at", MySqlDbType.Int64);
-            cmd.Parameters.Add("@text", MySqlDbType.Text);
-            cmd.Parameters.Add("@retweet_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@retweet_count", MySqlDbType.Int32);
-            cmd.Parameters.Add("@favorite_count", MySqlDbType.Int32);
-            return cmd;
-        });
-        ThreadLocal<MySqlCommand> StoreTweetNoUpdateCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE
-INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count)
-VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count);");
-            cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@user_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@created_at", MySqlDbType.Int64);
-            cmd.Parameters.Add("@text", MySqlDbType.Text);
-            cmd.Parameters.Add("@retweet_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@retweet_count", MySqlDbType.Int32);
-            cmd.Parameters.Add("@favorite_count", MySqlDbType.Int32);
-            return cmd;
-        });
 
         public int StoreTweet(Status x, bool update)
         //<summary>
@@ -321,15 +254,32 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
         //</summary>
         {
             if (x.Entities.Media == null) { return 0; }    //画像なしツイートは捨てる
-            MySqlCommand cmd = update ? StoreTweetUpdateCmd.Value : StoreTweetNoUpdateCmd.Value;
-            cmd.Parameters["@tweet_id"].Value = x.Id;
-            cmd.Parameters["@user_id"].Value = x.User.Id;
-            cmd.Parameters["@created_at"].Value = x.CreatedAt.ToUnixTimeSeconds();
-            cmd.Parameters["@text"].Value = x.RetweetedStatus == null ? ExpandUrls(x) : null;
-            cmd.Parameters["@retweet_id"].Value = x.RetweetedStatus == null ? null as long? : x.RetweetedStatus.Id;
-            cmd.Parameters["@retweet_count"].Value = x.RetweetCount;
-            cmd.Parameters["@favorite_count"].Value = x.FavoriteCount;
-            return ExecuteNonQuery(cmd);
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+                if (update) //同じツイートがあったらふぁぼRT数を更新する
+                {
+                    cmd.CommandText = @"INSERT
+INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count)
+VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count)
+ON DUPLICATE KEY UPDATE retweet_count=@retweet_count, favorite_count=@favorite_count;";
+                }
+                else
+                {
+                    cmd.CommandText = @"INSERT IGNORE
+INTO tweet (tweet_id, user_id, created_at, text, retweet_id, retweet_count, favorite_count)
+VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @favorite_count);";
+                }
+
+                cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64).Value = x.Id;
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = x.User.Id;
+                cmd.Parameters.Add("@created_at", MySqlDbType.Int64).Value = x.CreatedAt.ToUnixTimeSeconds();
+                cmd.Parameters.Add("@text", MySqlDbType.Text).Value = x.RetweetedStatus == null ? ExpandUrls(x) : null;
+                cmd.Parameters.Add("@retweet_id", MySqlDbType.Int64).Value = x.RetweetedStatus == null ? null as long? : x.RetweetedStatus.Id;
+                cmd.Parameters.Add("@retweet_count", MySqlDbType.Int32).Value = x.RetweetCount;
+                cmd.Parameters.Add("@favorite_count", MySqlDbType.Int32).Value = x.FavoriteCount;
+
+                return ExecuteNonQuery(cmd);
+            }
         }
         ///<summary> 消されたツイートをDBから消す 戻り値は削除に失敗したツイート Counterもここで処理する</summary>
         public IEnumerable<long> StoreDelete(long[] DeleteID)
@@ -338,7 +288,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             const int BulkUnit = 100;
             const string head = @"DELETE FROM tweet WHERE tweet_id IN";
             int i = 0, j;
-            UserStreamer.Counter.TweetToDelete.Add(DeleteID.Length);
+            Counter.TweetToDelete.Add(DeleteID.Length);
             Array.Sort(DeleteID);
 
             if (DeleteID.Length >= BulkUnit)
@@ -356,7 +306,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                             cmd.Parameters["@" + j.ToString()].Value = DeleteID[BulkUnit * i + j];
                         }
                         int DeletedCount = ExecuteNonQuery(cmd);
-                        if (DeletedCount >= 0) { UserStreamer.Counter.TweetDeleted.Add(DeletedCount); }
+                        if (DeletedCount >= 0) { Counter.TweetDeleted.Add(DeletedCount); }
                         else { foreach (long f in DeleteID.Skip(BulkUnit * i).Take(BulkUnit)) { yield return f; } }
                         
                     }
@@ -371,7 +321,7 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
                         cmd.Parameters.Add('@' + j.ToString(), MySqlDbType.Int64).Value = DeleteID[BulkUnit * i + j];
                     }
                     int DeletedCount = ExecuteNonQuery(cmd);
-                    if (DeletedCount >= 0) { UserStreamer.Counter.TweetDeleted.Add(DeletedCount); }
+                    if (DeletedCount >= 0) { Counter.TweetDeleted.Add(DeletedCount); }
                     else { foreach (long f in DeleteID.Skip(BulkUnit * i)) { yield return f; } }
                 }
             }
@@ -465,49 +415,43 @@ VALUES(@tweet_id, @user_id, @created_at, @text, @retweet_id, @retweet_count, @fa
             return ExecuteNonQuery(cmdList);
         }
 
-        ThreadLocal<MySqlCommand> ExistTweetCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(tweet_id) FROM tweet WHERE tweet_id = @tweet_id;");
-            cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64);
-            return cmd;
-        });
         public bool ExistTweet(long tweet_id)
         {
-            ExistTweetCmd.Value.Parameters["@tweet_id"].Value = tweet_id;
-            return SelectCount(ExistTweetCmd.Value, IsolationLevel.ReadUncommitted) >= 1;
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(tweet_id) FROM tweet WHERE tweet_id = @tweet_id;"))
+            {
+                cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64).Value = tweet_id;
+                return SelectCount(cmd, IsolationLevel.ReadUncommitted) >= 1;
+            }
         }
 
-        ThreadLocal<MySqlCommand> ExistMedia_source_tweet_idCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"SELECT source_tweet_id FROM media WHERE media_id = @media_id;");
-            cmd.Parameters.Add("@media_id", MySqlDbType.Int64);
-            return cmd;
-        });
         //true→Mediaにmedia_idが載ってる false→載ってない null→source_tweet_idがない
         public bool? ExistMedia_source_tweet_id(long media_id)
         {
             DataTable Table;
-                ExistMedia_source_tweet_idCmd.Value.Parameters["@media_id"].Value = media_id;
-                Table = SelectTable(ExistMedia_source_tweet_idCmd.Value, IsolationLevel.ReadUncommitted);
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT source_tweet_id FROM media WHERE media_id = @media_id;"))
+            {
+                cmd.Parameters.Add("@media_id", MySqlDbType.Int64).Value = media_id;
+                Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
+            }
             if (Table == null || Table.Rows.Count < 1) { return false; }    //DBが詰まるとあああ
             if (Table.Rows[0].IsNull(0)) { return null; } else { return true; }
         }
 
-        ThreadLocal<MySqlCommand> UpdateMedia_source_tweet_idCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"UPDATE IGNORE media SET
-source_tweet_id = if (EXISTS (SELECT * FROM tweet WHERE tweet_id = @source_tweet_id), @source_tweet_id, source_tweet_id)
-WHERE media_id = @media_id;");
-            cmd.Parameters.Add("@media_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@source_tweet_id", MySqlDbType.Int64);
-            return cmd;
-        });
         //source_tweet_idを更新するためだけ
         public int UpdateMedia_source_tweet_id(MediaEntity m, Status x)
         {
-            UpdateMedia_source_tweet_idCmd.Value.Parameters["@media_id"].Value = m.Id;
-            UpdateMedia_source_tweet_idCmd.Value.Parameters["@source_tweet_id"].Value = m.SourceStatusId ?? x.Id;
-            return ExecuteNonQuery(UpdateMedia_source_tweet_idCmd.Value);
+            using (MySqlCommand cmd = new MySqlCommand(@"UPDATE IGNORE media SET
+source_tweet_id = if (EXISTS (SELECT * FROM tweet WHERE tweet_id = @source_tweet_id), @source_tweet_id, source_tweet_id)
+WHERE media_id = @media_id;"))
+            {
+                cmd.Parameters.Add("@media_id", MySqlDbType.Int64).Value = m.Id;
+                cmd.Parameters.Add("@source_tweet_id", MySqlDbType.Int64).Value = m.SourceStatusId ?? x.Id;
+                return ExecuteNonQuery(cmd);
+            }
         }
 
-        ThreadLocal<MySqlCommand[]> StoreMediaCmd = new ThreadLocal<MySqlCommand[]>(() => {
+        public int StoreMedia(MediaEntity m, Status x, long hash)
+        {
             MySqlCommand[] cmd = new MySqlCommand[] { new MySqlCommand(@"INSERT IGNORE 
 INTO media (media_id, source_tweet_id, type, media_url, dcthash) 
 VALUES(@media_id, @source_tweet_id, @type, @media_url, @dcthash) 
@@ -517,41 +461,27 @@ dcthash = @dcthash;"),
             new MySqlCommand(@"INSERT IGNORE
 INTO media_downloaded_at
 VALUES(@media_id, @downloaded_at)") };
-            cmd[0].Parameters.Add("@media_id", MySqlDbType.Int64);
-            cmd[0].Parameters.Add("@source_tweet_id", MySqlDbType.Int64);
-            cmd[0].Parameters.Add("@type", MySqlDbType.VarChar);
-            cmd[0].Parameters.Add("@media_url", MySqlDbType.Text);
-            cmd[0].Parameters.Add("@dcthash", MySqlDbType.Int64);
+            cmd[0].Parameters.Add("@media_id", MySqlDbType.Int64).Value = m.Id;
+            cmd[0].Parameters.Add("@source_tweet_id", MySqlDbType.Int64).Value = m.SourceStatusId ?? x.Id;
+            cmd[0].Parameters.Add("@type", MySqlDbType.VarChar).Value = m.Type;
+            cmd[0].Parameters.Add("@media_url", MySqlDbType.Text).Value = m.MediaUrlHttps ?? m.MediaUrl;
+            cmd[0].Parameters.Add("@dcthash", MySqlDbType.Int64).Value = hash;
 
-            cmd[1].Parameters.Add("@media_id", MySqlDbType.Int64);
-            cmd[1].Parameters.Add("@downloaded_at", MySqlDbType.Int64);
-            return cmd;
-        });
-        public int StoreMedia(MediaEntity m, Status x, long hash)
-        {
-            StoreMediaCmd.Value[0].Parameters["@media_id"].Value = m.Id;
-            StoreMediaCmd.Value[0].Parameters["@source_tweet_id"].Value = m.SourceStatusId ?? x.Id;
-            StoreMediaCmd.Value[0].Parameters["@type"].Value = m.Type;
-            StoreMediaCmd.Value[0].Parameters["@media_url"].Value = m.MediaUrlHttps ?? m.MediaUrl;
-            StoreMediaCmd.Value[0].Parameters["@dcthash"].Value = hash;
-            StoreMediaCmd.Value[1].Parameters["@media_id"].Value = m.Id;
-            StoreMediaCmd.Value[1].Parameters["@downloaded_at"].Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            cmd[1].Parameters.Add("@media_id", MySqlDbType.Int64).Value = m.Id;
+            cmd[1].Parameters.Add("@downloaded_at", MySqlDbType.Int64).Value = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            int ret = ExecuteNonQuery(StoreMediaCmd.Value) >> 1;
+            int ret = ExecuteNonQuery(cmd) >> 1;
             return ret + Storetweet_media(x.Id, m.Id);
         }
 
-        ThreadLocal<MySqlCommand> Storetweet_mediaCmd = new ThreadLocal<MySqlCommand>(() => {
-            MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO tweet_media VALUES(@tweet_id, @media_id)");
-            cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64);
-            cmd.Parameters.Add("@media_id", MySqlDbType.Int64);
-            return cmd;
-        });
         public int Storetweet_media(long tweet_id, long media_id)
         {
-            Storetweet_mediaCmd.Value.Parameters["@tweet_id"].Value = tweet_id;
-            Storetweet_mediaCmd.Value.Parameters["@media_id"].Value = media_id;
-            return ExecuteNonQuery(Storetweet_mediaCmd.Value);
+            using (MySqlCommand cmd = new MySqlCommand(@"INSERT IGNORE INTO tweet_media VALUES(@tweet_id, @media_id)"))
+            {
+                cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64).Value = tweet_id;
+                cmd.Parameters.Add("@media_id", MySqlDbType.Int64).Value = media_id;
+                return ExecuteNonQuery(cmd);
+            }
         }
 
         public int StoreEvents(EventMessage x)

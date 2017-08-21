@@ -114,9 +114,9 @@ namespace twidown
             if (!db.ExistThisPid()) { Environment.Exit(1); }
 
             int ActiveStreamers = 0;  //再接続が不要だったやつの数
-            UserStreamer.StreamerLocker.Unlock();
-            UserStreamer.Counter.PrintReset();
-            UserStreamer.StaticMethods.ShowCount();
+            StreamerLocker.Unlock();
+            Counter.PrintReset();
+            UserStreamerStatic.ShowCount();
 
             TickCount Tick = new TickCount(0);
             foreach (KeyValuePair<long, UserStreamer> s in Streamers.ToArray())  //ここでスナップショットを作る
@@ -135,8 +135,8 @@ namespace twidown
                 if (Tick.Elasped >= 60000)
                 {
                     Tick.Update();
-                    UserStreamer.StreamerLocker.Unlock();
-                    UserStreamer.Counter.PrintReset();
+                    StreamerLocker.Unlock();
+                    Counter.PrintReset();
                 }
             }
             if (ConnectBlock != null)

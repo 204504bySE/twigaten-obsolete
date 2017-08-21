@@ -24,9 +24,9 @@ namespace twiview
 INTO token (user_id, token, token_secret) VALUES (@user_id, @token, @token_secret)
 ON DUPLICATE KEY UPDATE token=@token, token_secret=@token_secret;"))
             {
-                cmd.Parameters.AddWithValue("@user_id", token.UserId);
-                cmd.Parameters.AddWithValue("@token", token.AccessToken);
-                cmd.Parameters.AddWithValue("@token_secret", token.AccessTokenSecret);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value =  token.UserId;
+                cmd.Parameters.Add("@token", MySqlDbType.VarChar).Value = token.AccessToken;
+                cmd.Parameters.Add("@token_secret", MySqlDbType.VarChar).Value =  token.AccessTokenSecret;
 
                 return ExecuteNonQuery(cmd);
             }
@@ -39,7 +39,7 @@ ON DUPLICATE KEY UPDATE token=@token, token_secret=@token_secret;"))
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand("SELECT * FROM token WHERE user_id = @user_id;"))
             {
-                cmd.Parameters.AddWithValue("@user_id", token.UserId);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = token.UserId;
                 Table = SelectTable(cmd);
             }
             if (Table.Rows.Count < 1) { return VerifytokenResult.New; }
@@ -56,14 +56,14 @@ ON DUPLICATE KEY UPDATE token=@token, token_secret=@token_secret;"))
             using (MySqlCommand cmd = new MySqlCommand(@"INSERT INTO user VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description)
 ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, location=@location, description=@description;"))
             {
-                cmd.Parameters.AddWithValue("@user_id", ProfileResponse.Id);
-                cmd.Parameters.AddWithValue("@name", ProfileResponse.Name);
-                cmd.Parameters.AddWithValue("@screen_name", ProfileResponse.ScreenName);
-                cmd.Parameters.AddWithValue("@isprotected", ProfileResponse.IsProtected);
-                cmd.Parameters.AddWithValue("@profile_image_url", ProfileResponse.ProfileImageUrlHttps ?? ProfileResponse.ProfileImageUrl);
-                cmd.Parameters.AddWithValue("@is_default_profile_image", ProfileResponse.IsDefaultProfileImage);
-                cmd.Parameters.AddWithValue("@location", ProfileResponse.Location);
-                cmd.Parameters.AddWithValue("@description", ProfileResponse.Description);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = ProfileResponse.Id;
+                cmd.Parameters.Add("@name", MySqlDbType.VarChar).Value = ProfileResponse.Name;
+                cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar).Value = ProfileResponse.ScreenName;
+                cmd.Parameters.Add("@isprotected", MySqlDbType.Byte).Value = ProfileResponse.IsProtected;
+                cmd.Parameters.Add("@profile_image_url", MySqlDbType.Text).Value = ProfileResponse.ProfileImageUrlHttps ?? ProfileResponse.ProfileImageUrl;
+                cmd.Parameters.Add("@is_default_profile_image", MySqlDbType.Byte).Value = ProfileResponse.IsDefaultProfileImage;
+                cmd.Parameters.Add("@location", MySqlDbType.TinyText).Value = ProfileResponse.Location;
+                cmd.Parameters.Add("@description", MySqlDbType.Text).Value = ProfileResponse.Description;
 
                 return ExecuteNonQuery(cmd);
             }
@@ -73,8 +73,8 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         {
             using (MySqlCommand cmd = new MySqlCommand(@"INSERT INTO viewlogin VALUES (@user_id, @logintoken) ON DUPLICATE KEY UPDATE logintoken=@logintoken;"))
             {
-                cmd.Parameters.AddWithValue("@user_id", user_id);
-                cmd.Parameters.AddWithValue("@logintoken", base64str);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
+                cmd.Parameters.Add("@logintoken", MySqlDbType.VarChar).Value = base64str;
 
                 return ExecuteNonQuery(cmd);
             }
@@ -91,7 +91,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
 user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description
 FROM user WHERE user_id = @user_id"))
             {
-                cmd.Parameters.AddWithValue("@user_id", user_id);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
                 Table = SelectTable(cmd);
             }
             if (Table.Rows.Count < 1) { return null; }
@@ -103,7 +103,7 @@ FROM user WHERE user_id = @user_id"))
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT logintoken FROM viewlogin WHERE user_id = @user_id;"))
             {
-                cmd.Parameters.AddWithValue("@user_id", user_id);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
                 Table = SelectTable(cmd);
             }
             if (Table.Rows.Count < 1) { return null; }
@@ -114,7 +114,7 @@ FROM user WHERE user_id = @user_id"))
         {
             using (MySqlCommand cmd = new MySqlCommand(@"DELETE FROM viewlogin WHERE user_id = @user_id"))
             {
-                cmd.Parameters.AddWithValue("@user_id", user_id);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
                 return ExecuteNonQuery(cmd);
             }
         }
@@ -142,9 +142,9 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
             cmdBuilder.Append(" LIMIT @limit;");
             using (MySqlCommand cmd = new MySqlCommand(cmdBuilder.ToString()))
             {
-                cmd.Parameters.AddWithValue("@screen_name", Pattern);
-                cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                cmd.Parameters.AddWithValue("@limit", Limit);
+                cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar).Value = Pattern;
+                cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
+                cmd.Parameters.Add("@limit", MySqlDbType.Int64).Value = Limit;
                 Table = SelectTable(cmd);
             }
             return TableToUser(Table);
@@ -181,7 +181,7 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT user_id FROM user WHERE screen_name = @screen_name LIMIT 2;"))
             {
-                cmd.Parameters.AddWithValue("@screen_name", target_screen_name);
+                cmd.Parameters.Add("@screen_name", MySqlDbType.VarChar).Value = target_screen_name;
                 Table = SelectTable(cmd);
             }
             if (Table.Rows.Count == 1) { return Table.Rows[0].Field<long?>(0); }
@@ -224,12 +224,12 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
 ORDER BY p.dcthash_distance, o.created_at LIMIT 1
 );"))
             {
-                cmd.Parameters.AddWithValue("@dcthash", dcthash);
+                cmd.Parameters.Add("@dcthash", MySqlDbType.Int64).Value = dcthash;
                 for(int i = 0; i < 64; i++)
                 {
-                    cmd.Parameters.AddWithValue('@' + i.ToString(), dcthash ^ (1L << i));
+                    cmd.Parameters.Add('@' + i.ToString(), MySqlDbType.Int64).Value = dcthash ^ (1L << i);
                 }
-                cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
+                cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
                 Table = SelectTable(cmd);
             }
             if (Table.Rows.Count >= 1) { return (Table.Rows[0].Field<long>(0), Table.Rows[0].Field<long>(1)); }
@@ -240,7 +240,7 @@ ORDER BY p.dcthash_distance, o.created_at LIMIT 1
         {
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(tweet_id) FROM tweet WHERE tweet_id = @tweet_id;"))
             {
-                cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
+                cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64).Value = tweet_id;
                 return SelectCount(cmd, IsolationLevel.ReadUncommitted) >= 1;
             }
         }
@@ -251,7 +251,7 @@ ORDER BY p.dcthash_distance, o.created_at LIMIT 1
             DataTable Table;
             using(MySqlCommand cmd = new MySqlCommand(@"SELECT retweet_id FROM tweet WHERE tweet_id = @tweet_id;"))
             {
-                cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
+                cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64).Value = tweet_id;
                 Table = SelectTable(cmd, IsolationLevel.ReadUncommitted);
             }
             if(Table == null || Table.Rows.Count < 1) { return null; }
@@ -273,8 +273,8 @@ NATURAL LEFT JOIN media_downloaded_at md
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
-                cmd.Parameters.AddWithValue("@tweet_id", tweet_id);
-                cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
+                cmd.Parameters.Add("@tweet_id", MySqlDbType.Int64).Value = tweet_id;
+                cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
                 Table = SelectTable(cmd);
             }
             return TableToTweet(Table, login_user_id, SimilarLimit, true);
@@ -292,8 +292,8 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
                 if (login_user_id == null) { return new SimilarMediaTweet[0]; }
                 using (MySqlCommand cmd = new MySqlCommand(@"SELECT COUNT(*) FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id"))
                 {
-                    cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                    cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
+                    cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
+                    cmd.Parameters.Add("@target_user_id", MySqlDbType.Int64).Value = target_user_id;
                     switch (SelectCount(cmd))
                     {
                         case 0:
@@ -386,11 +386,11 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 {
                     using (MySqlCommand cmd = new MySqlCommand(QueryText))
                     {
-                        cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
-                        cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                        cmd.Parameters.AddWithValue("@time", (Before ? QuerySnowFlake - QueryRangeSnowFlake * i : QuerySnowFlake + QueryRangeSnowFlake * i));
-                        cmd.Parameters.AddWithValue("@timerange", QueryRangeSnowFlake);
-                        cmd.Parameters.AddWithValue("@limitplus", TweetCount + MultipleMediaOffset);
+                        cmd.Parameters.Add("@target_user_id", MySqlDbType.Int64).Value = target_user_id;
+                        cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
+                        cmd.Parameters.Add("@time", MySqlDbType.Int64).Value = (Before ? QuerySnowFlake - QueryRangeSnowFlake * i : QuerySnowFlake + QueryRangeSnowFlake * i);
+                        cmd.Parameters.Add("@timerange", MySqlDbType.Int64).Value = QueryRangeSnowFlake;
+                        cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = TweetCount + MultipleMediaOffset;
                         return SelectTable(cmd);
                     }
                 }, op);
@@ -483,10 +483,10 @@ AND (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.med
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
-                cmd.Parameters.AddWithValue("@target_user_id", target_user_id);
-                cmd.Parameters.AddWithValue("@login_user_id", login_user_id);
-                cmd.Parameters.AddWithValue("@lasttweet", LastTweet);
-                cmd.Parameters.AddWithValue("@limitplus", TweetCount + MultipleMediaOffset);
+                cmd.Parameters.Add("@target_user_id", MySqlDbType.Int64).Value = target_user_id;
+                cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
+                cmd.Parameters.Add("@lasttweet", MySqlDbType.Int64).Value = LastTweet;
+                cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = TweetCount + MultipleMediaOffset;
                 Table = SelectTable(cmd);
             }
             SimilarMediaTweet[] ret = TableToTweet(Table, login_user_id, SimilarLimit);
@@ -553,8 +553,8 @@ LIMIT 50;";
             {
                 using (MySqlCommand cmd = new MySqlCommand(QueryText))
                 {
-                    cmd.Parameters.AddWithValue("@begin", QuerySnowFlake + QueryRangeSnowFlake * i);
-                    cmd.Parameters.AddWithValue("@end", QuerySnowFlake + QueryRangeSnowFlake * (i + 1) - 1);
+                    cmd.Parameters.Add("@begin", MySqlDbType.Int64).Value = QuerySnowFlake + QueryRangeSnowFlake * i;
+                    cmd.Parameters.Add("@end", MySqlDbType.Int64).Value = QuerySnowFlake + QueryRangeSnowFlake * (i + 1) - 1;
                     Table[i] = SelectTable(cmd, IsolationLevel.ReadUncommitted);
                 }
             });
@@ -723,11 +723,11 @@ AND o.tweet_id != @except_tweet_id
 ORDER BY o.tweet_id
 LIMIT @limit"))
             {
-                cmd.Parameters.AddWithValue("@user_id", login_user_id);
-                cmd.Parameters.AddWithValue("@media_id", media_id);
-                cmd.Parameters.AddWithValue("@except_tweet_id", except_tweet_id);
-                cmd.Parameters.AddWithValue("@limit", SimilarLimit);
-                cmd.Parameters.AddWithValue("@limitplus", SimilarLimit << 2);
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = login_user_id;
+                cmd.Parameters.Add("@media_id", MySqlDbType.Int64).Value = media_id;
+                cmd.Parameters.Add("@except_tweet_id", MySqlDbType.Int64).Value = except_tweet_id;
+                cmd.Parameters.Add("@limit", MySqlDbType.Int64).Value = SimilarLimit;
+                cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = SimilarLimit << 2;
                 Table = SelectTable(cmd);
             }
             return TableToTweet(Table, login_user_id, SimilarLimit, false, false);

@@ -29,7 +29,7 @@ namespace twidownparent
             catch { return -1; }
         }
 
-        public bool isAlive(int pid)
+        public bool Alive(int pid)
         {
             Process p;
             try
