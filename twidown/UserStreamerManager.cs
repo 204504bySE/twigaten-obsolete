@@ -22,6 +22,7 @@ namespace twidown
 
         public UserStreamerManager()
         {
+            InitConnectBlock();
             AddAll();
         }
 
@@ -62,7 +63,7 @@ namespace twidown
         }
 
         public int Count { get { return Streamers.Count; } }
-        
+
         ActionBlock<(long, UserStreamer, UserStreamer.NeedRetryResult)> ConnectBlock;
         void InitConnectBlock()
         {
@@ -102,8 +103,7 @@ namespace twidown
                 s.Streamer.ConnectWaiting = false;
             }, new ExecutionDataflowBlockOptions()
             {
-                MaxDegreeOfParallelism = config.crawl.ReconnectThreads,
-                MaxMessagesPerTask = 1
+                MaxDegreeOfParallelism = config.crawl.ReconnectThreads
             });
         }
 
@@ -127,7 +127,6 @@ namespace twidown
                     if (!s.Value.ConnectWaiting)
                     {
                         s.Value.ConnectWaiting = true;
-                        if(ConnectBlock == null) { InitConnectBlock(); }
                         ConnectBlock.Post((s.Key, s.Value, NeedRetry));
                     }
                 }
@@ -139,11 +138,7 @@ namespace twidown
                     Counter.PrintReset();
                 }
             }
-            if (ConnectBlock != null)
-            {
-                if (ConnectBlock.InputCount > 0) { Console.WriteLine("{0} App: {1} Accounts waiting connect", DateTime.Now, ConnectBlock.InputCount); }
-                else { ConnectBlock.Complete(); ConnectBlock = null; }
-            }
+            if (ConnectBlock.InputCount > 0) { Console.WriteLine("{0} App: {1} Accounts waiting connect", DateTime.Now, ConnectBlock.InputCount); }
             return ActiveStreamers;
         }
 

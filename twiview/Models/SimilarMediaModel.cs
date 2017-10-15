@@ -58,14 +58,20 @@ namespace twiview.Models
     public class SimilarMediaModelFeatured : SimilarMediaModel
     {
         public DBHandlerView.TweetOrder Order { get; }
-        public SimilarMediaModelFeatured(int SimilarLimit, DateTimeOffset BeginDate, DBHandlerView.TweetOrder sortOrder)
+        public new DateTimeOffset Date { get; }
+        public TimeSpan Span { get; } = new TimeSpan(1, 0, 0);
+        
+        public SimilarMediaModelFeatured(int SimilarLimit, DateTimeOffset? BeginDate, DBHandlerView.TweetOrder sortOrder)
         {
+            //BeginDate == null で最新の時刻用になる
             sw.Start();
             ActionName = ActionNames.Featured;
             this.SimilarLimit = SimilarLimit;
-            LastTweet = SnowFlake.SecondinSnowFlake(BeginDate.AddDays(1).AddSeconds(-1),true);
+            if (BeginDate.HasValue && BeginDate.Value + Span <= DateTimeOffset.UtcNow) { Date = BeginDate.Value; }
+            else { Date = DateTimeOffset.UtcNow - Span; isLatest = true; }
+            LastTweet = SnowFlake.SecondinSnowFlake((Date + Span).AddSeconds(-1),true);
             Order = sortOrder;
-            Tweets = db.SimilarMediaFeatured(SimilarLimit, SnowFlake.SecondinSnowFlake(BeginDate,false), LastTweet,Order);
+            Tweets = db.SimilarMediaFeatured(SimilarLimit, SnowFlake.SecondinSnowFlake(Date,false), LastTweet,Order);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }

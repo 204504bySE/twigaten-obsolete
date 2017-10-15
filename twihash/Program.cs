@@ -60,6 +60,7 @@ namespace twihash
         void AutoReadAll()
         {
             Task.Run(() => {
+                Thread.CurrentThread.Priority = ThreadPriority.Lowest;
                 while (true)
                 {
                     for(int i = 0; i < Hashes.Length; i++) { long a = Hashes[i]; }

@@ -171,23 +171,14 @@
   <data name="Pager_Newer" xml:space="preserve">
     <value>« Newer</value>
   </data>
-  <data name="Pager_NextDay" xml:space="preserve">
-    <value>« Next day</value>
-  </data>
   <data name="Pager_NoRT" xml:space="preserve">
     <value>Hide RT</value>
   </data>
   <data name="Pager_Older" xml:space="preserve">
     <value>Older »</value>
   </data>
-  <data name="Pager_PreviousDay" xml:space="preserve">
-    <value>Previous day »</value>
-  </data>
   <data name="Pager_ResultsPerPage" xml:space="preserve">
     <value>Results per page</value>
-  </data>
-  <data name="Pager_Today" xml:space="preserve">
-    <value>Today</value>
   </data>
   <data name="Pager_WithRT" xml:space="preserve">
     <value>Show RT</value>
@@ -239,5 +230,8 @@
   </data>
   <data name="Headline_OneTweet" xml:space="preserve">
     <value>Tweet of {0}</value>
+  </data>
+  <data name="Headline_LatestTime" xml:space="preserve">
+    <value>Recent 1 Hour</value>
   </data>
 </root>

@@ -171,23 +171,14 @@
   <data name="Pager_Newer" xml:space="preserve">
     <value>« 新しい</value>
   </data>
-  <data name="Pager_NextDay" xml:space="preserve">
-    <value>« 次の日</value>
-  </data>
   <data name="Pager_NoRT" xml:space="preserve">
     <value>RTを除く</value>
   </data>
   <data name="Pager_Older" xml:space="preserve">
     <value>古い »</value>
   </data>
-  <data name="Pager_PreviousDay" xml:space="preserve">
-    <value>前の日 »</value>
-  </data>
   <data name="Pager_ResultsPerPage" xml:space="preserve">
     <value>表示件数</value>
-  </data>
-  <data name="Pager_Today" xml:space="preserve">
-    <value>今日</value>
   </data>
   <data name="Pager_WithRT" xml:space="preserve">
     <value>RTを表示</value>
@@ -239,5 +230,8 @@
   </data>
   <data name="Headline_OneTweet" xml:space="preserve">
     <value>{0} のツイート</value>
+  </data>
+  <data name="Headline_LatestTime" xml:space="preserve">
+    <value>最近1時間</value>
   </data>
 </root>

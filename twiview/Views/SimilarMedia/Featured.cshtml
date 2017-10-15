@@ -3,7 +3,7 @@
 
 @{ViewBag.title = string.Format(Locale.Title_Featured, Model.Date.ToString("yyyy/MM/dd")); }
 @section TwitterCard{@TextHelper.TwitterCardDefault()}
-
+@section MetaTags{<meta name="robots" content="noindex" />}
 @helper RenderScripts()
 {
     @Styles.Render("~/Content/bootstrap-datepicker")
@@ -12,17 +12,19 @@
 
 @helper datetimepickerScript(DateTimeOffset Date, string UrlPrefix)
 {
+DateTimeOffset LocalDate = Date.ToLocalTime();
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
     <script type="text/javascript">
     $(function () {
         $('#datetimepicker_similarmedia').datetimepicker({
-            defaultDate: new Date(@Date.Year, @Date.Month - 1, @Date.Day),
+            defaultDate: new Date(@LocalDate.Year, @LocalDate.Month - 1, @LocalDate.Day, @LocalDate.Hour),
             maxDate: Date.now(),
             useCurrent: false,
             allowInputToggle: true,
-            format: 'YYYY-MM-DD'
+            sideBySide: true,
+            format: 'YYYY-MM-DD-HH'
         }).on('dp.change', function (e) {
-            location.href = '@html.Raw(UrlPrefix)' + e.date.format('YYYY-MM-DD');
+            location.href = '@html.Raw(UrlPrefix)' + e.date.format('YYYY-MM-DD-HH');
         });
     });
     </script>
@@ -32,20 +34,20 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 {
     <div>
     <ul class="pagination">
-        <li @(Model.Order == DBHandlerView.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink(Locale.Order_Featured, "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = DBHandlerView.TweetOrder.Featured })</li>
-        <li @(Model.Order == DBHandlerView.TweetOrder.New ? "class=active" : "")>@Html.ActionLink(Locale.Order_New, "Featured", new { Date = Model.Date.ToString("yyyy-MM-dd"), Order = DBHandlerView.TweetOrder.New })</li>
+        <li @(Model.Order == DBHandlerView.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink(Locale.Order_Featured, "Featured", new { Date = Model.Date.ToLocalTime().ToString("yyyy-MM-dd-HH"), Order = DBHandlerView.TweetOrder.Featured })</li>
+        <li @(Model.Order == DBHandlerView.TweetOrder.New ? "class=active" : "")>@Html.ActionLink(Locale.Order_New, "Featured", new { Date = Model.Date.ToLocalTime().ToString("yyyy-MM-dd-HH"), Order = DBHandlerView.TweetOrder.New })</li>
     </ul>
     <ul class="pagination">
-        <li @(Model.Date.AddDays(1) > DateTimeOffset.Now ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Today, "Featured", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd") })</li>
-        @if (Model.Date.AddDays(1) > DateTimeOffset.Now)
+        <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, "Featured", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd-HH") })</li>
+        @if (Model.isLatest)
         {
-            <li class="disabled"><a>@Locale.Pager_NextDay</a></li>
+            <li class="disabled"><a>@Locale.Pager_Newer</a></li>
         }
         else
         {
-            <li>@Html.ActionLink(Locale.Pager_NextDay, "Featured", new { Date = Model.Date.AddDays(1).ToString("yyyy-MM-dd") })</li>
+            <li>@Html.ActionLink(Locale.Pager_Newer, "Featured", new { Date = (Model.Date + Model.Span).ToLocalTime().ToString("yyyy-MM-dd-HH") })</li>
         }
-        <li>@Html.ActionLink(Locale.Pager_PreviousDay, "Featured", new { Date = Model.Date.AddDays(-1).ToString("yyyy-MM-dd") })</li>
+        <li>@Html.ActionLink(Locale.Pager_Older, "Featured", new { Date = (Model.Date - Model.Span).ToLocalTime().ToString("yyyy-MM-dd-HH") })</li>
     </ul>
     </div>
     if (datepicker)
@@ -62,8 +64,8 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
     }
 }
 @pager(true)
-<h2>@Locale.Headline_Featured (@(Model.Date.ToString("yyyy/MM/dd")))</h2>
-<p>@ScriptHelper.TweetButton(@Url.Action("Featured", new { Date = Model.Date.ToString("yyyy-MM-dd") }))</p>
+<h2>@Locale.Headline_Featured (@(Model.isLatest ? Locale.Headline_LatestTime : Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:*")))</h2>
+<p>@ScriptHelper.TweetButton(@Url.Action("Featured", new { Date = Model.Date.ToLocalTime().ToString("yyyy-MM-dd-HH") }))</p>
 <p>@(Locale.Headline_TimeToSearch): @(Model.QueryElapsedMilliseconds)ms</p>
 @if (Model.Tweets.Length > 0)
 {

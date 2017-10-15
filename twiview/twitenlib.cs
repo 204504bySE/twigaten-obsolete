@@ -113,6 +113,7 @@ namespace twitenlib
             public int DeleteTweetBufferSize { get; }
             public int LockedTokenPostpone { get; }
             public int ParentUdpPort { get; }
+            public int TweetLockSize { get; }
             public _crawl(IniFileHandler ini)
             {
                 PictPathProfileImage = ini.GetValue("crawl", nameof(PictPathProfileImage), Directory.GetCurrentDirectory() + @"\pict\profile_image\");
@@ -127,6 +128,7 @@ namespace twitenlib
                 DeleteTweetBufferSize = int.Parse(ini.GetValue("crawl", nameof(DeleteTweetBufferSize), "1000"));
                 LockedTokenPostpone = int.Parse(ini.GetValue("crawl", nameof(LockedTokenPostpone), "86400"));
                 ParentUdpPort = int.Parse(ini.GetValue("crawl", nameof(ParentUdpPort), "48250"));
+                TweetLockSize = int.Parse(ini.GetValue("crawl", nameof(TweetLockSize), "10000"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }

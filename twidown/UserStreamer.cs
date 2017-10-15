@@ -155,7 +155,7 @@ namespace twidown
             }
             finally { isAttemptingConnect = false; }
         }
-
+        
         public void RecieveStream()
         {
             StreamSubscriber?.Dispose(); StreamSubscriber = null;
@@ -163,7 +163,8 @@ namespace twidown
             LastStreamingMessageTime = DateTimeOffset.Now;
             TweetTime.Add(LastStreamingMessageTime);
             StreamSubscriber = Token.Streaming.UserAsObservable()
-                .ObserveOn(CurrentThreadScheduler.Instance)
+                .ObserveOn(Scheduler.Immediate)
+                .SubscribeOn(Scheduler.CurrentThread)
                 .Subscribe(
                 (StreamingMessage m) =>
                 {

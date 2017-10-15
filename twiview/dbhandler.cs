@@ -502,13 +502,13 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
         }
 
         public enum TweetOrder { New, Featured }
-        public SimilarMediaTweet[] SimilarMediaFeatured(int SimilarLimit, long begin, long end, TweetOrder Order)
+        public SimilarMediaTweet[] SimilarMediaFeatured(int SimilarLimit, long BeginSnowFlake, long EndSnowFlake, TweetOrder Order)
         {
-            int RangeCount = Math.Max(24, Environment.ProcessorCount);
+            int RangeCount = Environment.ProcessorCount;
             DataTable[] Table = new DataTable[RangeCount];
             DataTable retTable = null;
-            long QuerySnowFlake = begin;
-            long QueryRangeSnowFlake = (end - begin) / RangeCount;
+            long QuerySnowFlake = BeginSnowFlake;
+            long QueryRangeSnowFlake = (EndSnowFlake - BeginSnowFlake) / RangeCount;
 
             string QueryText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (PRIMARY)

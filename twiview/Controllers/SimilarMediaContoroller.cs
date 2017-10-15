@@ -42,11 +42,9 @@ namespace twiview.Controllers
         public ActionResult Featured(FeaturedParameters p)
         {
             p.Validate(Session, Response);
-            DateTimeOffset? DateOffset = StrToDateDay(p.Date);
-
-            return View(new SimilarMediaModelFeatured(3, DateOffset ??
-                new DateTimeOffset(DateTimeOffset.Now.Year, DateTimeOffset.Now.Month, DateTimeOffset.Now.Day, 0, 0, 0, new TimeSpan(0)),
-                p.Order.Value));
+            DateTimeOffset? Date = StrToDateDay(p.Date);
+            if (p.Date != null && (!Date.HasValue || Date.Value > DateTimeOffset.UtcNow)) { return RedirectToAction(nameof(Featured)); }
+            return View(new SimilarMediaModelFeatured(3, Date, p.Order.Value));
         }
 
         public class OneTweetParameters : SimilarMediaParameters
@@ -184,17 +182,21 @@ namespace twiview.Controllers
             return RedirectToActionPermanent(ActionName, "SimilarMedia", new { TweetID = TweetID, UserID = UserID, Date=Date,Count = Count, RT =RT,Before= Before, After= After });
         }
 
-        //"yyyy-MM-dd" を変換する 失敗したらnull
+        //"yyyy-MM-dd-HH" を変換する 失敗したらnull
         DateTimeOffset? StrToDateDay(string DateStr)
         {
             if (DateStr == null) { return null; }
             try
             {
                 string[] SplitDate = DateStr.Split('-');
+                if(SplitDate.Length < 4) { return null; }
                 //UTC+9の0時にする
-                return new DateTimeOffset(int.Parse(SplitDate[0]), int.Parse(SplitDate[1]), int.Parse(SplitDate[2]), 0, 0, 0, new TimeSpan(9, 0, 0));
+                return new DateTimeOffset(int.Parse(SplitDate[0]), int.Parse(SplitDate[1]), int.Parse(SplitDate[2]), int.Parse(SplitDate[3]),
+                    0, 0, TimeZoneInfo.Local.BaseUtcOffset);                 
             }
-            catch { return null; }
+            catch {
+                return null;
+            }
         }
     }
 }

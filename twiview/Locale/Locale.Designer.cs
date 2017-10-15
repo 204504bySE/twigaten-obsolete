@@ -19,7 +19,7 @@ namespace twiview.Locale {
     // または Visual Studio のようなツールを使用して自動生成されました。
     // メンバーを追加または削除するには、.ResX ファイルを編集して、/str オプションと共に
     // ResGen を実行し直すか、または VS プロジェクトをビルドし直します。
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "15.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     public class Locale {
@@ -84,6 +84,15 @@ namespace twiview.Locale {
         public static string Headline_Featured {
             get {
                 return ResourceManager.GetString("Headline_Featured", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   最近1時間 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string Headline_LatestTime {
+            get {
+                return ResourceManager.GetString("Headline_LatestTime", resourceCulture);
             }
         }
         
@@ -241,15 +250,6 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   « 次の日 に類似しているローカライズされた文字列を検索します。
-        /// </summary>
-        public static string Pager_NextDay {
-            get {
-                return ResourceManager.GetString("Pager_NextDay", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   RTを除く に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_NoRT {
@@ -268,29 +268,11 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   前の日 » に類似しているローカライズされた文字列を検索します。
-        /// </summary>
-        public static string Pager_PreviousDay {
-            get {
-                return ResourceManager.GetString("Pager_PreviousDay", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   表示件数 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_ResultsPerPage {
             get {
                 return ResourceManager.GetString("Pager_ResultsPerPage", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   今日 に類似しているローカライズされた文字列を検索します。
-        /// </summary>
-        public static string Pager_Today {
-            get {
-                return ResourceManager.GetString("Pager_Today", resourceCulture);
             }
         }
         

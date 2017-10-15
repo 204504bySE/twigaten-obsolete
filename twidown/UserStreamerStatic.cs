@@ -56,14 +56,14 @@ namespace twidown
                 DeleteTweetBatch.Post(x.Id);
             }
 
-            //static HashSet<long> LockedTweets = new HashSet<long>();
+            static HashSet<long> TweetLock = new HashSet<long>();
             static UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, (config.crawl.ParentUdpPort ^ (System.Diagnostics.Process.GetCurrentProcess().Id & 0x3FFF)))) { DontFragment = true };
             static IPEndPoint ParentEndPoint = new IPEndPoint(IPAddress.Loopback, config.crawl.ParentUdpPort);
             static bool LockTweet(long tweet_id)
             {
-                //雑にプロセス内でもLockしておく
-                //if (!LockedTweets.Add(tweet_id)) { return false; }
-                //if (StreamerLocker.LockedTweetsClearFlag) { StreamerLocker.LockedTweetsClearFlag = false; LockedTweets.Clear(); }
+            //雑にプロセス内でもLockしておく
+            if (!TweetLock.Add(tweet_id)) { return false; }
+            if (TweetLock.Count >= config.crawl.TweetLockSize) { TweetLock.Clear(); }
                 //twidownparentでもLockを確認する
                 try
                 {
@@ -73,12 +73,10 @@ namespace twidown
                 }
                 catch { return false; }
             }
-
             static TransformBlock<Tuple<Status, Tokens, bool>, Tuple<Status, Tokens, bool>> TweetDistinctBlock
                 = new TransformBlock<Tuple<Status, Tokens, bool>, Tuple<Status, Tokens, bool>>(x =>
                 {   //ここでLockする(1スレッドなのでHashSetでおｋ
-                    //if (StreamerLocker.LockTweetClearFlag) { LockedTweets.Clear(); StreamerLocker.LockTweetClearFlag = false; }
-                    //if (LockedTweets.Add(x.Item1.Id) && db.LockTweet(x.Item1.Id)) { return x; }
+
                     if (LockTweet(x.Item1.Id)) { return x; }
                     else { return null; }
                 }, new ExecutionDataflowBlockOptions()
@@ -96,7 +94,7 @@ namespace twidown
 
             static void HandleTweet(Status x, Tokens t, bool stream)    //stream(=true)からのツイートならふぁぼRT数を上書きする
             {
-                if ((x.ExtendedEntities ?? x.Entities).Media == null) { return; } //画像なしツイートを捨てる
+                if ((x.ExtendedEntities ?? x.Entities)?.Media == null) { return; } //画像なしツイートを捨てる
                 //RTを先にやる(キー制約)
                 if (x.RetweetedStatus != null) { HandleTweet(x.RetweetedStatus, t, stream); }
                 if (StreamerLocker.LockUser(x.User.Id))
@@ -138,26 +136,25 @@ namespace twidown
                 bool DownloadOK = true; //卵アイコンのダウンロード不要でもtrue
                 if (!x.User.IsDefaultProfileImage || !File.Exists(LocalPath))
                 {
-                    bool RetryFlag = false;
-                    RetryLabel:
-                    try
+                    for (int RetryCount = 0; RetryCount < 2; RetryCount++)
                     {
-                        HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
-                        req.Referer = StatusUrl(x);
-                        using (WebResponse res = req.GetResponse())
-                        using (FileStream file = File.Create(LocalPath))
+                        try
                         {
-                            res.GetResponseStream().CopyTo(file);
+                            HttpWebRequest req = WebRequest.Create(ProfileImageUrl) as HttpWebRequest;
+                            req.Referer = StatusUrl(x);
+                            using (WebResponse res = req.GetResponse())
+                            using (FileStream file = File.Create(LocalPath))
+                            {
+                                res.GetResponseStream().CopyTo(file);
+                            }
+                            break;
                         }
-                    }
-                    catch (Exception ex)
-                    {   //404等じゃなければ1回だけリトライする
-                        if (!RetryFlag && !(ex is WebException we && we.Status == WebExceptionStatus.ProtocolError))
-                        {
-                            RetryFlag = true;
-                            goto RetryLabel;
+                        catch (WebException we)
+                        {   //404等じゃなければ1回だけリトライする
+                            if (we.Status == WebExceptionStatus.ProtocolError)  { DownloadOK = false; break; }
+                        else { continue; }
                         }
-                        else { DownloadOK = false; }
+                        catch { DownloadOK = false; break; }
                     }
                 }
                 if (DownloadOK)
@@ -176,7 +173,7 @@ namespace twidown
                 Status x = a.Key;
                 Tokens t = a.Value;
                 Lazy<HashSet<long>> RestId = new Lazy<HashSet<long>>();   //同じツイートを何度も処理したくない
-                foreach (MediaEntity m in x.ExtendedEntities.Media)
+                foreach (MediaEntity m in x.ExtendedEntities.Media ?? x.Entities.Media)
                 {
                     Counter.MediaTotal.Increment();
 
@@ -291,10 +288,6 @@ namespace twidown
     //ツイートの処理を調停する感じの奴
     public static class StreamerLocker
     {
-        //LockTweet用
-        //Clear()したらFalseに戻す
-        //public static bool LockedTweetsClearFlag;
-
         //storeuser用
         //UnlockUser()はない Unlock()で処理する
         static ConcurrentDictionary<long, byte> LockedUsers = new ConcurrentDictionary<long, byte>();

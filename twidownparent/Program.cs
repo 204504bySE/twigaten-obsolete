@@ -81,7 +81,7 @@ namespace twidownparent
         ///<summary>ツイートIDを受け取ってプロセスを跨いで排他制御する(DBのdeadlock防止)</summary>
         static void TweetLockThread()
         {
-            UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, Config.Instance.crawlparent.UdpPort)) { DontFragment = true};
+            UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, Config.Instance.crawlparent.UdpPort)) { DontFragment = true };
             Task.Run(() =>
             {
                 while (true)
