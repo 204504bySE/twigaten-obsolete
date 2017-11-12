@@ -103,7 +103,7 @@ ORDER BY c LIMIT 1;"))
 
         public int DeleteDeadpid()
         {
-            List<MySqlCommand> cmdList = new List<MySqlCommand>();
+            List<MySqlCommand> CmdList = new List<MySqlCommand>();
             ChildProcessHandler ch = new ChildProcessHandler();
             int DeadCount = 0;
             int[] pids = Selectpid();
@@ -114,30 +114,18 @@ ORDER BY c LIMIT 1;"))
                 {
                     DeadCount++;
                     Console.WriteLine("{0} Dead PID: {1}", DateTime.Now, pid);
-                    List<MySqlCommand> cmd = new List<MySqlCommand>
-                    {
-                        new MySqlCommand(@"DELETE FROM crawlprocess WHERE pid = @pid;"),
-                        new MySqlCommand(@"DELETE FROM pid WHERE pid = @pid;")
-                    };
-                    foreach (MySqlCommand c in cmd)
-                    {
-                        c.Parameters.Add("@pid", MySqlDbType.Int32).Value = pid;
-                    }
-                    cmdList.AddRange(cmd);
+                    MySqlCommand Cmd = new MySqlCommand(@"DELETE FROM pid WHERE pid = @pid;");
+                    Cmd.Parameters.Add("@pid", MySqlDbType.Int32).Value = pid;
+                    CmdList.Add(Cmd);
                 }
             }
-            if (cmdList.Count > 0) { ExecuteNonQuery(cmdList); }
+            if (CmdList.Count > 0) { ExecuteNonQuery(CmdList); }
             return DeadCount;
         }
 
         public int InitTruncate()
         {
-            List<MySqlCommand> cmd = new List<MySqlCommand>
-            {
-                new MySqlCommand(@"TRUNCATE TABLE crawlprocess;"),
-                new MySqlCommand(@"TRUNCATE TABLE pid;")
-            };
-            return ExecuteNonQuery(cmd);
+            return ExecuteNonQuery(new MySqlCommand(@"DELETE FROM pid;"));
         }
     }
 }

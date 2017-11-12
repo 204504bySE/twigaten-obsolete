@@ -216,7 +216,7 @@ ORDER BY tweet_id DESC;"))
             }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
 
 
-            DateTimeOffset date = DateTimeOffset.UtcNow.AddDays(-7);
+            DateTimeOffset date = DateTimeOffset.UtcNow.AddHours(-1);
             for(int i = 0; i < 20; i++)
             {
                 GetTweetBlock.Post(SnowFlake.SecondinSnowFlake(date, false));

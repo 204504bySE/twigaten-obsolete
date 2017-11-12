@@ -25,7 +25,7 @@ namespace twidown
             {
                 DeleteTweetBatch.LinkTo(DeleteTweetBlock, new DataflowLinkOptions { PropagateCompletion = true });
                 TweetDistinctBlock.LinkTo(HandleTweetBlock, new DataflowLinkOptions { PropagateCompletion = true });
-                Udp.Client.ReceiveTimeout = 1000;
+                Udp.Client.ReceiveTimeout = 100;
             }
 
             public static void ShowCount()

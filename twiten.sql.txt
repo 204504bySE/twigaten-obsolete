@@ -16,15 +16,14 @@ create table viewlogin(
 create table pid(
 	pid int primary key,
 	cpu int not null
-)
-engine=memory;
+);
 
 create table crawlprocess(
 	user_id bigint primary key,
 	pid int not null,
-	rest_needed tinyint not null default 0
-)
-engine=memory;
+	rest_needed tinyint not null default 0,
+	foreign key (pid) references pid(pid) on delete cascade
+);
 
 );
 create table friend(
