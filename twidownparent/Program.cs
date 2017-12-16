@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using twitenlib;
 
 namespace twidownparent
@@ -22,8 +24,6 @@ namespace twidownparent
             int usersIndex = 0;
             int ForceNewChild = 0;
 
-            TweetLockThread();
-
             if (config.crawlparent.InitTruncate)
             {
                 db.InitTruncate();
@@ -38,8 +38,18 @@ namespace twidownparent
 
 
             bool GetMyTweet = false;    //後から追加されたアカウントはstreamer側で自分のツイートを取得させる
+
+
+            //Lockerの起動と監視用
+            Process LockerProcess = ch.StartLocker();
+            Stopwatch LoopWatch = new Stopwatch();
+            UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, (config.crawl.LockerUdpPort ^ (Process.GetCurrentProcess().Id & 0x3FFF)))) { DontFragment = true };
+            Udp.Client.ReceiveTimeout = 1000;
+            Udp.Client.SendTimeout = 1000;
+
             while (true)
             {
+                LoopWatch.Restart();
                 //子プロセスが死んだならその分だけ先に起動する
                 for (int i = 0; i < ForceNewChild; i++)
                 {
@@ -66,43 +76,39 @@ namespace twidownparent
                     }
                 }
                 GetMyTweet = true;
-                Thread.Sleep(60000);
 
+                //ここでプロセス間通信を監視して返事がなかったら再起動する
+                while(LoopWatch.ElapsedMilliseconds < 60000)
+                {
+                    const int MaxRetryCount = 2;
+                    int RetryCount;
+                    for (RetryCount = 0; RetryCount < MaxRetryCount; RetryCount++)
+                    {
+                        try
+                        {
+                            IPEndPoint LockerEndPoint = null;
+                            Udp.Send(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 }, 8);
+                            Udp.Receive(ref LockerEndPoint);
+                            break;
+                        }
+                        catch { }
+                    }
+                    if(RetryCount >= MaxRetryCount)
+                    {
+                        if (LockerProcess?.HasExited == false) { LockerProcess.Kill(); }
+                        Thread.Sleep(500);  //てきとー
+                        LockerProcess = ch.StartLocker();
+                    }
+                    Thread.Sleep(1000);
+                }
+                LoopWatch.Stop();
+                
                 //MySQLが落ちた時はクローラーを必要数新しく起動する それ以外は死んだ分だけ
                 if (db.Selectpid()?.Length == 0) { ForceNewChild = users.Length / config.crawlparent.AccountLimit + 1; } 
                 else { ForceNewChild = db.DeleteDeadpid(); }
 
                 users = db.SelectNewToken();
             }
-        }
-
-        static HashSet<long> LockedTweets = new HashSet<long>();
-        static Queue<long> LockedTweetsQueue = new Queue<long>(Config.Instance.crawlparent.TweetLockSize);
-        ///<summary>ツイートIDを受け取ってプロセスを跨いで排他制御する(DBのdeadlock防止)</summary>
-        static void TweetLockThread()
-        {
-            Task.Run(() =>
-            {   //スレッドの優先度上げるとクローラーが即死する(なにこれ
-                try
-                {
-                    using (UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, Config.Instance.crawlparent.UdpPort)) { DontFragment = true })
-                    {
-                        while (true)
-                        {
-                            IPEndPoint CrawlEndPoint = null;
-                            long tweet_id = BitConverter.ToInt64(Udp.Receive(ref CrawlEndPoint), 0);
-                            if (LockedTweets.Add(tweet_id))
-                            {
-                                Udp.Send(BitConverter.GetBytes(true), sizeof(bool), CrawlEndPoint); //Lockできたらtrue
-                                while (LockedTweetsQueue.Count >= Config.Instance.crawlparent.TweetLockSize)
-                                { LockedTweets.Remove(LockedTweetsQueue.Dequeue()); }
-                            }
-                            else { Udp.Send(BitConverter.GetBytes(false), sizeof(bool), CrawlEndPoint); }//Lockできなかったらfalse
-                        }
-                    }
-                }
-                finally { TweetLockThread(); }  //なんかあって落ちたらやり直す
-            });
         }
     }
 }

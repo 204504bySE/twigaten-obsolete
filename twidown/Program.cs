@@ -26,8 +26,7 @@ namespace twidown
                 Thread.Sleep(10000);
                 return;
             }
-
-            Thread.CurrentThread.Priority = ThreadPriority.Highest;                        
+                      
             UserStreamerManager manager = new UserStreamerManager();
             while (true)
             {

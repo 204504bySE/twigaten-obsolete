@@ -74,6 +74,7 @@ namespace twitenlib
                 token = new _token(ini);
                 crawl = new _crawl(ini);
                 crawlparent = new _crawlparent(ini);
+                locker = new _locker(ini);
                 hash = new _hash(ini);
                 database = new _database(ini);
                 bot = new _bot(ini);
@@ -112,7 +113,7 @@ namespace twitenlib
             public int MediaDownloadThreads { get; }
             public int DeleteTweetBufferSize { get; }
             public int LockedTokenPostpone { get; }
-            public int ParentUdpPort { get; }
+            public int LockerUdpPort { get; }
             public int TweetLockSize { get; }
             public _crawl(IniFileHandler ini)
             {
@@ -127,7 +128,7 @@ namespace twitenlib
                 MediaDownloadThreads = int.Parse(ini.GetValue("crawl", nameof(MediaDownloadThreads), Environment.ProcessorCount.ToString()));
                 DeleteTweetBufferSize = int.Parse(ini.GetValue("crawl", nameof(DeleteTweetBufferSize), "1000"));
                 LockedTokenPostpone = int.Parse(ini.GetValue("crawl", nameof(LockedTokenPostpone), "86400"));
-                ParentUdpPort = int.Parse(ini.GetValue("crawl", nameof(ParentUdpPort), "48250"));
+                LockerUdpPort = int.Parse(ini.GetValue("crawl", nameof(LockerUdpPort), "48250"));
                 TweetLockSize = int.Parse(ini.GetValue("crawl", nameof(TweetLockSize), "10000"));
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
@@ -140,22 +141,35 @@ namespace twitenlib
             public int AccountLimit { get; }
             public string ChildPath { get; }
             public string ChildName { get; }
+            public string LockerPath { get; }
             public bool InitTruncate { get; }
-            public int UdpPort { get; }
-            public int TweetLockSize { get; }
+
             public _crawlparent(IniFileHandler ini)
             {
                 AccountLimit = int.Parse(ini.GetValue("crawlparent", nameof(AccountLimit), "250"));
                 ChildPath = ini.GetValue("crawlparent", nameof(ChildPath), "");
                 ChildName = ini.GetValue("crawlparent", nameof(ChildName), "twidown");
+                LockerPath = ini.GetValue("crawlparent", nameof(LockerPath), "");
                 InitTruncate = bool.Parse(ini.GetValue("crawlparent", nameof(InitTruncate), "true"));
-                UdpPort = int.Parse(ini.GetValue("crawlparent", nameof(UdpPort), "48250"));
-                TweetLockSize = int.Parse(ini.GetValue("crawlparent", nameof(TweetLockSize), "65536"));
+
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
         }
         public _crawlparent crawlparent;
+
+        public class _locker
+        {
+            public int UdpPort { get; }
+            public int TweetLockSize { get; }
+
+            public _locker(IniFileHandler ini)
+            {
+                UdpPort = int.Parse(ini.GetValue("locker", nameof(UdpPort), "48250"));
+                TweetLockSize = int.Parse(ini.GetValue("locker", nameof(TweetLockSize), "65536"));
+            }
+        }
+        public _locker locker;
 
         public class _hash
         {

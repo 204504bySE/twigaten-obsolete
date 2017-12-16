@@ -15,7 +15,6 @@ namespace twidownparent
 
         public int StartChild()
         {
-            Config config = Config.Instance;
             try
             {
                 ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.ChildPath)
@@ -27,6 +26,20 @@ namespace twidownparent
                 return retProcess.Id;
             }
             catch { return -1; }
+        }
+
+        public Process StartLocker()
+        {
+            try
+            {
+                ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.LockerPath)
+                {
+                    WorkingDirectory = Path.GetDirectoryName(config.crawlparent.LockerPath),
+                    WindowStyle = ProcessWindowStyle.Minimized
+                };
+                return Process.Start(info);
+            }
+            catch { return null; }
         }
 
         public bool Alive(int pid)

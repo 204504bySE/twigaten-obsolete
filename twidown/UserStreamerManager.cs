@@ -118,7 +118,7 @@ namespace twidown
             Counter.PrintReset();
             UserStreamerStatic.ShowCount();
 
-            TickCount Tick = new TickCount(0);
+            //TickCount Tick = new TickCount(0);
             foreach (KeyValuePair<long, UserStreamer> s in Streamers.ToArray())  //ここでスナップショットを作る
             {
                 UserStreamer.NeedRetryResult NeedRetry = s.Value.NeedRetry();
@@ -131,12 +131,14 @@ namespace twidown
                     }
                 }
                 else { ActiveStreamers++; }
+                /*
                 if (Tick.Elasped >= 60000)
                 {
                     Tick.Update();
                     StreamerLocker.Unlock();
                     Counter.PrintReset();
                 }
+                */
             }
             if (ConnectBlock.InputCount > 0) { Console.WriteLine("{0} App: {1} Accounts waiting connect", DateTime.Now, ConnectBlock.InputCount); }
             return ActiveStreamers;

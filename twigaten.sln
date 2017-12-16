@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.15
+VisualStudioVersion = 15.0.27130.2003
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twidown", "twidown\twidown.csproj", "{92C7383E-C1FA-4CF4-99CB-E7FBB42701F8}"
 EndProject
@@ -12,6 +12,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twitool", "twitool\twitool.csproj", "{5FB441A4-854C-4B92-9691-5020BB2D2D11}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twidownparent", "twidownparent\twidownparent.csproj", "{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "twilock", "twilock\twilock.csproj", "{AC7FDDDB-4DD6-42D5-9F1B-1F91CDB9FB5A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,8 +41,15 @@ Global
 		{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B71E87ED-CC97-49B6-93BA-31F42A36B1AA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC7FDDDB-4DD6-42D5-9F1B-1F91CDB9FB5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC7FDDDB-4DD6-42D5-9F1B-1F91CDB9FB5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC7FDDDB-4DD6-42D5-9F1B-1F91CDB9FB5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC7FDDDB-4DD6-42D5-9F1B-1F91CDB9FB5A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E86FE193-3BD0-483E-9447-3765F9974848}
 	EndGlobalSection
 EndGlobal
