@@ -35,6 +35,7 @@ namespace twidownparent
                     IPEndPoint gomi = null;
                     Udp.Send(new byte[] { 255, 255, 255, 255, 255, 255, 255, 255 }, 8, LockerEndPoint);
                     Udp.Receive(ref gomi);
+                    break;
                 }
                 catch { }
             }
@@ -72,11 +73,6 @@ namespace twidownparent
                 return Process.Start(info);
             }
             catch { return null; }
-            finally
-            {
-                Udp.Client.ReceiveTimeout = 1000;
-                Udp.Client.SendTimeout = 1000;
-            }
         }
 
     }
