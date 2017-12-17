@@ -119,6 +119,7 @@
     </Compile>
     <Compile Include="ChildProcessHandler.cs" />
     <Compile Include="DBHandler.cs" />
+    <Compile Include="LockerHandler.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

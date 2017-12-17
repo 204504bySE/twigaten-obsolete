@@ -9,11 +9,11 @@ using twitenlib;
 
 namespace twidownparent
 {
-    class ChildProcessHandler
+    static class ChildProcessHandler
     {
-        Config config = Config.Instance;
+        static Config config = Config.Instance;
 
-        public int StartChild()
+        static public int Start()
         {
             try
             {
@@ -28,21 +28,7 @@ namespace twidownparent
             catch { return -1; }
         }
 
-        public Process StartLocker()
-        {
-            try
-            {
-                ProcessStartInfo info = new ProcessStartInfo(config.crawlparent.LockerPath)
-                {
-                    WorkingDirectory = Path.GetDirectoryName(config.crawlparent.LockerPath),
-                    WindowStyle = ProcessWindowStyle.Minimized
-                };
-                return Process.Start(info);
-            }
-            catch { return null; }
-        }
-
-        public bool Alive(int pid)
+        static public bool Alive(int pid)
         {
             Process p;
             try

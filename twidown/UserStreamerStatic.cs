@@ -69,7 +69,7 @@ namespace twidown
             if (!TweetLock.Add(tweet_id)) { return false; }
             if (TweetLock.Count >= config.crawl.TweetLockSize) { TweetLock.Clear(); }
             //twidownparentでもLockを確認する リトライあり
-            for (int RetryCount = 0; RetryCount < 3; RetryCount++)
+            for (int RetryCount = 0; RetryCount < 10; RetryCount++)
             {
                 try
                 {

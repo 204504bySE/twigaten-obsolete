@@ -29,6 +29,14 @@ namespace twidownparent
             return ret;
         }
 
+        public long CountToken()
+        {
+            using(MySqlCommand cmd = new MySqlCommand("SELECT COUNT(user_id) FROM token;"))
+            {
+                return SelectCount(cmd, IsolationLevel.ReadUncommitted);
+            }
+        }
+
         public long[] SelectNewToken()
         {
             //Newというより割り当てがないToken
@@ -101,16 +109,23 @@ ORDER BY c LIMIT 1;"))
             return ret;
         }
 
+        public long CountPid()
+        {
+            using (MySqlCommand cmd = new MySqlCommand("SELECT COUNT(pid) FROM pid;"))
+            {
+                return SelectCount(cmd);
+            }
+        }
+
         public int DeleteDeadpid()
         {
             List<MySqlCommand> CmdList = new List<MySqlCommand>();
-            ChildProcessHandler ch = new ChildProcessHandler();
             int DeadCount = 0;
             int[] pids = Selectpid();
             if(pids == null) { return 0; }
             foreach (int pid in pids)
             {
-                if (!ch.Alive(pid))
+                if (!ChildProcessHandler.Alive(pid))
                 {
                     DeadCount++;
                     Console.WriteLine("{0} Dead PID: {1}", DateTime.Now, pid);

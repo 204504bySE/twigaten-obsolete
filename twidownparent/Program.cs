@@ -19,55 +19,41 @@ namespace twidownparent
 
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
-            ChildProcessHandler ch = new ChildProcessHandler();
-            long[] users;
-            int usersIndex = 0;
-            int ForceNewChild = 0;
 
-            if (config.crawlparent.InitTruncate)
-            {
-                db.InitTruncate();
-                users = db.SelectNewToken();
-                for (int i = 0; i <= users.Length / config.crawlparent.AccountLimit; i++)
-                {
-                    int newpid = ch.StartChild();
-                    if (newpid < 0) { continue; }    //雑すぎるエラー処理
-                    db.Insertpid(newpid);
-                }
-            } else { db.DeleteDeadpid(); users = db.SelectNewToken(); }
-
+            LockerHandler.CheckAndStart();
 
             bool GetMyTweet = false;    //後から追加されたアカウントはstreamer側で自分のツイートを取得させる
-
-
-            //Lockerの起動と監視用
-            Process LockerProcess = ch.StartLocker();
-            Stopwatch LoopWatch = new Stopwatch();
-            UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, (config.crawl.LockerUdpPort ^ (Process.GetCurrentProcess().Id & 0x3FFF)))) { DontFragment = true };
-            Udp.Client.ReceiveTimeout = 1000;
-            Udp.Client.SendTimeout = 1000;
-
+            Stopwatch LoopWatch = new Stopwatch();           
             while (true)
             {
                 LoopWatch.Restart();
-                //子プロセスが死んだならその分だけ先に起動する
-                for (int i = 0; i < ForceNewChild; i++)
-                {
-                    int newpid = ch.StartChild();
-                    if (newpid < 0) { continue; }    //雑すぎるエラー処理
-                    db.Insertpid(newpid);
-                }
+
+                db.DeleteDeadpid();
+                long[] users = db.SelectNewToken();
+                int NeedProcessCount = (int)(db.CountToken() / config.crawlparent.AccountLimit + 1);
+                int CurrentProcessCount = (int)db.CountPid();
 
                 if (users.Length > 0)
                 {
-                    usersIndex = 0;
+                    if (NeedProcessCount > 0 && CurrentProcessCount >= 0)
+                    {
+                        //アカウント数からして必要な個数のtwidownを起動する
+                        for (int i = 0; i < NeedProcessCount - CurrentProcessCount; i++)
+                        {
+                            int newpid = ChildProcessHandler.Start();
+                            if (newpid < 0) { continue; }    //雑すぎるエラー処理
+                            db.Insertpid(newpid);
+                        }
+                    }
+
+                    int usersIndex = 0;
                     Console.WriteLine("{0} Assigning {1} accounts.", DateTime.Now, users.Length);
                     for (; usersIndex < users.Length; usersIndex++)
                     {
                         int pid = db.SelectBestpid();
                         if (pid < 0)
                         {
-                            int newpid = ch.StartChild();
+                            int newpid = ChildProcessHandler.Start();
                             if (newpid < 0) { continue; }    //雑すぎるエラー処理
                             pid = newpid;
                             db.Insertpid(pid);
@@ -80,34 +66,10 @@ namespace twidownparent
                 //ここでプロセス間通信を監視して返事がなかったら再起動する
                 while(LoopWatch.ElapsedMilliseconds < 60000)
                 {
-                    const int MaxRetryCount = 2;
-                    int RetryCount;
-                    for (RetryCount = 0; RetryCount < MaxRetryCount; RetryCount++)
-                    {
-                        try
-                        {
-                            IPEndPoint LockerEndPoint = null;
-                            Udp.Send(new byte[] { 0, 0, 0, 0, 0, 0, 0, 0 }, 8);
-                            Udp.Receive(ref LockerEndPoint);
-                            break;
-                        }
-                        catch { }
-                    }
-                    if(RetryCount >= MaxRetryCount)
-                    {
-                        if (LockerProcess?.HasExited == false) { LockerProcess.Kill(); }
-                        Thread.Sleep(500);  //てきとー
-                        LockerProcess = ch.StartLocker();
-                    }
+                    LockerHandler.CheckAndStart();
                     Thread.Sleep(1000);
                 }
                 LoopWatch.Stop();
-                
-                //MySQLが落ちた時はクローラーを必要数新しく起動する それ以外は死んだ分だけ
-                if (db.Selectpid()?.Length == 0) { ForceNewChild = users.Length / config.crawlparent.AccountLimit + 1; } 
-                else { ForceNewChild = db.DeleteDeadpid(); }
-
-                users = db.SelectNewToken();
             }
         }
     }
