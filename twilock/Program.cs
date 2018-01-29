@@ -6,7 +6,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
 using twitenlib;
 
 namespace twilock
@@ -15,70 +14,78 @@ namespace twilock
     {
         static void Main(string[] args)
         {
-            CheckOldProcess.CheckandExit();
-
-            HashSet<long> LockedTweets = new HashSet<long>();
-            Queue<long> LockedTweetsQueue = new Queue<long>(Config.Instance.locker.TweetLockSize);
-            //ActionBlock<UdpReceiveResult> TweetLockBlock;
-
-            UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, Config.Instance.locker.UdpPort)) { DontFragment = true };
-
-            int ReceiveCount = 0;
-            int SuccessCount = 0;
-            Stopwatch sw = new Stopwatch();
-            /*
-            //雑なプロセス間通信
-            TweetLockBlock = new ActionBlock<UdpReceiveResult>(r => {
-                if (r.Buffer.Length == 8)
-                {
-                    long tweet_id = BitConverter.ToInt64(r.Buffer, 0);
-                    try
-                    {
-                        if (LockedTweets.Add(tweet_id))
-                        {
-                            Udp.Send(BitConverter.GetBytes(true), sizeof(bool), r.RemoteEndPoint); //Lockできたらtrue
-                            SuccessCount++;
-                            while (LockedTweetsQueue.Count >= Config.Instance.locker.TweetLockSize)
-                            { LockedTweets.Remove(LockedTweetsQueue.Dequeue()); }
-                        }
-                        else { Udp.Send(BitConverter.GetBytes(false), sizeof(bool), r.RemoteEndPoint); }//Lockできなかったらfalse
-                    }
-                    //長時間動かしてるとHashSetがこうなるのでClearしてしのぐ
-                    catch (OverflowException) { LockedTweets.Clear(); LockedTweetsQueue.Clear(); }
-                    catch (Exception e) { Console.WriteLine(e); }
-                }
-            }, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
-            */
-            sw.Start();
-            while (true)
+            try
             {
-                IPEndPoint CrawlEndPoint = null;
-                var buf = Udp.Receive(ref CrawlEndPoint);
-                //TweetLockBlock.Post(new UdpReceiveResult(buf, CrawlEndPoint));
+                CheckOldProcess.CheckandExit();
 
-                long tweet_id = BitConverter.ToInt64(buf, 0);
-                try
+                RemoveOldSet<long> LockedTweets = new RemoveOldSet<long>(Config.Instance.locker.TweetLockSize);
+
+                UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.IPv6Loopback, Config.Instance.locker.UdpPort));
+
+                int ReceiveCount = 0;
+                int SuccessCount = 0;
+                Stopwatch sw = new Stopwatch();
+                byte[] TrueByte = BitConverter.GetBytes(true);
+                byte[] FalseByte = BitConverter.GetBytes(false);
+
+                //雑なプロセス間通信
+
+                sw.Start();
+                while (true)
                 {
+                    IPEndPoint CrawlEndPoint = null;
+                    var buf = Udp.Receive(ref CrawlEndPoint);
+
+                    long tweet_id = BitConverter.ToInt64(buf, 0);
                     if (LockedTweets.Add(tweet_id))
                     {
-                        Udp.Send(BitConverter.GetBytes(true), sizeof(bool), CrawlEndPoint); //Lockできたらtrue
+                        Udp.Send(TrueByte, sizeof(bool), CrawlEndPoint); //Lockできたらtrue
                         SuccessCount++;
-                        while (LockedTweetsQueue.Count >= Config.Instance.locker.TweetLockSize)
-                        { LockedTweets.Remove(LockedTweetsQueue.Dequeue()); }
                     }
-                    else { Udp.Send(BitConverter.GetBytes(false), sizeof(bool), CrawlEndPoint); }//Lockできなかったらfalse
-                }
-                //長時間動かしてるとHashSetがこうなるのでClearしてしのぐ
-                catch (OverflowException) { LockedTweets.Clear(); LockedTweetsQueue.Clear(); }
-                catch (Exception e) { Console.WriteLine(e); }
+                    else { Udp.Send(FalseByte, sizeof(bool), CrawlEndPoint); }//Lockできなかったらfalse
 
-                ReceiveCount++;
-                if (sw.ElapsedMilliseconds >= 60000)
+                    ReceiveCount++;
+                    if (sw.ElapsedMilliseconds >= 60000)
+                    {
+                        sw.Restart();
+                        Console.WriteLine("{0}: {1} / {2} Tweets Locked", DateTime.Now, SuccessCount, ReceiveCount);
+                        SuccessCount = 0; ReceiveCount = 0;
+                        GC.Collect();
+                    }
+                }
+            }
+            catch (Exception e) { Console.WriteLine(e); System.Threading.Thread.Sleep(2000); Environment.Exit(1); }   //何かあったら諦めて死ぬ
+        }
+
+        class RemoveOldSet<T>
+        {
+            HashSet<T> OldSet;
+            HashSet<T> NewSet;
+
+            int MaxSize;
+            public RemoveOldSet(int MaxSize)
+            {
+                //各Setあたりのサイズに変換する
+                this.MaxSize = Math.Max(MaxSize >> 1, 1);
+
+                OldSet = new HashSet<T>();
+                NewSet = new HashSet<T>();
+            }
+
+            public bool Add(T Value)
+            {
+                RemoveOld();
+                return !OldSet.Contains(Value) && NewSet.Add(Value);
+            }
+
+            void RemoveOld()
+            {
+                if(NewSet.Count >= MaxSize)
                 {
-                    sw.Restart();
-                    Console.WriteLine("{0}: {1} / {2} Tweets Locked", DateTime.Now, SuccessCount, ReceiveCount);
-                    SuccessCount = 0; ReceiveCount = 0;
-                    GC.Collect();
+                    OldSet.Clear();
+                    var TempSet = OldSet;
+                    OldSet = NewSet;
+                    NewSet = TempSet;
                 }
             }
         }

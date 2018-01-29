@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -60,8 +61,9 @@ namespace twidown
 
 
         static HashSet<long> TweetLock = new HashSet<long>();
-        static UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, (config.crawl.LockerUdpPort ^ (System.Diagnostics.Process.GetCurrentProcess().Id & 0x3FFF)))) { DontFragment = true };
-        static IPEndPoint LockerEndPoint = new IPEndPoint(IPAddress.Loopback, config.crawl.LockerUdpPort);
+        static UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.IPv6Loopback, (config.crawl.LockerUdpPort ^ (Process.GetCurrentProcess().Id & 0x3FFF))));
+        static IPEndPoint LockerEndPoint = new IPEndPoint(IPAddress.IPv6Loopback, config.crawl.LockerUdpPort);
+        static TickCount LockTweetTick = new TickCount();
 
         static bool LockTweet(long tweet_id)
         {
@@ -69,7 +71,8 @@ namespace twidown
             if (!TweetLock.Add(tweet_id)) { return false; }
             if (TweetLock.Count >= config.crawl.TweetLockSize) { TweetLock.Clear(); }
             //twidownparentでもLockを確認する リトライあり
-            for (int RetryCount = 0; RetryCount < 10; RetryCount++)
+            LockTweetTick.Update();
+            while(LockTweetTick.Elasped < 10000)
             {
                 try
                 {
@@ -80,6 +83,7 @@ namespace twidown
                 catch (Exception e)
                 {
                     Console.WriteLine("{0}\t{1}", DateTime.Now, e);
+                    Thread.Sleep(500);
                 }
             }
             return false;   //返事が来なかったらこれ

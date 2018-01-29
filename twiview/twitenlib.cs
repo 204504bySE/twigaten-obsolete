@@ -143,7 +143,6 @@ namespace twitenlib
             public string ChildName { get; }
             public string LockerPath { get; }
             public string LockerName { get; }
-            public bool InitTruncate { get; }
 
             public _crawlparent(IniFileHandler ini)
             {
@@ -152,7 +151,6 @@ namespace twitenlib
                 ChildName = ini.GetValue("crawlparent", nameof(ChildName), "twidown");
                 LockerPath = ini.GetValue("crawlparent", nameof(LockerPath), "");
                 LockerName = ini.GetValue("crawlparent", nameof(LockerName), "twilock");
-                InitTruncate = bool.Parse(ini.GetValue("crawlparent", nameof(InitTruncate), "true"));
 
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい

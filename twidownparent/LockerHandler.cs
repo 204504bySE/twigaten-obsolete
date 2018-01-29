@@ -17,8 +17,8 @@ namespace twidownparent
         static Config config = Config.Instance;
         static Process LockerProcess;
 
-        static UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, (config.crawl.LockerUdpPort ^ (Process.GetCurrentProcess().Id & 0x3FFF)))) { DontFragment = true };
-        static IPEndPoint LockerEndPoint = new IPEndPoint(IPAddress.Loopback, config.crawl.LockerUdpPort);
+        static UdpClient Udp = new UdpClient(new IPEndPoint(IPAddress.IPv6Loopback, (config.crawl.LockerUdpPort ^ (Process.GetCurrentProcess().Id & 0x3FFF))));
+        static IPEndPoint LockerEndPoint = new IPEndPoint(IPAddress.IPv6Loopback, config.crawl.LockerUdpPort);
 
         ///<summary>twilockが反応しないか起動してなかったら動かす</summary>
         static public void CheckAndStart()
@@ -43,7 +43,7 @@ namespace twidownparent
             {
                 if (LockerProcess?.HasExited == false)
                 {
-                    LockerProcess.Kill();
+                    try { LockerProcess.Kill(); } catch { } //すでに死んでたときは握りつぶす
                     Console.WriteLine("{0} Locker Killed {1}", DateTime.Now, LockerProcess.Id);
                 }
                 do { Thread.Sleep(1000); } //てきとー
