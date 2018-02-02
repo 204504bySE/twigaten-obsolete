@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Web;
 using System.Web.Mvc;
 
@@ -16,6 +18,10 @@ namespace twiview
         public string LoginToken { get; set; }
         ///<summary>Session</summary>
         public string ScreenName { get; set; }
+        ///<summary>Cookie</summary>
+        public string Locale { get; set; }
+        ///<summary>URL Locale/Cookie</summary>
+        public string SetLocale { get; set; }
 
         protected void SetCookie(string Name, string Value, HttpResponseBase Response, bool Ephemeral = false)
         {
@@ -65,9 +71,31 @@ namespace twiview
                 }
             }
             ValidateValues(Response);
+            ControlLocale(Session, Response);
         }
         //これをOverrideしてCookieの値を適用したりする
         protected virtual void ValidateValues(HttpResponseBase Response) { }
+
+        //言語選択を反映したりする
+        void ControlLocale(HttpSessionStateBase Session, HttpResponseBase Response)
+        {
+            CultureInfo Culture = null;
+            if (SetLocale != null) { try { Culture = CultureInfo.GetCultureInfo(SetLocale); } catch { } }
+            else if (Locale != null) { try { Culture = CultureInfo.GetCultureInfo(Locale); } catch { } }
+            else if (HttpContext.Current.Request.UserLanguages != null) { Culture = CultureInfo.GetCultureInfo(HttpContext.Current.Request.UserLanguages[0]); }
+            if (Culture != null)
+            {
+                SetCookie(nameof(Locale), Culture?.Name, Response);
+                Thread.CurrentThread.CurrentCulture = Culture;
+                Thread.CurrentThread.CurrentUICulture = Culture;
+            }
+            else
+            {
+                ClearCookie(nameof(Locale), Response);
+                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(127);
+                Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo(127);
+            }
+        }
 
         //こんなところにLogoutがあるのはクソだと思う
         public void Logout(HttpSessionStateBase Session, HttpResponseBase Response, bool Manually = false)
@@ -86,6 +114,7 @@ namespace twiview
                 ClearCookie("TweetOrder", Response);
                 ClearCookie("TweetCount", Response);
                 ClearCookie("GetRetweet", Response);
+                ClearCookie(nameof(Locale), Response);
             }
         }
     }

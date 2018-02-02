@@ -163,7 +163,7 @@
     <value>Time</value>
   </data>
   <data name="Pager_Datetimepicker" xml:space="preserve">
-    <value>Jump to date</value>
+    <value>Jump to date(UTC+9)</value>
   </data>
   <data name="Pager_Latest" xml:space="preserve">
     <value>Latest</value>

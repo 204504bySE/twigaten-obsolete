@@ -50,9 +50,9 @@ if (datepicker)
             <form method="get" class="form-inline" style="display:inline">
                 @Locale.Pager_ResultsPerPage
                 <select class="form-control" name="Count" onchange="this.form.submit()">
-                    <option value="10" @(Model.TweetCount == 10 ? " selected" : "")>10</option>
-                    <option value="20" @(Model.TweetCount == 20 ? " selected" : "")>20</option>
-                    <option value="50" @(Model.TweetCount == 50 ? " selected" : "")>50</option>
+                    <option value="10" @(Model.TweetCount == 10 ? "selected" : "")>10</option>
+                    <option value="20" @(Model.TweetCount == 20 ? "selected" : "")>20</option>
+                    <option value="50" @(Model.TweetCount == 50 ? "selected" : "")>50</option>
                 </select>
                 @switch (Model.RangeMode)
                 {
