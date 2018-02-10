@@ -51,16 +51,14 @@
                 </ul>
             </div>
             <div class="nav navbar-nav">
-                <div class="form-group">
-                    <form method="get" class="form-inline">
-                        <select class="form-control" name="Locale" onchange="this.form.submit()">
-                            <option selected>Select Language</option>
-                            <option value="ja">日本語</option>
-                            <option value="en">English</option>
-                        </select>
-                    </form>
-                </div>
-                <form action=@(Url.RouteUrl(new { controller = "Search", action = "Index" })) method="get" role="search" class="form-inline">
+                <form method="get" class="form-inline pull-right" style="display:inline">
+                    <select class="form-control" name="Locale" onchange="this.form.submit()">
+                        <option selected>Language</option>
+                        <option value="ja">日本語</option>
+                        <option value="en">English</option>
+                    </select>
+                </form>
+                <form action=@(Url.RouteUrl(new { controller = "Search", action = "Index" })) method="get" role="search" class="form-inline" style="display:inline">
                     <div class="input-group">
                         <input name="Str" type="text" class="form-control" placeholder="@('@')name/URL" />
                         <span class="input-group-btn">

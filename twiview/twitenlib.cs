@@ -180,6 +180,7 @@ namespace twitenlib
             public int LastHashCount { get; }
             public int HashCountOffset { get; }
             public bool KeepDataRAM { get; }
+            public string TempDir { get; }
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
@@ -189,6 +190,7 @@ namespace twitenlib
                 LastHashCount = int.Parse(ini.GetValue("hash", nameof(LastHashCount), "0"));
                 HashCountOffset = int.Parse(ini.GetValue("hash", nameof(HashCountOffset), "5000000"));
                 KeepDataRAM = bool.Parse(ini.GetValue("hash", nameof(KeepDataRAM), "false"));
+                TempDir = ini.GetValue("hash", nameof(TempDir), "");
             }
             public void NewLastUpdate(long time)
             {

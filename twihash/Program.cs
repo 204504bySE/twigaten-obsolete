@@ -140,6 +140,7 @@ namespace twihash
             //Console.WriteLine("{0} Pairs found", similarmedia.Count);
         }
 
+        
         const int bitcount = 64;    //longのbit数
         (int db, int sort) MultipleSortUnit(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
         {

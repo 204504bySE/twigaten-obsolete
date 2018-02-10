@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Web;
 using System.Web.Mvc;
+using twiview.Locale;
 
 namespace twiview
 {
@@ -76,24 +77,37 @@ namespace twiview
         //これをOverrideしてCookieの値を適用したりする
         protected virtual void ValidateValues(HttpResponseBase Response) { }
 
+        public static readonly string[] Locales = new string[] { "ja", "en" };
+
         //言語選択を反映したりする
         void ControlLocale(HttpSessionStateBase Session, HttpResponseBase Response)
         {
             CultureInfo Culture = null;
             if (SetLocale != null) { try { Culture = CultureInfo.GetCultureInfo(SetLocale); } catch { } }
             else if (Locale != null) { try { Culture = CultureInfo.GetCultureInfo(Locale); } catch { } }
-            else if (HttpContext.Current.Request.UserLanguages != null) { Culture = CultureInfo.GetCultureInfo(HttpContext.Current.Request.UserLanguages[0]); }
+            else if (HttpContext.Current.Request.UserLanguages != null)
+            {
+                foreach(string LangCulture in HttpContext.Current.Request.UserLanguages)
+                {
+                    string Lang;
+                    if(LangCulture.Length >= 2 && Locales.Contains(Lang = LangCulture.Substring(0,2).ToLower()))
+                    {
+                        try { Culture = CultureInfo.GetCultureInfo(Lang); break; } catch { }
+                    }
+                }
+            }
+
             if (Culture != null)
             {
-                SetCookie(nameof(Locale), Culture?.Name, Response);
+                SetCookie(nameof(Locale), Culture.Name, Response);
                 Thread.CurrentThread.CurrentCulture = Culture;
                 Thread.CurrentThread.CurrentUICulture = Culture;
             }
             else
             {
                 ClearCookie(nameof(Locale), Response);
-                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(127);
-                Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo(127);
+                Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+                Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
             }
         }
 
