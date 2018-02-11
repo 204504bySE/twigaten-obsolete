@@ -34,3 +34,4 @@ InitTruncate=true
 MaxHammingDistance=2
 ExtraBlocks=2
 LastUpdate=0
+TempDir=

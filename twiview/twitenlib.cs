@@ -177,26 +177,28 @@ namespace twitenlib
             public int MaxHammingDistance { get; }
             public int ExtraBlocks { get; }
             public long LastUpdate { get; }
-            public int LastHashCount { get; }
+            public long LastHashCount { get; }
             public int HashCountOffset { get; }
             public bool KeepDataRAM { get; }
             public string TempDir { get; }
+            public int InitialSortFileSize { get; }
             public _hash(IniFileHandler ini)
             {
                 this.ini = ini;
                 MaxHammingDistance = int.Parse(ini.GetValue("hash", nameof(MaxHammingDistance), "3"));
                 ExtraBlocks = int.Parse(ini.GetValue("hash", nameof(ExtraBlocks), "1"));
                 LastUpdate = long.Parse(ini.GetValue("hash", nameof(LastUpdate), "0"));
-                LastHashCount = int.Parse(ini.GetValue("hash", nameof(LastHashCount), "0"));
+                LastHashCount = long.Parse(ini.GetValue("hash", nameof(LastHashCount), "0"));
                 HashCountOffset = int.Parse(ini.GetValue("hash", nameof(HashCountOffset), "5000000"));
                 KeepDataRAM = bool.Parse(ini.GetValue("hash", nameof(KeepDataRAM), "false"));
                 TempDir = ini.GetValue("hash", nameof(TempDir), "");
+                InitialSortFileSize = int.Parse(ini.GetValue("hash", nameof(InitialSortFileSize), "16777216"));
             }
             public void NewLastUpdate(long time)
             {
                 ini.SetValue("hash", nameof(LastUpdate), time.ToString());
             }
-            public void NewLastHashCount(int Count)
+            public void NewLastHashCount(long Count)
             {
                 ini.SetValue("hash", nameof(LastHashCount), Count.ToString());
             }
@@ -407,7 +409,7 @@ namespace twitenlib
         {
             return SecondinSnowFlake(TimeSeconds.ToUnixTimeSeconds(), Larger);
         }
-
+        　
         public static long Now(bool Larger)
         {
             if (Larger) { return (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - TwEpoch) << 22 | 0x3FFFFFL; }

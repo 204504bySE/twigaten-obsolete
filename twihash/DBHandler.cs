@@ -7,6 +7,8 @@ using MySql.Data.MySqlClient;
 using System.Threading.Tasks;
 using twitenlib;
 using System.Threading;
+using System.Threading.Tasks.Dataflow;
+using System.IO;
 
 namespace twihash
 {
@@ -79,54 +81,49 @@ namespace twihash
             return ret + ExecuteNonQuery(Cmd);
         }
 
-
         ThreadLocal<MySqlCommand> GetMediaHashCmd = new ThreadLocal<MySqlCommand>(() => {
             MySqlCommand Cmd = new MySqlCommand(@"SELECT dcthash
 FROM media
 WHERE dcthash BETWEEN @begin AND @end
 GROUP BY dcthash;");
-            Cmd.Parameters.Add("@lastupdate", MySqlDbType.Int64);
             Cmd.Parameters.Add("@begin", MySqlDbType.Int64);
             Cmd.Parameters.Add("@end", MySqlDbType.Int64);
             return Cmd;
         });
 
-        //全mediaのhashを読み込んだりする
-        public MediaHashArray AllMediaHash()
+        ///<summary>DBから読み込んだハッシュをそのままファイルに書き出す</summary>
+        public long AllMediaHash()
         {
             try
             {
-                MediaHashArray ret = new MediaHashArray(config.hash.LastHashCount + config.hash.HashCountOffset);
-                if(!ret.ForceInsert) { NewerMediaHash(ret); }
-                int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2)); //TableがLarge Heapに載らない程度に調整
-                Parallel.For(0, 1 << (64 - HashUnitBits),
-                    new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-                    (long i) =>
+                using (AllHashFileWriter writer = new AllHashFileWriter())
                 {
-                    DataTable Table;
-                    do
+                    ActionBlock<DataTable> WriterBlock = new ActionBlock<DataTable>(
+                        (table) => { writer.Write(table.AsEnumerable().Select((row) => row.Field<long>(0))); },
+                        new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1, SingleProducerConstrained = true });
+
+                    long ret = 0;
+                    int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2)); //TableがLarge Heapに載らない程度に調整
+                    Parallel.For(0, 1 << (64 - HashUnitBits),
+                        new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                        () => 0,
+                        (long i, ParallelLoopState loop, long count) => //型を明示しないとiがintになって死ぬ
                     {
-                        GetMediaHashCmd.Value.Parameters["@lastupdate"].Value = config.hash.LastUpdate;
-                        GetMediaHashCmd.Value.Parameters["@begin"].Value = i << HashUnitBits;
-                        GetMediaHashCmd.Value.Parameters["@end"].Value = unchecked(((i + 1) << HashUnitBits) - 1);
-                        Table = SelectTable(GetMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
-                    } while (Table == null);    //大変安易な対応
-                    int Cursor;
-                    lock (ret)
-                    {
-                        Cursor = ret.Count;
-                        ret.Count += Table.Rows.Count;
-                    }
-                    foreach (DataRow row in Table.Rows)
-                    {
-                        ret.Hashes[Cursor] = row.Field<long>(0);
-                        Cursor++;
-                    }
-                });
-                config.hash.NewLastHashCount(ret.Count);
-                return ret;
+                        DataTable Table;
+                        do
+                        {
+                            GetMediaHashCmd.Value.Parameters["@begin"].Value = i << HashUnitBits;
+                            GetMediaHashCmd.Value.Parameters["@end"].Value = unchecked(((i + 1) << HashUnitBits) - 1);
+                            Table = SelectTable(GetMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
+                        } while (Table == null);    //大変安易な対応
+                        WriterBlock.Post(Table);
+                        return count + Table.Rows.Count;
+                    }, (c) => Interlocked.Add(ref ret, c));
+                    WriterBlock.Complete(); WriterBlock.Completion.Wait();
+                    return ret;
+                }
             }
-            catch(Exception e) { Console.WriteLine(e); return null; }
+            catch (Exception e) { Console.WriteLine(e); return -1; }
         }
 
         //dcthashpairに追加する必要があるハッシュを取得するやつ
@@ -143,28 +140,29 @@ WHERE downloaded_at BETWEEN @begin AND @end;");
             return Cmd;
         });
 
-        public void NewerMediaHash(MediaHashArray ret)
+        public HashSet<long> NewerMediaHash()
         {
-            const int QueryRangeSeconds = 600;
-            Parallel.For(0, Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeSeconds() - config.hash.LastUpdate) / QueryRangeSeconds + 1,
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-                (long i) => 
-                {
-                    DataTable Table;
-                    do
+            try
+            {
+                HashSet<long> ret = new HashSet<long>();
+                const int QueryRangeSeconds = 600;
+                Parallel.For(0, Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeSeconds() - config.hash.LastUpdate) / QueryRangeSeconds + 1,
+                    new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+                    () => new HashSet<long>(),
+                    (i, loop, localset) =>
                     {
-                        NewerMediaHashCmd.Value.Parameters["@begin"].Value = config.hash.LastUpdate + QueryRangeSeconds * i;
-                        NewerMediaHashCmd.Value.Parameters["@end"].Value = config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1;
-                        Table = SelectTable(NewerMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
-                    } while (Table == null);    //大変安易な対応
-                    lock (ret.NewHashes)
-                    {
-                        foreach (DataRow row in Table.Rows)
+                        DataTable Table;
+                        do
                         {
-                            ret.NewHashes.Add(row.Field<long>(0));
-                        }
-                    }
-                });
+                            NewerMediaHashCmd.Value.Parameters["@begin"].Value = config.hash.LastUpdate + QueryRangeSeconds * i;
+                            NewerMediaHashCmd.Value.Parameters["@end"].Value = config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1;
+                            Table = SelectTable(NewerMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
+                        } while (Table == null);    //大変安易な対応
+                    foreach (DataRow row in Table.Rows) { localset.Add(row.Field<long>(0)); }
+                        return localset;
+                    }, (s) => { lock (ret) { foreach (var h in s) { ret.Add(h); } } });
+                return ret;
+            }catch(Exception e) { Console.WriteLine(e);return null; }
         }
     }
 }

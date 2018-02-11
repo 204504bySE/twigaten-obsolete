@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Data;
 using twitenlib;
+using System.IO;
 
 namespace twihash
 {
@@ -15,20 +16,35 @@ namespace twihash
     {
         static void Main(string[] args)
         {
+            CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
             long NewLastUpdate = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 900;   //とりあえず15分前
 
             Stopwatch sw = new Stopwatch();
+
             Console.WriteLine("{0} Loading hash", DateTime.Now);
             sw.Restart();
-            MediaHashArray AllMediaHash = db.AllMediaHash();
-            if(AllMediaHash == null) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Console.ReadKey(); Environment.Exit(1); }
+            long Count = db.AllMediaHash();
             sw.Stop();
-            Console.WriteLine("{0} {1} Hash loaded in {2} ms", DateTime.Now, AllMediaHash.Count, sw.ElapsedMilliseconds);
-            Console.WriteLine("{0} {1} New hash", DateTime.Now, AllMediaHash.NewHashes.Count);
+            if (Count < 0) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
+            else
+            {
+                Console.WriteLine("{0} {1} Hash loaded in {2} ms", DateTime.Now, Count, sw.ElapsedMilliseconds);
+                config.hash.NewLastHashCount(Count);
+            }
+            
+            GC.Collect();
+            HashSet<long> NewHash = null;
+            if (config.hash.LastUpdate > 0) //これが0なら全ハッシュを追加処理対象とする
+            {
+                NewHash = db.NewerMediaHash();
+                if (NewHash == null) { Console.WriteLine("{0} New hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
+                Console.WriteLine("{0} {1} New hash", DateTime.Now, NewHash.Count);
+            }
+
             sw.Restart();
-            MediaHashSorter media = new MediaHashSorter(AllMediaHash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
+            MediaHashSorter media = new MediaHashSorter(NewHash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
             media.Proceed();
             sw.Stop();
             Console.WriteLine("{0} Multiple Sort, Store: {1}ms", DateTime.Now, sw.ElapsedMilliseconds);
@@ -36,7 +52,7 @@ namespace twihash
             Thread.Sleep(5000);
         }
     }
-
+    /*
     //とても変なクラスになってしまっためう
     public class MediaHashArray
     {
@@ -69,7 +85,7 @@ namespace twihash
             });
         }
     }
-
+    */
     //ハミング距離が一定以下のハッシュ値のペア
     public struct MediaPair
     {
@@ -113,94 +129,112 @@ namespace twihash
     //http://d.hatena.ne.jp/tb_yasu/20091107/1257593519
     class MediaHashSorter
     {
-        MediaHashArray media;
-        DBHandler db;
-        int maxhammingdistance;
-        int extrablock;
-        Combinations combi;        
-        public MediaHashSorter(MediaHashArray media, DBHandler db, int maxhammingdistance, int extrablock)
+        readonly DBHandler db;
+        readonly HashSet<long> NewHash;
+        readonly int MaxHammingDistance;
+        readonly int ExtraBlock;
+        readonly Combinations Combi;        
+        public MediaHashSorter(HashSet<long> NewHash, DBHandler db, int MaxHammingDistance, int ExtraBlock)
         {
-            this.media = media;
-            this.maxhammingdistance = maxhammingdistance;
-            this.extrablock = extrablock;
+            this.NewHash = NewHash; //nullだったら全hashが処理対象
+            this.MaxHammingDistance = MaxHammingDistance;
+            this.ExtraBlock = ExtraBlock;
             this.db = db;
-            combi = new Combinations(maxhammingdistance + extrablock, extrablock);
+            Combi = new Combinations(MaxHammingDistance + ExtraBlock, ExtraBlock);
         }
 
         public void Proceed()
         {
             Stopwatch sw = new Stopwatch();
-            for (int i = 0; i < combi.Length; i++)
+            for (int i = 0; i < Combi.Length; i++)
             {
                 sw.Restart();
-                (int db, int sort) = MultipleSortUnit(media, combi, combi[i]);
+                GC.Collect();
+                (int db, int sort) = MultipleSortUnit(i);
                 sw.Stop();
-                Console.WriteLine("{0} {1}\t{2} / {3}\t{4}\t{5}ms ", DateTime.Now, i, db, sort, combi.CombiString(i), sw.ElapsedMilliseconds);
+                Console.WriteLine("{0} {1}\t{2} / {3}\t{4}\t{5}ms ", DateTime.Now, i, db, sort, Combi.CombiString(i), sw.ElapsedMilliseconds);
             }
-            //Console.WriteLine("{0} Pairs found", similarmedia.Count);
         }
 
         
         const int bitcount = 64;    //longのbit数
-        (int db, int sort) MultipleSortUnit(MediaHashArray basemedia, Combinations combi, int[] baseblocks)
+        (int db, int sort) MultipleSortUnit(int Index)
         {
-            int startblock = baseblocks.Last();
-            long fullmask = UnMask(baseblocks, combi.Count);
-            QuickSortAll(fullmask, basemedia);
+            int[] BaseBlocks = Combi[Index];
+            int StartBlock = BaseBlocks.Last();
+            long FullMask = UnMask(BaseBlocks, Combi.Count);
+            string SortedFilePath = SortFile.MergeSortAll(FullMask);
 
             int ret = 0;
             int dbcount = 0;
-
+            
             BatchBlock<MediaPair> PairBatchBlock = new BatchBlock<MediaPair>(DBHandler.StoreMediaPairsUnit);
             ActionBlock<MediaPair[]> PairStoreBlock = new ActionBlock<MediaPair[]>(
                 (MediaPair[] p) => { Interlocked.Add(ref dbcount, db.StoreMediaPairs(p)); },
-                new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount });
+                new ExecutionDataflowBlockOptions() { SingleProducerConstrained = true, MaxDegreeOfParallelism = Environment.ProcessorCount });
             PairBatchBlock.LinkTo(PairStoreBlock, new DataflowLinkOptions() { PropagateCompletion = true });
 
-            Parallel.For(0, basemedia.Count,
-                new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-                (int i) =>
-              {
-                  long maskedhash_i = basemedia.Hashes[i] & fullmask;
-                  bool NeedInsert_i = basemedia.NeedInsert(i);
-                  for (int j = i + 1; j < basemedia.Count; j++)
-                  {
-                      if (maskedhash_i != (basemedia.Hashes[j] & fullmask)) { break; }
-                      if (!NeedInsert_i && !basemedia.NeedInsert(j)) { continue; }
-                      //ブロックソートで一致した組のハミング距離を測る
-                      int ham = HammingDistance((ulong)basemedia.Hashes[i], (ulong)basemedia.Hashes[j]);
-                      if (ham <= maxhammingdistance)
-                      {
-                          //一致したペアが見つかる最初の組合せを調べる
-                          int matchblockindex = 0;
-                          int x;
-                          for (x = 0; x < startblock && matchblockindex < baseblocks.Length; x++)
-                          {
-                              if (baseblocks.Contains(x))
-                              {
-                                  if (x < baseblocks[matchblockindex]) { break; }
-                                  matchblockindex++;
-                              }
-                              else
-                              {
-                                  long blockmask = UnMask(x, combi.Count);
-                                  if ((basemedia.Hashes[i] & blockmask) == (basemedia.Hashes[j] & blockmask))
-                                  {
-                                      if (x < baseblocks[matchblockindex]) { break; }
-                                      matchblockindex++;
-                                  }
-                              }
-                          }
-                          //最初の組合せだったときだけ入れる
-                          if (x == startblock)
-                          {
-                              Interlocked.Increment(ref ret);
-                              PairBatchBlock.Post(new MediaPair(basemedia.Hashes[i], basemedia.Hashes[j], (sbyte)ham));
-                          }
-                      }
-                  }
-              });
+            ActionBlock<long[]> MultipleSortBlock = new ActionBlock<long[]>((Sorted) =>
+            {
+                for (int i = 0; i < Sorted.Length; i++)
+                {
+                    bool NeedInsert(long IndexInSorted) => NewHash == null || NewHash.Contains(Sorted[IndexInSorted]);
+                    long maskedhash_i = Sorted[i] & FullMask;
+                    bool NeedInsert_i = NeedInsert(i);
+                    for (int j = i + 1; j < Sorted.Length; j++)
+                    {
+                        //if (maskedhash_i != (Sorted[j] & FullMask)) { break; }    //これはSortedFileReaderがやってくれる
+                        if (!NeedInsert_i && !NeedInsert(j)) { continue; }
+                        //ブロックソートで一致した組のハミング距離を測る
+                        int ham = HammingDistance((ulong)Sorted[i], (ulong)Sorted[j]);
+                        if (ham <= MaxHammingDistance)
+                        {
+                            //一致したペアが見つかる最初の組合せを調べる
+                            int matchblockindex = 0;
+                            int x;
+                            for (x = 0; x < StartBlock && matchblockindex < BaseBlocks.Length; x++)
+                            {
+                                if (BaseBlocks.Contains(x))
+                                {
+                                    if (x < BaseBlocks[matchblockindex]) { break; }
+                                    matchblockindex++;
+                                }
+                                else
+                                {
+                                    long blockmask = UnMask(x, Combi.Count);
+                                    if ((Sorted[i] & blockmask) == (Sorted[j] & blockmask))
+                                    {
+                                        if (x < BaseBlocks[matchblockindex]) { break; }
+                                        matchblockindex++;
+                                    }
+                                }
+                            }
+                            //最初の組合せだったときだけ入れる
+                            if (x == StartBlock)
+                            {
+                                Interlocked.Increment(ref ret);
+                                PairBatchBlock.Post(new MediaPair(Sorted[i], Sorted[j], (sbyte)ham));
+                            }
+                        }
+                    }
+                }
+            }, new ExecutionDataflowBlockOptions()
+            {
+                BoundedCapacity = Environment.ProcessorCount,
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+                SingleProducerConstrained = true
+            });
+
+            using (SortedFileReader Reader = new SortedFileReader(SortedFilePath, FullMask))
+            {
+                for (long[] Sorted = Reader.ReadBlock(); Sorted != null; Sorted = Reader.ReadBlock())
+                {
+                    MultipleSortBlock.Post(Sorted);
+                }
+            }
+            File.Delete(SortedFilePath);
             //余りをDBに入れる
+            MultipleSortBlock.Complete(); MultipleSortBlock.Completion.Wait();
             PairBatchBlock.Complete();
             PairStoreBlock.Completion.Wait();
             return (dbcount, ret);
@@ -223,7 +257,7 @@ namespace twihash
             }
             return ret;
         }
-
+        /*
         void QuickSortAll(long SortMask, MediaHashArray SortList)
         {
             var QuickSortBlock = new TransformBlock<(int Begin, int End), (int Begin1, int End1, int Begin2, int End2)?>
@@ -289,7 +323,7 @@ namespace twihash
             }
             return (SortRange.Begin, i - 1, j + 1, SortRange.End);
         }
-        
+        */
         //ハミング距離を計算する
         int HammingDistance(ulong a, ulong b)
         {
