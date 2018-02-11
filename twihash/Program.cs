@@ -48,6 +48,7 @@ namespace twihash
             media.Proceed();
             sw.Stop();
             Console.WriteLine("{0} Multiple Sort, Store: {1}ms", DateTime.Now, sw.ElapsedMilliseconds);
+            File.Delete(SortFile.AllHashFilePath);
             config.hash.NewLastUpdate(NewLastUpdate);
             Thread.Sleep(5000);
         }

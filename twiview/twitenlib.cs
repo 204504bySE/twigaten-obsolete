@@ -2,66 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
-using System.Runtime.InteropServices;
 using MySql.Data.MySqlClient;
 using System.Text;
 using System.Data;
 using System.Threading;
 using System.IO;
 using System.Diagnostics;
+using IniParser;
+using IniParser.Model;
 
 namespace twitenlib
 {
-    public class IniFileHandler
-    //http://www.atmarkit.co.jp/fdotnet/dotnettips/039inifile/inifile.html
-    {
-        [DllImport("KERNEL32.DLL")]
-        static extern uint
-          GetPrivateProfileString(string lpAppName,
-          string lpKeyName, string lpDefault,
-          StringBuilder lpReturnedString, uint nSize,
-          string lpFileName);
-
-        [DllImport("KERNEL32.DLL",
-            EntryPoint = "GetPrivateProfileStringA")]
-        static extern uint
-          GetPrivateProfileStringByByteArray(string lpAppName,
-          string lpKeyName, string lpDefault,
-          byte[] lpReturnedString, uint nSize,
-          string lpFileName);
-
-        [DllImport("KERNEL32.DLL")]
-        static extern uint
-           GetPrivateProfileInt(string lpAppName,
-           string lpKeyName, int nDefault, string lpFileName);
-
-        [DllImport("KERNEL32.DLL")]
-        static extern uint WritePrivateProfileString(
-          string lpAppName,
-          string lpKeyName,
-          string lpString,
-          string lpFileName);
-
-        string inipath;
-
-        public IniFileHandler(string path)
-        {
-            inipath = path;
-        }
-
-        public string GetValue(string section, string key, string defvalue = "")
-        {
-            StringBuilder sb = new StringBuilder(1024);
-            GetPrivateProfileString(section, key, defvalue, sb, (uint)sb.Capacity, inipath);
-            return sb.ToString();
-        }
-
-        public void SetValue(string section, string key, string value)
-        {
-            WritePrivateProfileString(section, key, value, inipath);
-        }
-    }
-
     ///<summary>iniファイル読むやつ</summary>
     public class Config
     {
@@ -70,14 +21,15 @@ namespace twitenlib
         {
             try
             {
-                IniFileHandler ini = new IniFileHandler(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location) + @"\twiten.ini");
-                token = new _token(ini);
-                crawl = new _crawl(ini);
-                crawlparent = new _crawlparent(ini);
-                locker = new _locker(ini);
-                hash = new _hash(ini);
-                database = new _database(ini);
-                bot = new _bot(ini);
+                string iniPath = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location), "twiten.ini");
+                FileIniDataParser ini = new FileIniDataParser();
+                IniData data = ini.ReadFile(iniPath);
+                token = new _token(data);
+                crawl = new _crawl(data);
+                crawlparent = new _crawlparent(data);
+                locker = new _locker(data);
+                hash = new _hash(iniPath, ini, data);
+                database = new _database(data);
             }
             catch { }   //twiviewではこのconfigクラスは使用しない
         }
@@ -92,10 +44,10 @@ namespace twitenlib
         {
             public string ConsumerKey { get; }
             public string ConsumerSecret { get; }
-            public _token(IniFileHandler ini)
+            public _token(IniData data)
             {
-                ConsumerKey = ini.GetValue("token", "ConsumerKey");
-                ConsumerSecret = ini.GetValue("token", "ConsumerSecret");
+                ConsumerKey = data["token"]["ConsumerKey"];
+                ConsumerSecret = data["token"]["ConsumerSecret"];
             }
         }
         public _token token;
@@ -115,21 +67,21 @@ namespace twitenlib
             public int LockedTokenPostpone { get; }
             public int LockerUdpPort { get; }
             public int TweetLockSize { get; }
-            public _crawl(IniFileHandler ini)
+            public _crawl(IniData data)
             {
-                PictPathProfileImage = ini.GetValue("crawl", nameof(PictPathProfileImage), Directory.GetCurrentDirectory() + @"\pict\profile_image\");
-                PictPaththumb = ini.GetValue("crawl", nameof(PictPaththumb), Directory.GetCurrentDirectory() + @"\pict\thumb\");
-                UserStreamTimeout = int.Parse(ini.GetValue("crawl", nameof(UserStreamTimeout), "180"));
-                UserStreamTimeoutTweets = int.Parse(ini.GetValue("crawl", nameof(UserStreamTimeoutTweets), "50"));
-                DefaultConnections = int.Parse(ini.GetValue("crawl", nameof(DefaultConnections), "100"));
-                MaxDBConnections = int.Parse(ini.GetValue("crawl", nameof(MaxDBConnections), "10"));
-                RestTweetThreads = int.Parse(ini.GetValue("crawl", nameof(RestTweetThreads), Environment.ProcessorCount.ToString()));
-                ReconnectThreads = int.Parse(ini.GetValue("crawl", nameof(ReconnectThreads), Environment.ProcessorCount.ToString()));
-                MediaDownloadThreads = int.Parse(ini.GetValue("crawl", nameof(MediaDownloadThreads), Environment.ProcessorCount.ToString()));
-                DeleteTweetBufferSize = int.Parse(ini.GetValue("crawl", nameof(DeleteTweetBufferSize), "1000"));
-                LockedTokenPostpone = int.Parse(ini.GetValue("crawl", nameof(LockedTokenPostpone), "86400"));
-                LockerUdpPort = int.Parse(ini.GetValue("crawl", nameof(LockerUdpPort), "48250"));
-                TweetLockSize = int.Parse(ini.GetValue("crawl", nameof(TweetLockSize), "10000"));
+                PictPathProfileImage = data["crawl"][nameof(PictPathProfileImage)] ?? Path.Combine(Directory.GetCurrentDirectory(), @"pict\profile_image\");
+                PictPaththumb = data["crawl"][nameof(PictPaththumb)] ?? Path.Combine(Directory.GetCurrentDirectory(), @"pict\thumb\");
+                UserStreamTimeout = int.Parse(data["crawl"][nameof(UserStreamTimeout)] ?? "180");
+                UserStreamTimeoutTweets = int.Parse(data["crawl"][nameof(UserStreamTimeoutTweets)] ?? "50");
+                DefaultConnections = int.Parse(data["crawl"][nameof(DefaultConnections)] ?? "100");
+                MaxDBConnections = int.Parse(data["crawl"][nameof(MaxDBConnections)] ?? "10");
+                RestTweetThreads = int.Parse(data["crawl"][nameof(RestTweetThreads)] ?? Environment.ProcessorCount.ToString());
+                ReconnectThreads = int.Parse(data["crawl"][nameof(ReconnectThreads)] ?? Environment.ProcessorCount.ToString());
+                MediaDownloadThreads = int.Parse(data["crawl"][nameof(MediaDownloadThreads)] ?? Environment.ProcessorCount.ToString());
+                DeleteTweetBufferSize = int.Parse(data["crawl"][nameof(DeleteTweetBufferSize)] ?? "1000");
+                LockedTokenPostpone = int.Parse(data["crawl"][nameof(LockedTokenPostpone)] ?? "86400");
+                LockerUdpPort = int.Parse(data["crawl"][nameof(LockerUdpPort)] ?? "48250");
+                TweetLockSize = int.Parse(data["crawl"][nameof(TweetLockSize)] ?? "10000");
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
             }
@@ -144,13 +96,13 @@ namespace twitenlib
             public string LockerPath { get; }
             public string LockerName { get; }
 
-            public _crawlparent(IniFileHandler ini)
+            public _crawlparent(IniData data)
             {
-                AccountLimit = int.Parse(ini.GetValue("crawlparent", nameof(AccountLimit), "250"));
-                ChildPath = ini.GetValue("crawlparent", nameof(ChildPath), "");
-                ChildName = ini.GetValue("crawlparent", nameof(ChildName), "twidown");
-                LockerPath = ini.GetValue("crawlparent", nameof(LockerPath), "");
-                LockerName = ini.GetValue("crawlparent", nameof(LockerName), "twilock");
+                AccountLimit = int.Parse(data["crawlparent"][nameof(AccountLimit)] ?? "250");
+                ChildPath = data["crawlparent"][nameof(ChildPath)] ?? "";
+                ChildName = data["crawlparent"][nameof(ChildName)] ?? "twidown";
+                LockerPath = data["crawlparent"][nameof(LockerPath)] ?? "";
+                LockerName = data["crawlparent"][nameof(LockerName)] ?? "twilock";
 
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい
@@ -163,17 +115,19 @@ namespace twitenlib
             public int UdpPort { get; }
             public int TweetLockSize { get; }
 
-            public _locker(IniFileHandler ini)
+            public _locker(IniData data)
             {
-                UdpPort = int.Parse(ini.GetValue("locker", nameof(UdpPort), "48250"));
-                TweetLockSize = int.Parse(ini.GetValue("locker", nameof(TweetLockSize), "65536"));
+                UdpPort = int.Parse(data["locker"][nameof(UdpPort)] ?? "48250");
+                TweetLockSize = int.Parse(data["locker"][nameof(TweetLockSize)] ?? "65536");
             }
         }
         public _locker locker;
 
         public class _hash
         {
-            IniFileHandler ini;
+            readonly string iniPath;
+            readonly FileIniDataParser ini;
+            readonly IniData data;
             public int MaxHammingDistance { get; }
             public int ExtraBlocks { get; }
             public long LastUpdate { get; }
@@ -182,25 +136,27 @@ namespace twitenlib
             public bool KeepDataRAM { get; }
             public string TempDir { get; }
             public int InitialSortFileSize { get; }
-            public _hash(IniFileHandler ini)
+            public _hash(string iniPath, FileIniDataParser ini, IniData data)
             {
-                this.ini = ini;
-                MaxHammingDistance = int.Parse(ini.GetValue("hash", nameof(MaxHammingDistance), "3"));
-                ExtraBlocks = int.Parse(ini.GetValue("hash", nameof(ExtraBlocks), "1"));
-                LastUpdate = long.Parse(ini.GetValue("hash", nameof(LastUpdate), "0"));
-                LastHashCount = long.Parse(ini.GetValue("hash", nameof(LastHashCount), "0"));
-                HashCountOffset = int.Parse(ini.GetValue("hash", nameof(HashCountOffset), "5000000"));
-                KeepDataRAM = bool.Parse(ini.GetValue("hash", nameof(KeepDataRAM), "false"));
-                TempDir = ini.GetValue("hash", nameof(TempDir), "");
-                InitialSortFileSize = int.Parse(ini.GetValue("hash", nameof(InitialSortFileSize), "16777216"));
+                this.iniPath = iniPath; this.ini = ini; this.data = data;
+                MaxHammingDistance = int.Parse(data["hash"][nameof(MaxHammingDistance)] ?? "3");
+                ExtraBlocks = int.Parse(data["hash"][nameof(ExtraBlocks)] ?? "1");
+                LastUpdate = long.Parse(data["hash"][nameof(LastUpdate)] ?? "0");
+                LastHashCount = long.Parse(data["hash"][nameof(LastHashCount)] ?? "0");
+                HashCountOffset = int.Parse(data["hash"][nameof(HashCountOffset)] ?? "5000000");
+                KeepDataRAM = bool.Parse(data["hash"][nameof(KeepDataRAM)] ?? "false");
+                TempDir = data["hash"][nameof(TempDir)] ?? "";
+                InitialSortFileSize = int.Parse(data["hash"][nameof(InitialSortFileSize)] ?? "16777216");
             }
             public void NewLastUpdate(long time)
             {
-                ini.SetValue("hash", nameof(LastUpdate), time.ToString());
+                data["hash"][nameof(LastUpdate)] = time.ToString();
+                ini.WriteFile(iniPath, data);
             }
             public void NewLastHashCount(long Count)
             {
-                ini.SetValue("hash", nameof(LastHashCount), Count.ToString());
+                data["hash"][nameof(LastHashCount)] = Count.ToString();
+                ini.WriteFile(iniPath, data);
             }
         }
         public _hash hash;
@@ -208,45 +164,12 @@ namespace twitenlib
         public class _database
         {
             public string Address { get; }
-            public _database(IniFileHandler ini)
+            public _database(IniData data)
             {
-                Address = ini.GetValue("database", nameof(Address), "localhost");
+                Address = data["database"][nameof(Address)] ?? "localhost";
             }
         }
         public _database database;
-
-        public class _bot
-        {
-            IniFileHandler ini;
-            public string ConsumerKey { get; }
-            public string ConsumerSecret { get; }
-            public string AccessToken { get; }
-            public string AccessTokenSecret { get; }
-
-            public long LastTweetTime { get; }
-            public long LastPakurierTime { get; }
-
-            public _bot(IniFileHandler ini)
-            {
-                this.ini = ini;
-                ConsumerKey = ini.GetValue("bot", nameof(ConsumerKey),"");
-                ConsumerSecret = ini.GetValue("bot", nameof(ConsumerSecret), "");
-                AccessToken = ini.GetValue("bot", nameof(AccessToken), "");
-                AccessTokenSecret = ini.GetValue("bot", nameof(AccessTokenSecret), "");
-                LastTweetTime = int.Parse(ini.GetValue("bot", nameof(LastTweetTime), "0"));
-                LastPakurierTime = int.Parse(ini.GetValue("bot", nameof(LastPakurierTime), "0"));
-            }
-
-            public void NewLastTweetTime(long time)
-            {
-                ini.SetValue("bot", nameof(LastTweetTime), time.ToString());
-            }
-            public void NewLastPakurierTime(long time)
-            {
-                ini.SetValue("bot", nameof(LastPakurierTime), time.ToString());
-            }
-        }
-        public _bot bot;
     }
 
     public class DBHandler
