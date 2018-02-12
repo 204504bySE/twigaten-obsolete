@@ -25,6 +25,7 @@ iframe.twitter-share-button {vertical-align:text-bottom;}
 }
 .pagination{
     margin: 0 0 20px 0;
+    vertical-align: middle
 }
 
 h2, .h2{ font-size: 20px; }

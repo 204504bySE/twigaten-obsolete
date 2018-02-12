@@ -72,11 +72,13 @@ namespace twidown
             {
                 //必要なときだけVerifyCredentials()する
                 switch (s.NeedRetry == UserStreamer.NeedRetryResult.Verify
-                    ? s.Streamer.VerifyCredentials() : UserStreamer.TokenStatus.Success)
+                    ? s.Streamer.VerifyCredentials(true) : UserStreamer.TokenStatus.Success)
                 {
                     case UserStreamer.TokenStatus.Success:
                         s.Streamer.RecieveStream();
                         s.Streamer.RecieveRestTimeline();
+                        //結局VerifyCredentials()でプロフィールを取得
+                        if (s.NeedRetry == UserStreamer.NeedRetryResult.JustNeeded) { s.Streamer.VerifyCredentials(); }
                         if (s.Streamer.NeedRestMyTweet)
                         {
                             s.Streamer.NeedRestMyTweet = false;
@@ -103,7 +105,8 @@ namespace twidown
                 s.Streamer.ConnectWaiting = false;
             }, new ExecutionDataflowBlockOptions()
             {
-                MaxDegreeOfParallelism = config.crawl.ReconnectThreads
+                MaxDegreeOfParallelism = config.crawl.ReconnectThreads,
+                SingleProducerConstrained = true
             });
         }
 

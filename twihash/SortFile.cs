@@ -154,7 +154,7 @@ namespace twihash
     ///<summary>ReadInt64()を普通に呼ぶと遅いのでまとめて読む</summary>
     class BufferedLongReader : IDisposable
     {
-        const int BufSize = 65536;
+        const int BufSize = 0x100000;
 
         FileStream file;
         public long Length { get; }
@@ -204,7 +204,7 @@ namespace twihash
     ///<summary>ReadInt64()を普通に呼ぶと遅いのでまとめて読む</summary>
     class BufferedLongWriter : IDisposable
     {
-        const int BufSize = 65536;
+        const int BufSize = 0x100000;
         FileStream file;
         byte[] buf = new byte[BufSize];
         int Cursor;

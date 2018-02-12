@@ -12,17 +12,15 @@ namespace twiview.Controllers
     public class SearchController : Controller
     {
         DBHandlerView db = new DBHandlerView();
-        Regex StatusRegex = new Regex(@"(?<=twitter\.com\/.+?\/status(es)?\/)\d+", RegexOptions.Compiled);
-        Regex ScreenNameRegex = new Regex(@"(?<=twitter\.com\/|@|^)[_\w]+(?=[\/_\w]*$)", RegexOptions.Compiled);
+        static readonly Regex StatusRegex = new Regex(@"(?<=twitter\.com\/.+?\/status(es)?\/)\d+", RegexOptions.Compiled);
+        static readonly Regex ScreenNameRegex = new Regex(@"(?<=twitter\.com\/|@|^)[_\w]+(?=[\/_\w]*$)", RegexOptions.Compiled);
 
 
         public class SearchParameters : LoginParameters
         {
             ///<summary>URL</summary>
             public string Str { get; set; }
-            ///<summary>URL UserLikeMode/Cookie</summary>
-            public DBHandlerView.SelectUserLikeMode? Mode { get; set; }
-            ///<summary>Cookie(Session only)</summary>
+            ///<summary>URL > Cookie(Session only)</summary>
             public DBHandlerView.SelectUserLikeMode? UserLikeMode { get; set; }
             ///<summary>URL</summary>
             public bool? Direct { get; set; }
@@ -32,7 +30,7 @@ namespace twiview.Controllers
             protected override void ValidateValues(HttpResponseBase Response)
             {
                 Str = twitenlib.CharCodes.KillNonASCII(Str);
-                UserLikeMode = Mode = Mode ?? UserLikeMode ?? DBHandlerView.SelectUserLikeMode.Show;
+                UserLikeMode = UserLikeMode ?? DBHandlerView.SelectUserLikeMode.Show;
                 SetCookie(nameof(UserLikeMode), UserLikeMode.ToString(), Response, true);
                 Direct = Direct ?? true;
             }
@@ -45,7 +43,7 @@ namespace twiview.Controllers
 
             //ツイートのURLっぽいならそのツイートのページに飛ばす
             string StatusStr = StatusRegex.Match(p.Str).Value;
-            if (StatusStr != "")
+            if (!string.IsNullOrWhiteSpace(StatusStr))
             {
                 long StatusID = long.Parse(StatusStr);
                 return RedirectToRoute(new
@@ -57,7 +55,7 @@ namespace twiview.Controllers
             }
             //ユーザー名検索
             string ScreenName = ScreenNameRegex.Match(p.Str).Value;
-            if (ScreenName != "")
+            if (!string.IsNullOrWhiteSpace(ScreenName))
             {
                 if (p.Direct.Value)
                 {
@@ -67,7 +65,7 @@ namespace twiview.Controllers
                         return RedirectToRoute(new { controller = "SimilarMedia", action = "UserTweet", UserID = TargetUserID });
                     }
                 }
-                return RedirectToAction("Users", new { Str = p.Str, Mode = p.Mode });
+                return RedirectToAction("Users", new { Str = p.Str, Mode = p.UserLikeMode });
             }
             else { return RedirectToAction("Index"); }
         }
@@ -91,7 +89,7 @@ namespace twiview.Controllers
             p.Validate(Session, Response);
             //screen_name 検索
             if(p.Str == null || p.Str == "") { return RedirectToAction("Index"); }
-            return View(new SearchModelUsers(p.Str, p.ID, p.Mode.Value));
+            return View(new SearchModelUsers(p.Str, p.ID, p.UserLikeMode.Value));
         }
     }
 }

@@ -372,16 +372,7 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
                  }
              });
         }
-/*
-        public void Nullify_downloaded_at()
-        {
-            const int BulkUnit = 10000;
-            MySqlCommand cmd = new MySqlCommand(@"UPDATE media SET downloaded_at = null WHERE downloaded_at < @time LIMIT @limit;");
-            cmd.Parameters.AddWithValue("@time", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            cmd.Parameters.AddWithValue("@limit", BulkUnit);
-            while (ExecuteNonQuery(cmd) > 0) { Console.WriteLine(DateTime.Now); }
-        }
-*/
+
         public void Nullify_updated_at()
         {
             const int BulkUnit = 10000;
@@ -390,95 +381,6 @@ WHERE NOT EXISTS (SELECT * FROM tweet_media WHERE tweet_id = media.source_tweet_
             cmd.Parameters.AddWithValue("@limit", BulkUnit);
             while (ExecuteNonQuery(cmd) > 0) { Console.WriteLine(DateTime.Now); }
         }
-
-
-
-        public void Mediatohttps()
-        {
-            //media_urlをhttps://にするだけ
-            const int BulkUnit = 10000;
-            long UpdatedCount = 0;
-            string UpdateCmdStrFull = MediatohttpsCmd(BulkUnit);
-
-            ActionBlock<DataTable> updateblock = new ActionBlock<DataTable>((DataTable Table) =>
-            {
-                string UpdateCmdStr;
-                if (Table.Rows.Count != Table.Rows.Count) { UpdateCmdStr = MediatohttpsCmd(Table.Rows.Count); }
-                else { UpdateCmdStr = UpdateCmdStrFull; }
-                using (MySqlCommand cmd = new MySqlCommand(UpdateCmdStr))
-                {
-                    for (int i = 0; i < Table.Rows.Count; i++)
-                    {
-                        cmd.Parameters.AddWithValue('@' + i.ToString(), Table.Rows[i][0]);
-                        cmd.Parameters.AddWithValue("@a" + i.ToString(), Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
-
-                        //Console.WriteLine("{0}\t{1}", Table.Rows[i][0], Table.Rows[i].Field<string>(1).Replace("http://pbs.twimg.com/", "https://pbs.twimg.com/"));
-                    }
-                    int cmdcnt = ExecuteNonQuery(cmd);
-                    Interlocked.Add(ref UpdatedCount, cmdcnt);
-                    Console.WriteLine("{0} {1}\t{2}",DateTime.Now, UpdatedCount, Table.Rows[Table.Rows.Count - 1].Field<long>(0));
-                }
-            }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = Environment.ProcessorCount });
-
-            try
-            {
-                long LastId = 757000000000000000;    //ここからスタート
-                while(true)
-                {
-                    DataTable Table;
-                    using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-media_id, media_url FROM media
-WHERE media_id > @lastid
-ORDER BY media_id LIMIT @limit;"))
-                    {
-                        cmd.Parameters.AddWithValue("@lastid", LastId);
-                        cmd.Parameters.AddWithValue("@limit", BulkUnit);
-                        Table = SelectTable(cmd);
-                        if(Table != null && Table.Rows.Count > 0) { updateblock.Post(Table); }
-                        else { break; }
-                        LastId = Table.Rows[Table.Rows.Count - 1].Field<long>(0);
-                        while(updateblock.InputCount > 10) { Thread.Sleep(1000); }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-            Console.WriteLine("＼(^o^)／");
-            Console.ReadKey();
-        }
-
-        string MediatohttpsCmd(int Count)
-        {
-            //ついでにupdated_atをnullにする
-            StringBuilder BulkCmd = new StringBuilder(@"UPDATE media SET media_url = ELT(FIELD(media_id,");
-            BulkCmd.Append('@');
-            for (int i = 0; i < Count; i++)
-            {
-                BulkCmd.Append(i);
-                BulkCmd.Append(",@");
-            }
-            BulkCmd.Remove(BulkCmd.Length - 2, 2);
-            BulkCmd.Append("),@a");
-            for (int i = 0; i < Count; i++)
-            {
-                BulkCmd.Append(i);
-                BulkCmd.Append(",@a");
-            }
-            BulkCmd.Remove(BulkCmd.Length - 3, 3);
-            BulkCmd.Append(") WHERE media_id IN(@");
-            for (int i = 0; i < Count; i++)
-            {
-                BulkCmd.Append(i);
-                BulkCmd.Append(",@");
-            }
-            BulkCmd.Remove(BulkCmd.Length - 2, 2);
-            BulkCmd.Append(");");
-            return BulkCmd.ToString();
-        }
-
-
 
         public void UpdateisProtected()
         {
@@ -584,7 +486,7 @@ FROM token;"))
             var GetHashBlock = new TransformBlock<KeyValuePair<long, string>, KeyValuePair<long, long?>>(media => {
                 return new KeyValuePair<long, long?>(media.Key, downloadforHash(media.Value + ":thumb"));
             }, new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = ConnectionLimit });
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media WHERE media_id < 700000000000000000 ORDER BY media_id DESC LIMIT @limit;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT media_id, media_url FROM media ORDER BY media_id DESC LIMIT @limit;"))
             {
                 cmd.Parameters.AddWithValue("@limit", BulkUnit);
                 Table = SelectTable(cmd,IsolationLevel.ReadUncommitted);

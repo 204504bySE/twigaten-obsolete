@@ -232,6 +232,15 @@ namespace twiview.Locale {
         }
         
         /// <summary>
+        ///   除外 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string Pager_Hide {
+            get {
+                return ResourceManager.GetString("Pager_Hide", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   最新 に類似しているローカライズされた文字列を検索します。
         /// </summary>
         public static string Pager_Latest {
@@ -246,15 +255,6 @@ namespace twiview.Locale {
         public static string Pager_Newer {
             get {
                 return ResourceManager.GetString("Pager_Newer", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   RTを除く に類似しているローカライズされた文字列を検索します。
-        /// </summary>
-        public static string Pager_NoRT {
-            get {
-                return ResourceManager.GetString("Pager_NoRT", resourceCulture);
             }
         }
         
@@ -277,11 +277,11 @@ namespace twiview.Locale {
         }
         
         /// <summary>
-        ///   RTを表示 に類似しているローカライズされた文字列を検索します。
+        ///   表示 に類似しているローカライズされた文字列を検索します。
         /// </summary>
-        public static string Pager_WithRT {
+        public static string Pager_Show {
             get {
-                return ResourceManager.GetString("Pager_WithRT", resourceCulture);
+                return ResourceManager.GetString("Pager_Show", resourceCulture);
             }
         }
         
@@ -309,6 +309,15 @@ namespace twiview.Locale {
         public static string SimilarMedia_SeparatePage {
             get {
                 return ResourceManager.GetString("SimilarMedia_SeparatePage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   ぼっち画像 に類似しているローカライズされた文字列を検索します。
+        /// </summary>
+        public static string SimilarMedia_ShowNoDup {
+            get {
+                return ResourceManager.GetString("SimilarMedia_ShowNoDup", resourceCulture);
             }
         }
         

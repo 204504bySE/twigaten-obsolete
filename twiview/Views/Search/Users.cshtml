@@ -44,16 +44,16 @@
 @helper pager()
 {
     <ul class="pagination">
-        <li @(Model.ModeStr == "Show" ? "class=active" : "")>@Html.ActionLink("閲覧可能", "Index", new { Str = Model.target_screen_name, Mode = DBHandlerView.SelectUserLikeMode.Show, Direct = false })</li>
+        <li @(Model.ModeStr == "Show" ? "class=active" : "")>@Html.ActionLink("閲覧可能", "Index", new { Str = Model.target_screen_name, UserLikeMode = DBHandlerView.SelectUserLikeMode.Show, Direct = false })</li>
         @if (Model.Logined)
         {
-        <li @(Model.ModeStr == "Following" ? "class=active" : "")>@Html.ActionLink("フォローしている", "Index", new { Str = Model.target_screen_name, Mode = DBHandlerView.SelectUserLikeMode.Following, Direct = false })</li>
+        <li @(Model.ModeStr == "Following" ? "class=active" : "")>@Html.ActionLink("フォローしている", "Index", new { Str = Model.target_screen_name, UserLikeMode = DBHandlerView.SelectUserLikeMode.Following, Direct = false })</li>
         }
         else
         {
             <li class="disabled"><a>フォローしている</a></li>
         }
-        <li @(Model.ModeStr == "All" ? "class=active" : "")>@Html.ActionLink("すべて", "Index", new { Str = Model.target_screen_name, Mode = DBHandlerView.SelectUserLikeMode.All, Direct = false })</li>
+        <li @(Model.ModeStr == "All" ? "class=active" : "")>@Html.ActionLink("すべて", "Index", new { Str = Model.target_screen_name, UserLikeMode = DBHandlerView.SelectUserLikeMode.All, Direct = false })</li>
     </ul>
 }
 

@@ -171,8 +171,8 @@
   <data name="Pager_Newer" xml:space="preserve">
     <value>« Newer</value>
   </data>
-  <data name="Pager_NoRT" xml:space="preserve">
-    <value>Hide RT</value>
+  <data name="Pager_Hide" xml:space="preserve">
+    <value>Hide</value>
   </data>
   <data name="Pager_Older" xml:space="preserve">
     <value>Older »</value>
@@ -180,8 +180,8 @@
   <data name="Pager_ResultsPerPage" xml:space="preserve">
     <value>Results per page</value>
   </data>
-  <data name="Pager_WithRT" xml:space="preserve">
-    <value>Show RT</value>
+  <data name="Pager_Show" xml:space="preserve">
+    <value>Show</value>
   </data>
   <data name="Title_Featured" xml:space="preserve">
     <value>Popular Tweets Having Similar Images({0})</value>
@@ -233,5 +233,8 @@
   </data>
   <data name="Headline_LatestTime" xml:space="preserve">
     <value>Recent 1 Hour</value>
+  </data>
+  <data name="SimilarMedia_ShowNoDup" xml:space="preserve">
+    <value>Isolated images</value>
   </data>
 </root>

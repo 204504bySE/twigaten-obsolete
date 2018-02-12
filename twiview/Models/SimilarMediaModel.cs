@@ -14,6 +14,7 @@ namespace twiview.Models
         public SimilarMediaTweet[] Tweets { get; protected set; }
         public long LastTweet { get; protected set; }
         public bool GetRetweet { get; protected set; }
+        public bool ShowNoDup { get; protected set; }
         public long QueryElapsedMilliseconds { get; protected set; }
         public int SimilarLimit { get; protected set; }
         public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet).ToLocalTime(); } }
@@ -98,7 +99,7 @@ namespace twiview.Models
 
     public class SimilarMediaModelTimeline : SimilarMediaModel
     {
-        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, RangeModes RangeMode)
+        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool ShowNoDup, RangeModes RangeMode)
         {
             sw.Start();
             ActionName = ActionNames.Timeline;
@@ -109,8 +110,9 @@ namespace twiview.Models
             this.RangeMode = RangeMode;
             this.TweetCount = TweetCount;
             this.GetRetweet = GetRetweet;
+            this.ShowNoDup = ShowNoDup;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, RangeMode != RangeModes.After);
+            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, ShowNoDup, RangeMode != RangeModes.After);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
@@ -118,7 +120,7 @@ namespace twiview.Models
 
     public class SimilarMediaModelUserTweet : SimilarMediaModel
     {
-        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, RangeModes RangeMode)
+        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool ShowNoDup, RangeModes RangeMode)
         {
             sw.Start();
             ActionName = ActionNames.UserTweet;
@@ -129,8 +131,9 @@ namespace twiview.Models
             this.RangeMode = RangeMode;
             this.TweetCount = TweetCount;
             this.GetRetweet = GetRetweet;
+            this.ShowNoDup = ShowNoDup;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, RangeMode != RangeModes.After);
+            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, ShowNoDup, RangeMode != RangeModes.After);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }

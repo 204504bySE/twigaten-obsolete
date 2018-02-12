@@ -100,7 +100,12 @@ GROUP BY dcthash;");
                 {
                     ActionBlock<DataTable> WriterBlock = new ActionBlock<DataTable>(
                         (table) => { writer.Write(table.AsEnumerable().Select((row) => row.Field<long>(0))); },
-                        new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1, SingleProducerConstrained = true });
+                        new ExecutionDataflowBlockOptions()
+                        {
+                            BoundedCapacity = Environment.ProcessorCount,
+                            MaxDegreeOfParallelism = 1,
+                            SingleProducerConstrained = true
+                        });
 
                     long ret = 0;
                     int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2)); //TableがLarge Heapに載らない程度に調整
@@ -148,7 +153,7 @@ WHERE downloaded_at BETWEEN @begin AND @end;");
                 const int QueryRangeSeconds = 600;
                 Parallel.For(0, Math.Max(0, DateTimeOffset.UtcNow.ToUnixTimeSeconds() - config.hash.LastUpdate) / QueryRangeSeconds + 1,
                     new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
-                    () => new HashSet<long>(),
+                    () => new List<long>(),
                     (i, loop, localset) =>
                     {
                         DataTable Table;
@@ -158,7 +163,7 @@ WHERE downloaded_at BETWEEN @begin AND @end;");
                             NewerMediaHashCmd.Value.Parameters["@end"].Value = config.hash.LastUpdate + QueryRangeSeconds * (i + 1) - 1;
                             Table = SelectTable(NewerMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
                         } while (Table == null);    //大変安易な対応
-                    foreach (DataRow row in Table.Rows) { localset.Add(row.Field<long>(0)); }
+                        localset.AddRange(Table.AsEnumerable().Select((row) => row.Field<long>(0)));
                         return localset;
                     }, (s) => { lock (ret) { foreach (var h in s) { ret.Add(h); } } });
                 return ret;

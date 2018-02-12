@@ -26,16 +26,13 @@ namespace twiview.Controllers
 
         public class FeaturedParameters : SimilarMediaParameters
         {
-            ///<summary>URL TweetOrder/Cookie</summary>
-            public DBHandlerView.TweetOrder? Order { get; set; }
-
-            ///<summary>Cookie</summary>
-            public DBHandlerView.TweetOrder? TweetOrder { get; set; }
+            ///<summary>URL > Cookie</summary>
+            public DBHandlerView.TweetOrder? Order { get; set; }            
 
             protected override void ValidateValues(HttpResponseBase Response)
             {
-                TweetOrder = Order = Order ?? TweetOrder ?? DBHandlerView.TweetOrder.Featured;
-                SetCookie(nameof(TweetOrder), TweetOrder.ToString(), Response);
+                Order = Order ?? DBHandlerView.TweetOrder.Featured;
+                SetCookie(nameof(Order), Order.ToString(), Response);
             }
         }
         [Route("featured/{Date?}")]
@@ -75,33 +72,32 @@ namespace twiview.Controllers
 
         public class TLUserParameters : SimilarMediaParameters
         {
-            ///<summary>URL TweetCount/Cookie</summary>
+            ///<summary>URL > Cookie</summary>
             public int? Count { get; set; }
-            ///<summary>URL GetRetweet/Cookie</summary>
+            ///<summary>URL > Cookie</summary>
             public bool? RT { get; set; }
+            ///<summary>URL > Cookie</summary>
+            public bool? Show0 { get; set; }
             ///<summary>URL</summary>
             public long? Before { get; set; }
             ///<summary>URL</summary>
             public long? After { get; set; }
 
-            ///<summary>Cookie</summary>
-            public int? TweetCount { get; set; }
-            ///<summary>Cookie</summary>
-            public bool? GetRetweet { get; set; }
-
             protected override void ValidateValues(HttpResponseBase Response)
             {
-                Count = Count ?? TweetCount ?? 10;
+                Count = Count ?? 10;
                 if (Count > 50) { Count = 50; }
                 if (Count < 10) { Count = 10; }
-                TweetCount = Count;
-                SetCookie(nameof(TweetCount), TweetCount.ToString(), Response);
+                SetCookie(nameof(Count), Count.ToString(), Response);
 
-                GetRetweet = RT = RT ?? GetRetweet ?? true;
-                SetCookie(nameof(GetRetweet), GetRetweet.ToString(), Response);
+                RT = RT ?? true;
+                SetCookie(nameof(RT), RT.ToString(), Response);
+
+                Show0 = Show0 ?? false;
+                SetCookie(nameof(Show0), Show0.ToString(), Response);
             }
         }
-        readonly Regex OldDateRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled);
+        static readonly Regex OldDateRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled);
         [Route("timeline/{UserID:long?}")]
         public ActionResult Timeline(TLUserParameters p)
         {
@@ -134,7 +130,7 @@ namespace twiview.Controllers
                 { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate, true); }
             }
 
-            SimilarMediaModel Model = new SimilarMediaModelTimeline((long)(p.UserID ?? p.ID), p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, RangeMode);
+            SimilarMediaModel Model = new SimilarMediaModelTimeline((long)(p.UserID ?? p.ID), p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, p.Show0.Value, RangeMode);
             if (Model.IsNotFound) { Response.StatusCode = 404; }
             return View("TLUser", Model);
         }
@@ -170,7 +166,7 @@ namespace twiview.Controllers
                 { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate, true); }
             }
 
-            SimilarMediaModel Model = new SimilarMediaModelUserTweet(p.UserID.Value, p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, RangeMode);
+            SimilarMediaModel Model = new SimilarMediaModelUserTweet(p.UserID.Value, p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, p.Show0.Value, RangeMode);
             if (Model.IsNotFound) { Response.StatusCode = 404; }
             return View("TLUser", Model);
         }

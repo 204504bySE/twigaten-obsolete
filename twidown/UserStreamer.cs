@@ -2,17 +2,12 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.IO;
 using System.Net;
 using System.Reactive.Linq;
 using System.Reactive.Concurrency;
 using CoreTweet;
 using CoreTweet.Streaming;
 using twitenlib;
-using System.Threading.Tasks.Dataflow;
-using System.Collections.Concurrent;
-using System.Threading;
-using System.Net.Sockets;
 
 namespace twidown
 {
@@ -124,15 +119,15 @@ namespace twidown
         //tokenの有効性を確認して自身のプロフィールも取得
         //Revokeの可能性があるときだけ呼ぶ
         public enum TokenStatus { Success, Failure, Revoked, Locked }
-        public TokenStatus VerifyCredentials()
+        public TokenStatus VerifyCredentials(bool KillStream = false)
         {
             try
             {
                 isAttemptingConnect = true;
-                StreamSubscriber?.Dispose(); StreamSubscriber = null;
+                if (KillStream) { StreamSubscriber?.Dispose(); StreamSubscriber = null; }
                 //Console.WriteLine("{0} {1}: Verifying token", DateTime.Now, Token.UserId);
                 db.StoreUserProfile(Token.Account.VerifyCredentials());
-                Console.WriteLine("{0} {1}: Token verification success", DateTime.Now, Token.UserId);
+                //Console.WriteLine("{0} {1}: Token verification success", DateTime.Now, Token.UserId);
                 return TokenStatus.Success;
             }
             catch (TwitterException ex)

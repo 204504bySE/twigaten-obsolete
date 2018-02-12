@@ -19,6 +19,7 @@ namespace twiview
             BundleConfig.RegisterBundles(BundleTable.Bundles);
 
             //CookieなどもControllerの引数に渡される
+            //ここで上に書いたものが優先(URLは最優先
             ValueProviderFactories.Factories.Add(new CookieValueProviderFactory());
             ValueProviderFactories.Factories.Add(new SessionValueProviderFactory());
             ValueProviderFactories.Factories.Add(new TempDataValueProviderFactory());

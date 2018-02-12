@@ -10,24 +10,7 @@
 
 @helper Pager(bool datepicker = false)
 {
-    <div>
-        <ul class="pagination">
-            @switch (Model.RangeMode)
-            {
-                case SimilarMediaModel.RangeModes.Before:
-                    <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = true })">@Locale.Pager_WithRT</a></li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = false })">@Locale.Pager_NoRT</a></li>
-                    break;
-                case SimilarMediaModel.RangeModes.After:
-                    <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = true })">@Locale.Pager_WithRT</a></li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = false })">@Locale.Pager_NoRT</a></li>
-                    break;
-                default:
-                    <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = true })">@Locale.Pager_WithRT</a></li>
-                    <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = false })">@Locale.Pager_NoRT</a></li>
-                    break;
-            }
-        </ul>
+    <nav>
         <ul class="pagination">
             <li @(Model.isLatest ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id })">@Locale.Pager_Latest</a></li>
             @if (Model.NextNew == null || Model.isLatest)
@@ -43,10 +26,48 @@
             {
             <li><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.NextOld })">@Locale.Pager_Older</a></li> }
         </ul>
-    </div>
+        <div style="display:inline-block"><span style="vertical-align:super"><span class="glyphicon glyphicon-retweet" style="color:#19cf86"></span> RT</span>
+            <ul class="pagination">
+                @switch (Model.RangeMode)
+                {
+                    case SimilarMediaModel.RangeModes.Before:
+                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = false })">@Locale.Pager_Hide</a></li>
+                        break;
+                    case SimilarMediaModel.RangeModes.After:
+                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = false })">@Locale.Pager_Hide</a></li>
+                        break;
+                    default:
+                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = false })">@Locale.Pager_Hide</a></li>
+                        break;
+                }
+            </ul>
+        </div>
+        <div style="display:inline-block"><span style="vertical-align:super">@Locale.SimilarMedia_ShowNoDup</span>
+            <ul class="pagination">
+                @switch (Model.RangeMode)
+                {
+                    case SimilarMediaModel.RangeModes.Before:
+                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
+                        break;
+                    case SimilarMediaModel.RangeModes.After:
+                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
+                        break;
+                    default:
+                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = false })">@Locale.Pager_Hide</a></li>
+                        break;
+                }
+            </ul>
+        </div>
+    </nav>
 if (datepicker)
 {
-        <div class="form-group">
+        <nav class="form-group">
             <form method="get" class="form-inline" style="display:inline">
                 @Locale.Pager_ResultsPerPage
                 <select class="form-control" name="Count" onchange="this.form.submit()">
@@ -77,7 +98,7 @@ if (datepicker)
                 </div>
                 <button type="submit" class="btn btn-primary">Go</button>
             </form>
-        </div>
+        </nav>
 }
 }
 

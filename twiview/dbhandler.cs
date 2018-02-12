@@ -119,7 +119,8 @@ FROM user WHERE user_id = @user_id"))
             }
         }
 
-        public enum SelectUserLikeMode { Show, Following, All }
+        public enum SelectUserLikeMode
+        { Show, Following, All }
         public TweetData._user[] SelectUserLike(string Pattern, long? login_user_id, SelectUserLikeMode Mode, int Limit)
         {
             DataTable Table;
@@ -282,7 +283,7 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
 
         const int MultipleMediaOffset = 3;  //複画は今のところ4枚まで これを同ページに収めたいマン
         //target_user_idのTL内から類似画像を発見したツイートをずらりと
-        public SimilarMediaTweet[] SimilarMediaTimeline(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
+        public SimilarMediaTweet[] SimilarMediaTimeline(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool ShowNoDup, bool Before)
         {
             //鍵垢のTLはフォローしてない限り表示しない
             //未登録のアカウントもここで弾かれる
@@ -319,7 +320,8 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
             ExecutionDataflowBlockOptions op = new ExecutionDataflowBlockOptions()
             {
                 CancellationToken = CancelToken.Token,
-                MaxDegreeOfParallelism = ThreadCount
+                MaxDegreeOfParallelism = ThreadCount,
+                SingleProducerConstrained = true
             };
             string QueryText;
             if (GetRetweet)
@@ -333,9 +335,9 @@ LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m 
 NATURAL LEFT JOIN media_downloaded_at md
-WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
-    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
-AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
+WHERE " + (ShowNoDup ? "" : @"(EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
+    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash)) AND") + @"
+o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
 AND f.user_id = @target_user_id
 AND (@login_user_id = @target_user_id
     OR ou.isprotected = 0 
@@ -368,9 +370,9 @@ INNER JOIN tweet o ON ou.user_id = o.user_id
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
 NATURAL LEFT JOIN media_downloaded_at md
-WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
-    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
-AND f.user_id = @target_user_id
+WHERE " + (ShowNoDup ? "" : @"(EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
+    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash)) AND") + @"
+f.user_id = @target_user_id
 AND o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
 AND o.retweet_id IS NULL
 AND (@login_user_id = @target_user_id
@@ -390,7 +392,8 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                         cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
                         cmd.Parameters.Add("@time", MySqlDbType.Int64).Value = (Before ? QuerySnowFlake - QueryRangeSnowFlake * i : QuerySnowFlake + QueryRangeSnowFlake * i);
                         cmd.Parameters.Add("@timerange", MySqlDbType.Int64).Value = QueryRangeSnowFlake;
-                        cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = TweetCount + MultipleMediaOffset;
+                        //類似画像が表示できない画像を弾くときだけ多めに取得する
+                        cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = ShowNoDup ? TweetCount : TweetCount + MultipleMediaOffset;
                         return SelectTable(cmd);
                     }
                 }, op);
@@ -431,7 +434,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
             CancelToken.Cancel();
             if (retTable == null) { return new SimilarMediaTweet[0]; }
 
-            SimilarMediaTweet[] ret = TableToTweet(retTable, login_user_id, SimilarLimit);
+            SimilarMediaTweet[] ret = TableToTweet(retTable, login_user_id, SimilarLimit, ShowNoDup);
             if (!Before) { ret = ret.Reverse().ToArray(); }
             //TableToTweetで類似画像が表示できないやつが削られるので
             //多めに拾ってきて溢れた分を捨てる
@@ -445,7 +448,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
 
         //target_user_idのツイートから類似画像を発見したツイートをずらりと
         //鍵かつフォロー外なら何も出ない
-        public SimilarMediaTweet[] SimilarMediaUser(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool Before)
+        public SimilarMediaTweet[] SimilarMediaUser(long target_user_id, long? login_user_id, long LastTweet, int TweetCount, int SimilarLimit, bool GetRetweet, bool ShowNoDup, bool Before)
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand())
@@ -462,9 +465,9 @@ NATURAL JOIN media m
 NATURAL LEFT JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
-AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
+AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet" + (ShowNoDup ? "" : @"
 AND (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
-    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
+    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))") + @"
 ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
                 else
@@ -478,18 +481,19 @@ NATURAL LEFT JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
-AND o.retweet_id IS NULL
+AND o.retweet_id IS NULL" + (ShowNoDup ? "" : @"
 AND (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
-    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
+    OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))") + @"
 ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
                 cmd.Parameters.Add("@target_user_id", MySqlDbType.Int64).Value = target_user_id;
                 cmd.Parameters.Add("@login_user_id", MySqlDbType.Int64).Value = login_user_id;
                 cmd.Parameters.Add("@lasttweet", MySqlDbType.Int64).Value = LastTweet;
-                cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = TweetCount + MultipleMediaOffset;
+                //類似画像が表示できない画像を弾くときだけ多めに取得する
+                cmd.Parameters.Add("@limitplus", MySqlDbType.Int64).Value = ShowNoDup ? TweetCount : TweetCount + MultipleMediaOffset;
                 Table = SelectTable(cmd);
             }
-            SimilarMediaTweet[] ret = TableToTweet(Table, login_user_id, SimilarLimit);
+            SimilarMediaTweet[] ret = TableToTweet(Table, login_user_id, SimilarLimit, ShowNoDup);
             if (!Before) { ret = ret.Reverse().ToArray(); }
             //TableToTweetで類似画像が表示できないやつが削られるので
             //多めに拾ってきて溢れた分を捨てる

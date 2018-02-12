@@ -21,8 +21,6 @@ namespace twiview
         public string ScreenName { get; set; }
         ///<summary>Cookie</summary>
         public string Locale { get; set; }
-        ///<summary>URL Locale/Cookie</summary>
-        public string SetLocale { get; set; }
 
         protected void SetCookie(string Name, string Value, HttpResponseBase Response, bool Ephemeral = false)
         {
@@ -83,8 +81,7 @@ namespace twiview
         void ControlLocale(HttpSessionStateBase Session, HttpResponseBase Response)
         {
             CultureInfo Culture = null;
-            if (SetLocale != null) { try { Culture = CultureInfo.GetCultureInfo(SetLocale); } catch { } }
-            else if (Locale != null) { try { Culture = CultureInfo.GetCultureInfo(Locale); } catch { } }
+            if (Locale != null) { try { Culture = CultureInfo.GetCultureInfo(Locale); } catch { } }
             else if (HttpContext.Current.Request.UserLanguages != null)
             {
                 foreach(string LangCulture in HttpContext.Current.Request.UserLanguages)
@@ -125,9 +122,10 @@ namespace twiview
             if (Manually)
             {
                 ClearCookie("UserLikeMode", Response);
-                ClearCookie("TweetOrder", Response);
-                ClearCookie("TweetCount", Response);
-                ClearCookie("GetRetweet", Response);
+                ClearCookie("Order", Response);
+                ClearCookie("Count", Response);
+                ClearCookie("RT", Response);
+                ClearCookie("Show0", Response);
                 ClearCookie(nameof(Locale), Response);
             }
         }

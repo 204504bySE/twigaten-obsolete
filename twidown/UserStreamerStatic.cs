@@ -106,6 +106,7 @@ namespace twidown
         }, new ExecutionDataflowBlockOptions()
         {
             MaxDegreeOfParallelism = config.crawl.MaxDBConnections, //一応これで
+            SingleProducerConstrained = true
         });
 
         static void HandleTweet(Status x, Tokens t, bool stream)    //stream(=true)からのツイートならふぁぼRT数を上書きする

@@ -73,12 +73,14 @@ namespace twiview.Controllers
                 Tokens token = p.OAuthSession.GetTokens(p.oauth_verifier);
                 // token から AccessToken と AccessTokenSecret を永続化しておくとか、
                 // セッション情報に格納しておけば毎回認証しなくて良いかも
-
-                DBHandlerToken db = new DBHandlerToken();
+                
                 DBHandlerToken.VerifytokenResult vt = p.StoreNewLogin(token, Session, Response);
 
                 //127.0.0.1だとInvalid Hostnameされる localhostだとおｋ
-                if (vt == DBHandlerToken.VerifytokenResult.Exist) { return Redirect(@"~/users"); }
+                if (vt == DBHandlerToken.VerifytokenResult.Exist)
+                {
+                    return RedirectToRoute(new { controller = "SimilarMedia", action = "UserTweet", UserID = token.UserId });
+                }
                 else { return View("Done"); }
             }
             catch { return View("Failure"); }
@@ -88,7 +90,7 @@ namespace twiview.Controllers
         public ActionResult Logout(LoginParameters p)
         {
             p.Logout(Session, Response, true);
-            return Redirect(@"~/");
+            return RedirectToRoute(new { controller = "Home", action = "Index" });
         }
     }
 }

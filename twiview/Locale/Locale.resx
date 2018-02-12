@@ -171,8 +171,8 @@
   <data name="Pager_Newer" xml:space="preserve">
     <value>« 新しい</value>
   </data>
-  <data name="Pager_NoRT" xml:space="preserve">
-    <value>RTを除く</value>
+  <data name="Pager_Hide" xml:space="preserve">
+    <value>除外</value>
   </data>
   <data name="Pager_Older" xml:space="preserve">
     <value>古い »</value>
@@ -180,8 +180,8 @@
   <data name="Pager_ResultsPerPage" xml:space="preserve">
     <value>表示件数</value>
   </data>
-  <data name="Pager_WithRT" xml:space="preserve">
-    <value>RTを表示</value>
+  <data name="Pager_Show" xml:space="preserve">
+    <value>表示</value>
   </data>
   <data name="Title_Featured" xml:space="preserve">
     <value>人気のツイートと類似画像({0})</value>
@@ -233,5 +233,8 @@
   </data>
   <data name="Headline_LatestTime" xml:space="preserve">
     <value>最近1時間</value>
+  </data>
+  <data name="SimilarMedia_ShowNoDup" xml:space="preserve">
+    <value>ぼっち画像</value>
   </data>
 </root>
