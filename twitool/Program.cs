@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
 using CoreTweet;
-using twidown;
 using twitenlib;
 
 namespace twitool
@@ -21,19 +20,72 @@ namespace twitool
     {
         static void Main(string[] args)
         {
-            //CheckOldProcess.CheckandExit();
+            CompareHash();
+
+            CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
+
             //db.RemoveOrphanTweet();
             //Console.WriteLine("＼(^o^)／");
             //Console.ReadKey();
             //return;
+
             db.RemoveOldMedia();
             db.RemoveOrphanMedia();
             db.RemoveOldProfileImage();
             Thread.Sleep(3000);
-            return;
         }
+        
+        static void CompareHash()
+        {
+            foreach (string file in Directory.EnumerateFiles(@"D:\data\ぬるい", "*.jpg", SearchOption.AllDirectories))
+            {
+                long gdi;
+                long mono;
+                var req = HttpWebRequest.Create(@"http://192.168.238.8:12305/hash/dct");
+                using (var mem = new MemoryStream())
+                {
+                    File.OpenRead(file).CopyTo(mem);
+                    mem.Seek(0, SeekOrigin.Begin);
+                    gdi = twidown.PictHash.DCTHash(mem).Value;
+                    mem.Seek(0, SeekOrigin.Begin);
+
+                    req.Method = "POST";
+                    req.ContentType = "application/x-www-form-urlencoded";
+                    var data = new ASCIIEncoding().GetBytes("=" + Convert.ToBase64String(mem.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_'));
+                    req.ContentLength = data.Length;
+                    using (var post = req.GetRequestStream())
+                    {
+                        post.Write(data.ToArray(), 0, data.Length);
+                    }
+                    
+                        var res = req.GetResponse();
+                        using (var monostream = res.GetResponseStream())
+                        using (var mem2 = new MemoryStream())
+                        {
+                            monostream.CopyTo(mem2);
+                            monostream.Close();
+                            mem2.Seek(0, SeekOrigin.Begin);
+
+                            //Console.WriteLine(new UTF8Encoding().GetString(mem2.ToArray()));
+                            mono = long.Parse(new UTF8Encoding().GetString(mem2.ToArray()));
+                        }
+                        Console.WriteLine("{0}\t{1:X16}\t{2:X16}\t{3:X16}\t{4}", HammingDistance((ulong)gdi, (ulong)mono), gdi ^ mono, gdi, mono, file);
+                }
+            }
+        }
+        static int HammingDistance(ulong a, ulong b)
+        {
+            //xorしてpopcnt
+            ulong value = a ^ b;
+
+            //http://stackoverflow.com/questions/6097635/checking-cpu-popcount-from-c-sharp
+            ulong result = value - ((value >> 1) & 0x5555555555555555UL);
+            result = (result & 0x3333333333333333UL) + ((result >> 2) & 0x3333333333333333UL);
+            return (int)(unchecked(((result + (result >> 4)) & 0xF0F0F0F0F0F0F0FUL) * 0x101010101010101UL) >> 56);
+        }
+        
     }
 
 
@@ -91,7 +143,7 @@ LIMIT @limit;"))
 
         public void RemoveOldMedia()
         {
-            DriveInfo drive = new DriveInfo(config.crawl.PictPaththumb.Substring(0, 1));
+            DriveInfo drive = new DriveInfo(config.crawl.MountPointthumb);
             int RemovedCountFile = 0;
             const int BulkUnit = 1000;
             Console.WriteLine("{0}: {1} / {2} MB Free.", DateTime.Now, drive.AvailableFreeSpace >> 20, drive.TotalSize >> 20);
@@ -143,7 +195,7 @@ ORDER BY media_id;"))
         //しばらくツイートがないアカウントのprofile_imageを消す
         public void RemoveOldProfileImage()
         {
-            DriveInfo drive = new DriveInfo(config.crawl.PictPathProfileImage.Substring(0, 1));
+            DriveInfo drive = new DriveInfo(config.crawl.MountPointProfileImage);
             int RemovedCount = 0;
             const int BulkUnit = 1000;
             const string head = @"UPDATE user SET updated_at = NULL WHERE user_id IN";
@@ -474,7 +526,7 @@ FROM token;"))
             UpdateUserBlock.Completion.Wait();
         }
 
-
+        /*
         public void ReHashMedia_Dataflow()
         {
             ServicePointManager.ReusePort = true;
@@ -560,6 +612,7 @@ FROM token;"))
             }
             catch { return null; }
         }
+        */
     }
 }
 

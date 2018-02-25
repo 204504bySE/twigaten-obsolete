@@ -11,7 +11,7 @@
 @helper UserTweetLink(TweetData._user User)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
-if(User.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(User.user_id)">@@@User.screen_name)</a>
+if(User.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(User.user_id)">@@@(User.screen_name)</a>
 }
 
 @helper UserTweetLink(TweetData._tweet Tweet, bool wbr = true)

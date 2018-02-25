@@ -14,8 +14,7 @@ create table viewlogin(
 );
 
 create table pid(
-	pid int primary key,
-	cpu int not null
+	pid int primary key
 );
 
 create table crawlprocess(
@@ -99,13 +98,6 @@ create table dcthashpair(
 	foreign key (hash_pri) references media(dcthash) on delete cascade,
 	foreign key (hash_sub) references media(dcthash) on delete cascade
 )engine=InnoDB row_format=COMPRESSED;
-
-/*
-create table pakurier(
-	user_id bigint primary key
-	foreign key (user_id) references user(user_id) on delete cascade
-);
-*/
 
 create user token, crawl, hash, tool, view;
 

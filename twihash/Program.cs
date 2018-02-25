@@ -19,22 +19,13 @@ namespace twihash
             CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
-            long NewLastUpdate = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 900;   //とりあえず15分前
 
             Stopwatch sw = new Stopwatch();
 
             Console.WriteLine("{0} Loading hash", DateTime.Now);
             sw.Restart();
+            long NewLastUpdate = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 600;   //とりあえず10分前
             long Count = db.AllMediaHash();
-            sw.Stop();
-            if (Count < 0) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
-            else
-            {
-                Console.WriteLine("{0} {1} Hash loaded in {2} ms", DateTime.Now, Count, sw.ElapsedMilliseconds);
-                config.hash.NewLastHashCount(Count);
-            }
-            
-            GC.Collect();
             HashSet<long> NewHash = null;
             if (config.hash.LastUpdate > 0) //これが0なら全ハッシュを追加処理対象とする
             {
@@ -42,7 +33,15 @@ namespace twihash
                 if (NewHash == null) { Console.WriteLine("{0} New hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
                 Console.WriteLine("{0} {1} New hash", DateTime.Now, NewHash.Count);
             }
-
+            GC.Collect();
+            sw.Stop();
+            if (Count < 0) { Console.WriteLine("{0} Hash load failed.", DateTime.Now); Thread.Sleep(5000); Environment.Exit(1); }
+            else
+            {
+                Console.WriteLine("{0} {1} Hash loaded in {2} ms", DateTime.Now, Count, sw.ElapsedMilliseconds);
+                config.hash.NewLastHashCount(Count);
+            }            
+            GC.Collect();
             sw.Restart();
             MediaHashSorter media = new MediaHashSorter(NewHash, db, config.hash.MaxHammingDistance,config.hash.ExtraBlocks);
             media.Proceed();
@@ -51,6 +50,8 @@ namespace twihash
             File.Delete(SortFile.AllHashFilePath);
             config.hash.NewLastUpdate(NewLastUpdate);
             Thread.Sleep(5000);
+            Console.WriteLine("＼(^o^)／");
+            Console.ReadKey();
         }
     }
     /*
@@ -221,7 +222,7 @@ namespace twihash
                 }
             }, new ExecutionDataflowBlockOptions()
             {
-                BoundedCapacity = Environment.ProcessorCount,
+                BoundedCapacity = Environment.ProcessorCount << 8,
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
                 SingleProducerConstrained = true
             });
@@ -230,7 +231,8 @@ namespace twihash
             {
                 for (long[] Sorted = Reader.ReadBlock(); Sorted != null; Sorted = Reader.ReadBlock())
                 {
-                    MultipleSortBlock.Post(Sorted);
+                    if (Sorted.Length < 2) { continue; }
+                    MultipleSortBlock.SendAsync(Sorted).Wait();
                 }
             }
             File.Delete(SortedFilePath);

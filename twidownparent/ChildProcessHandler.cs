@@ -30,14 +30,8 @@ namespace twidownparent
 
         static public bool Alive(int pid)
         {
-            Process p;
-            try
-            {
-                p = Process.GetProcessById(pid);
-                if (p == null) { return false; }
-                if (p.ProcessName == config.crawlparent.ChildName) { return true; }
-                return false;
-            }
+            //同じIDのプロセスはすぐに出てこないと信じる(めんどい
+            try { return Process.GetProcessById(pid) != null; }
             catch { return false; }
         }
     }

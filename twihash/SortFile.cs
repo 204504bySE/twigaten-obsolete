@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 using System.IO;
 using twitenlib;
+using System.Runtime.InteropServices;
 
 namespace twihash
 {
@@ -41,31 +43,42 @@ namespace twihash
             using (BufferedLongReader reader = new BufferedLongReader(AllHashFilePath))
             {
                 BlockSortComparer SortComp = new BlockSortComparer(SortMask);
-                var FirstSortBlock = new ActionBlock<(string FilePath, long[] ToSort)>((t) =>
+
+                var FirstSortStoreBlock = new ActionBlock<(string FilePath, long[] Sorted)>((t) =>
                 {
-                    Array.Sort(t.ToSort, SortComp);
                     using (BufferedLongWriter w = new BufferedLongWriter(t.FilePath))
                     {
-                        foreach (long h in t.ToSort) { w.Write(h); }
+                        foreach (long h in t.Sorted) { w.Write(h); }
                     }
-                }, new ExecutionDataflowBlockOptions() { SingleProducerConstrained = true, MaxDegreeOfParallelism = Environment.ProcessorCount });
+                }, new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
+                var FirstSortBlock = new TransformBlock<(string FilePath, long[] ToSort), (string FilePath, long[] Sorted)>((t) =>
+                {
+                    Array.Sort(t.ToSort, SortComp);
+                    return (t.FilePath, t.ToSort);
+                },new ExecutionDataflowBlockOptions
+                {
+                    SingleProducerConstrained = true,
+                    MaxDegreeOfParallelism = Environment.ProcessorCount,
+                    BoundedCapacity = Environment.ProcessorCount << 1,
+                });
+                FirstSortBlock.LinkTo(FirstSortStoreBlock, new DataflowLinkOptions() { PropagateCompletion = true });
 
                 int InitialSortUnit = config.hash.InitialSortFileSize / sizeof(long);
                 for (; reader.Length - reader.Position >= config.hash.InitialSortFileSize; FileCount++)
                 {
                     long[] ToSort = new long[InitialSortUnit];
                     for (int i = 0; i < InitialSortUnit; i++) { ToSort[i] = reader.Read(); }
-                    FirstSortBlock.Post((SortingFilePath(0, FileCount), ToSort));
+                    FirstSortBlock.SendAsync((SortingFilePath(0, FileCount), ToSort)).Wait();
                 }
                 int SortLastCount = (int)(reader.Length - reader.Position) / sizeof(long);
                 if (SortLastCount > 0)
                 {
                     long[] ToSortLast = new long[SortLastCount];
                     for (int i = 0; i < SortLastCount; i++) { ToSortLast[i] = reader.Read(); }
-                    FirstSortBlock.Post((SortingFilePath(0, FileCount), ToSortLast));
+                    FirstSortBlock.SendAsync((SortingFilePath(0, FileCount), ToSortLast)).Wait();
                     FileCount++;    //最後に作ったから足す
                 }
-                FirstSortBlock.Complete(); FirstSortBlock.Completion.Wait();
+                FirstSortBlock.Complete(); FirstSortStoreBlock.Completion.Wait();
             }
             GC.Collect();
             Random rand = new Random();
@@ -103,7 +116,6 @@ namespace twihash
             using (BufferedLongReader readerB = new BufferedLongReader(InputPathB))
             {
                 //2つのファイルを並行して読んでいく
-
 
                 //残りの書込回数をこれで数える(境界条件対策
                 long restA = readerA.Length / sizeof(long), restB = readerB.Length / sizeof(long);
@@ -198,7 +210,9 @@ namespace twihash
             file.Dispose();
             Position = long.MaxValue;
             bufCursor = int.MaxValue;
+            GC.SuppressFinalize(this);
         }
+        ~BufferedLongReader() { Dispose(); }
     }
 
     ///<summary>ReadInt64()を普通に呼ぶと遅いのでまとめて読む</summary>
@@ -216,19 +230,19 @@ namespace twihash
 
         public void Write(long Value)
         {
-            //自前でbyteに分解しないと遅い(´・ω・`)
-            buf[Cursor] = (byte)Value;
-            buf[Cursor + 1] = (byte)(Value >> 8);
-            buf[Cursor + 2] = (byte)(Value >> 16);
-            buf[Cursor + 3] = (byte)(Value >> 24);
-            buf[Cursor + 4] = (byte)(Value >> 32);
-            buf[Cursor + 5] = (byte)(Value >> 40);
-            buf[Cursor + 6] = (byte)(Value >> 48);
-            buf[Cursor + 7] = (byte)(Value >> 56);
+            LongToBytes Bytes = new LongToBytes() { Long = Value };
+            buf[Cursor] = Bytes.Byte0;
+            buf[Cursor + 1] = Bytes.Byte1;
+            buf[Cursor + 2] = Bytes.Byte2;
+            buf[Cursor + 3] = Bytes.Byte3;
+            buf[Cursor + 4] = Bytes.Byte4;
+            buf[Cursor + 5] = Bytes.Byte5;
+            buf[Cursor + 6] = Bytes.Byte6;
+            buf[Cursor + 7] = Bytes.Byte7;
             Cursor += sizeof(long);
             if(Cursor == BufSize) { ActualWrite(); }
         }
-
+        
         void ActualWrite()
         {
             file.Write(buf, 0, Cursor);
@@ -239,7 +253,35 @@ namespace twihash
         {
             ActualWrite();
             file.Dispose();
+            GC.SuppressFinalize(this);
         }
+        ~BufferedLongWriter() { Dispose(); }
+
+        //https://stackoverflow.com/questions/8827649/fastest-way-to-convert-int-to-4-bytes-in-c-sharp
+        [StructLayout(LayoutKind.Explicit)]
+        struct LongToBytes
+        {
+            [FieldOffset(0)]
+            public byte Byte0;
+            [FieldOffset(1)]
+            public byte Byte1;
+            [FieldOffset(2)]
+            public byte Byte2;
+            [FieldOffset(3)]
+            public byte Byte3;
+            [FieldOffset(4)]
+            public byte Byte4;
+            [FieldOffset(5)]
+            public byte Byte5;
+            [FieldOffset(6)]
+            public byte Byte6;
+            [FieldOffset(7)]
+            public byte Byte7;
+
+            [FieldOffset(0)]
+            public long Long;
+        }
+
     }
 
     ///<summary>DBから読んだ全Hashをファイルに書くやつ</summary>
@@ -247,27 +289,16 @@ namespace twihash
     {
         BufferedLongWriter writer;
 
-        public AllHashFileWriter()
-        {
-            writer = new BufferedLongWriter(SortFile.AllHashFilePath);
-        }
-        
-        public void Write(IEnumerable<long> Values)
-        {
-            foreach(long v in Values) { writer.Write(v); }
-        }
-
-        public void Dispose()
-        {
-            writer.Dispose();
-        }
+        public AllHashFileWriter() { writer = new BufferedLongWriter(SortFile.AllHashFilePath); }
+        public void Write(IEnumerable<long> Values) { foreach (long v in Values) { writer.Write(v); } }
+        public void Dispose() { writer.Dispose(); }
     }
 
     ///<summary>ブロックソート済みのファイルを必要な単位で読み出すやつ</summary>
     class SortedFileReader : IDisposable
     {
         BufferedLongReader reader;
-        long FullMask;
+        readonly long FullMask;
 
         public SortedFileReader(string FilePath, long FullMask)
         {
@@ -303,9 +334,6 @@ namespace twihash
             return ret.ToArray();
         }
 
-        public void Dispose()
-        {
-            reader.Dispose();
-        }
+        public void Dispose() { reader.Dispose(); }
     }
 }

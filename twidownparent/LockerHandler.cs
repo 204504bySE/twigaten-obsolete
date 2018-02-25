@@ -55,7 +55,7 @@ namespace twidownparent
             else if(LockerProcess?.HasExited != false)
             {
                 //なぜか動いているならそのprocessを取得して使う
-                Process[] ps = Process.GetProcessesByName(config.crawlparent.LockerName);
+                Process[] ps = Process.GetProcessesByName(Path.GetFileName(config.crawlparent.LockerPath));
                 if(ps.Length == 1) { LockerProcess = ps.First(); }
             }
         }

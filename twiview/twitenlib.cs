@@ -55,7 +55,9 @@ namespace twitenlib
         public class _crawl
         {
             public string PictPathProfileImage { get; }
+            public string MountPointProfileImage { get; }
             public string PictPaththumb { get; }
+            public string MountPointthumb { get; }
             public int UserStreamTimeout { get; }
             public int UserStreamTimeoutTweets { get; }
             public int DefaultConnections { get; }
@@ -70,7 +72,9 @@ namespace twitenlib
             public _crawl(IniData data)
             {
                 PictPathProfileImage = data["crawl"][nameof(PictPathProfileImage)] ?? Path.Combine(Directory.GetCurrentDirectory(), @"pict\profile_image\");
+                MountPointProfileImage = data["crawl"][nameof(MountPointProfileImage)] ?? PictPathProfileImage?.Substring(0,1) ?? "";
                 PictPaththumb = data["crawl"][nameof(PictPaththumb)] ?? Path.Combine(Directory.GetCurrentDirectory(), @"pict\thumb\");
+                MountPointthumb = data["crawl"][nameof(MountPointthumb)] ?? PictPaththumb?.Substring(0,1) ?? "";
                 UserStreamTimeout = int.Parse(data["crawl"][nameof(UserStreamTimeout)] ?? "180");
                 UserStreamTimeoutTweets = int.Parse(data["crawl"][nameof(UserStreamTimeoutTweets)] ?? "50");
                 DefaultConnections = int.Parse(data["crawl"][nameof(DefaultConnections)] ?? "100");
@@ -92,17 +96,15 @@ namespace twitenlib
         {
             public int AccountLimit { get; }
             public string ChildPath { get; }
-            public string ChildName { get; }
             public string LockerPath { get; }
-            public string LockerName { get; }
+            public bool UseDotNet { get; }
 
             public _crawlparent(IniData data)
             {
                 AccountLimit = int.Parse(data["crawlparent"][nameof(AccountLimit)] ?? "250");
                 ChildPath = data["crawlparent"][nameof(ChildPath)] ?? "";
-                ChildName = data["crawlparent"][nameof(ChildName)] ?? "twidown";
                 LockerPath = data["crawlparent"][nameof(LockerPath)] ?? "";
-                LockerName = data["crawlparent"][nameof(LockerName)] ?? "twilock";
+                UseDotNet = bool.Parse(data["crawlparent"][nameof(UseDotNet)] ?? "false");
 
                 //http://absg.hatenablog.com/entry/2014/07/03/195043
                 //フォロー6000程度でピークは60ツイート/分程度らしい

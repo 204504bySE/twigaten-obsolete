@@ -226,6 +226,7 @@
     </Content>
     <None Include="App_Code\AdHelper.cshtml.sample" />
     <None Include="Properties\PublishProfiles\192.168.238.8.pubxml" />
+    <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
     <None Include="Properties\PublishProfiles\localhost.pubxml" />
     <Content Include="google34e8e23853253701.html" />
     <Content Include="Scripts\bootstrap-datetimepicker.js" />

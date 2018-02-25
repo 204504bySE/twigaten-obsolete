@@ -50,16 +50,16 @@
                 @switch (Model.RangeMode)
                 {
                     case SimilarMediaModel.RangeModes.Before:
-                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
+                        <li @(Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
                         break;
                     case SimilarMediaModel.RangeModes.After:
-                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
+                        <li @(Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
                         break;
                     default:
-                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = false })">@Locale.Pager_Hide</a></li>
+                        <li @(Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = true })">@Locale.Pager_Show</a></li>
+                        <li @(!Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = false })">@Locale.Pager_Hide</a></li>
                         break;
                 }
             </ul>

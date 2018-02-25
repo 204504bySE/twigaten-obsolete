@@ -33,6 +33,8 @@ namespace twiview.Controllers
             /// <summary>TempData</summary>
             public OAuth.OAuthSession OAuthSession { get; set; }
 
+            static RNGCryptoServiceProvider RNG = new RNGCryptoServiceProvider();
+
             //(新規)ログインの処理
             public DBHandlerToken.VerifytokenResult StoreNewLogin(Tokens Token, HttpSessionStateBase Session, HttpResponseBase Response)
             {
@@ -52,7 +54,7 @@ namespace twiview.Controllers
 
                 byte[] random = new byte[64];
                 string base64str;
-                new RNGCryptoServiceProvider().GetBytes(random);
+                RNG.GetBytes(random);
                 base64str = Convert.ToBase64String(random);
                 if (dbToken.StoreUserLoginString(Token.UserId, base64str) < 1) { throw new Exception("トークンの保存に失敗しました"); }
 

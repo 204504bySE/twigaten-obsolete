@@ -100,12 +100,7 @@ GROUP BY dcthash;");
                 {
                     ActionBlock<DataTable> WriterBlock = new ActionBlock<DataTable>(
                         (table) => { writer.Write(table.AsEnumerable().Select((row) => row.Field<long>(0))); },
-                        new ExecutionDataflowBlockOptions()
-                        {
-                            BoundedCapacity = Environment.ProcessorCount,
-                            MaxDegreeOfParallelism = 1,
-                            SingleProducerConstrained = true
-                        });
+                        new ExecutionDataflowBlockOptions() { MaxDegreeOfParallelism = 1 });
 
                     long ret = 0;
                     int HashUnitBits = Math.Min(63, 64 + 11 - (int)Math.Log(config.hash.LastHashCount, 2)); //TableがLarge Heapに載らない程度に調整
@@ -121,7 +116,7 @@ GROUP BY dcthash;");
                             GetMediaHashCmd.Value.Parameters["@end"].Value = unchecked(((i + 1) << HashUnitBits) - 1);
                             Table = SelectTable(GetMediaHashCmd.Value, IsolationLevel.ReadUncommitted);
                         } while (Table == null);    //大変安易な対応
-                        WriterBlock.Post(Table);
+                        WriterBlock.Post(Table);    //書込が詰まることは想定しない
                         return count + Table.Rows.Count;
                     }, (c) => Interlocked.Add(ref ret, c));
                     WriterBlock.Complete(); WriterBlock.Completion.Wait();
