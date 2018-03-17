@@ -6,6 +6,9 @@ using System.Web.Mvc;
 using System.Text;
 using System.Text.RegularExpressions;
 using twiview.Models;
+using System.Net.Http;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace twiview.Controllers
 {
@@ -74,7 +77,10 @@ namespace twiview.Controllers
         public ActionResult Media(SearchParameters p)
         {
             p.Validate(Session, Response);
-            long? hash = twidown.PictHash.DCTHash(p.File?.InputStream, true); 
+            if(p.File == null) { return RedirectToAction("Index"); }
+            byte[] mem = new byte[p.File.ContentLength];
+            p.File.InputStream.Read(mem, 0, p.File.ContentLength);
+            long? hash = PictHash.DCTHash(mem, config.DctHashServerUrl, p.File.FileName).Result;
             if(hash == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.HashFail)); }
             (long tweet_id, long media_id)? MatchMedia = db.HashtoTweet(hash, p.ID);
             if(MatchMedia == null) { return View(new SearchModelMedia(SearchModelMedia.FailureType.NoTweet)); }
@@ -90,6 +96,33 @@ namespace twiview.Controllers
             //screen_name 検索
             if(p.Str == null || p.Str == "") { return RedirectToAction("Index"); }
             return View(new SearchModelUsers(p.Str, p.ID, p.UserLikeMode.Value));
+        }
+
+        static class PictHash
+        {
+            readonly static HttpClient Http = new HttpClient(new HttpClientHandler() { UseCookies = false });
+            ///<summary>クソサーバーからDCTHashをもらってくる</summary>
+            public static async Task<long?> DCTHash(byte[] mem, string ServerUrl, string FileName)
+            {
+                try
+                {
+                    MultipartFormDataContent Form = new MultipartFormDataContent();
+                    ByteArrayContent File = new ByteArrayContent(mem);
+                    File.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data")
+                    {
+                        Name = "File",
+                        FileName = FileName,
+                    };
+                    Form.Add(File);
+                    using (HttpRequestMessage req = new HttpRequestMessage(HttpMethod.Post, ServerUrl) { Content = Form })
+                    using (HttpResponseMessage res = await Http.SendAsync(req).ConfigureAwait(false))
+                    {
+                        if (long.TryParse(await res.Content.ReadAsStringAsync().ConfigureAwait(false), out long ret)) { return ret; }
+                        else { return null; }
+                    }
+                }
+                catch { return null; }
+            }
         }
     }
 }

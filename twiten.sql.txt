@@ -24,7 +24,6 @@ create table crawlprocess(
 	foreign key (pid) references pid(pid) on delete cascade
 );
 
-);
 create table friend(
 	user_id bigint not null,
 	friend_id bigint not null,

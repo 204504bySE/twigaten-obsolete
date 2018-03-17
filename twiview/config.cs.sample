@@ -15,5 +15,6 @@
         public const string PictPaththumb = "/twimg/thumb/";
 
         public const string DBAddress = "localhost";
+		public const string DctHashServerUrl = @"http://localhost:12305/hash/dctcrop";
     }
 }

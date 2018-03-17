@@ -281,7 +281,6 @@ namespace twihash
             [FieldOffset(0)]
             public long Long;
         }
-
     }
 
     ///<summary>DBから読んだ全Hashをファイルに書くやつ</summary>

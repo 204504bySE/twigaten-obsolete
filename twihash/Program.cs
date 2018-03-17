@@ -19,7 +19,6 @@ namespace twihash
             CheckOldProcess.CheckandExit();
             Config config = Config.Instance;
             DBHandler db = new DBHandler();
-
             Stopwatch sw = new Stopwatch();
 
             Console.WriteLine("{0} Loading hash", DateTime.Now);
@@ -50,8 +49,6 @@ namespace twihash
             File.Delete(SortFile.AllHashFilePath);
             config.hash.NewLastUpdate(NewLastUpdate);
             Thread.Sleep(5000);
-            Console.WriteLine("＼(^o^)／");
-            Console.ReadKey();
         }
     }
     /*
@@ -170,7 +167,8 @@ namespace twihash
             int ret = 0;
             int dbcount = 0;
             
-            BatchBlock<MediaPair> PairBatchBlock = new BatchBlock<MediaPair>(DBHandler.StoreMediaPairsUnit);
+            BatchBlock<MediaPair> PairBatchBlock = new BatchBlock<MediaPair>(DBHandler.StoreMediaPairsUnit,
+                new GroupingDataflowBlockOptions() { BoundedCapacity = DBHandler.StoreMediaPairsUnit * Environment.ProcessorCount << 1 });
             ActionBlock<MediaPair[]> PairStoreBlock = new ActionBlock<MediaPair[]>(
                 (MediaPair[] p) => { Interlocked.Add(ref dbcount, db.StoreMediaPairs(p)); },
                 new ExecutionDataflowBlockOptions() { SingleProducerConstrained = true, MaxDegreeOfParallelism = Environment.ProcessorCount });
@@ -215,14 +213,14 @@ namespace twihash
                             if (x == StartBlock)
                             {
                                 Interlocked.Increment(ref ret);
-                                PairBatchBlock.Post(new MediaPair(Sorted[i], Sorted[j], (sbyte)ham));
+                                PairBatchBlock.SendAsync(new MediaPair(Sorted[i], Sorted[j], (sbyte)ham)).Wait();
                             }
                         }
                     }
                 }
             }, new ExecutionDataflowBlockOptions()
             {
-                BoundedCapacity = Environment.ProcessorCount << 8,
+                BoundedCapacity = Environment.ProcessorCount << 6,
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
                 SingleProducerConstrained = true
             });
