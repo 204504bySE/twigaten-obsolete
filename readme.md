@@ -2,6 +2,8 @@
 Twitter上の類似画像を一覧表示するやつ。
 <https://twigaten.204504byse.info/>
 
+twiview以外はtwigatencoreの方で(もう使ってないので放置)
+
 # 各フォルダの中身
 * twidown
   * ツイートと画像を収集する奴

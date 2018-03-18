@@ -220,11 +220,9 @@
     <Content Include="Content\bootstrap.css.map" />
     <Content Include="Content\bootstrap-theme.min.css.map" />
     <Content Include="Content\bootstrap-theme.css.map" />
-    <Content Include="App_Code\AdHelper.cshtml" />
     <Content Include=".well-known\acme-challenge\Web.config">
       <SubType>Designer</SubType>
     </Content>
-    <None Include="App_Code\AdHelper.cshtml.sample" />
     <None Include="Properties\PublishProfiles\192.168.238.8.pubxml" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml" />
     <None Include="Properties\PublishProfiles\localhost.pubxml" />

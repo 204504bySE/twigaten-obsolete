@@ -23,9 +23,7 @@
     <p>@TextHelper.TweetPermalink(Model.Tweets[0].tweet)</p>
     <p>@ScriptHelper.TweetButton(@Url.Action("OneTweet", new { TweetID = Model.TargetTweetID }))</p>
     <p>@(Locale.Headline_TimeToSearch): @(Model.QueryElapsedMilliseconds)ms</p>
-    @AdHelper.AdHeader()
     @SimilarMediaHelper.SimilarMediaAll(Model.Tweets, (Model.ViewMoreButton ? Model.SimilarLimit : 0), false)
-    @AdHelper.AdFooter()
 }
 else
 {

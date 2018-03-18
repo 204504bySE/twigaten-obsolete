@@ -1,7 +1,0 @@
-﻿@using twiview;
-
-//広告を出すならなんか処理を書く
-@helper AdHeader() { }
-@helper AdArticle() { }
-@helper AdArticle2() { }
-@helper AdFooter() { }

@@ -24,8 +24,6 @@ if (ShowDate) {<h3>@LastTweetDate.ToLocalTime().ToString("yyyy/MM/dd")</h3>}
         { <h3>@Tweets[i].tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd")</h3> }
         LastTweetDate = ThisTweetDate;
         @SimilarMedia(Tweets[i], ViewMoreButton)
-        if(i == 0 && Tweets.Length >= 4) { @AdHelper.AdArticle() }
-        if(i == 13 && Tweets.Length >= 15) { @AdHelper.AdArticle2() }
 }
 }
 
