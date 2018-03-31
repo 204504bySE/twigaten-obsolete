@@ -8,6 +8,7 @@ using System.Threading.Tasks.Dataflow;
 using MySql.Data.MySqlClient;
 using CoreTweet;
 using twitenlib;
+using System.Diagnostics;
 
 namespace twiview
 {
@@ -83,7 +84,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
 
     public class DBHandlerView : DBHandler
     {
-        public DBHandlerView() : base("view", "", twiview.config.DBAddress, 15, 40, 600) { }
+        public DBHandlerView() : base("view", "", twiview.config.DBAddress, 11, 40, 600) { }
         public TweetData._user SelectUser(long user_id)
         {
             DataTable Table;
@@ -313,8 +314,9 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
             long NowSnowFlake = SnowFlake.Now(true);
             long NoTweetSnowFlake = 0;
             const long NoTweetLimitSnowFlake = 86400 * 1000 * SnowFlake.msinSnowFlake;
-            const int GiveupMilliSeconds = 15000;
-            int QueryTick = Environment.TickCount;
+            const int GiveupMilliSeconds = 5000;
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
 
             CancellationTokenSource CancelToken = new CancellationTokenSource();
             ExecutionDataflowBlockOptions op = new ExecutionDataflowBlockOptions()
@@ -327,9 +329,9 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
             if (GetRetweet)
             {
                 QueryText = SimilarMediaHeadRT + @"
-FROM friend f
+FROM friend f 
 INNER JOIN user ou ON f.friend_id = ou.user_id
-INNER JOIN tweet o ON ou.user_id = o.user_id
+INNER JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
@@ -366,7 +368,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 QueryText = SimilarMediaHeadnoRT + @"
 FROM friend f 
 INNER JOIN user ou ON f.friend_id = ou.user_id
-INNER JOIN tweet o ON ou.user_id = o.user_id
+INNER JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
 NATURAL LEFT JOIN media_downloaded_at md
@@ -430,7 +432,7 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
             } while (PostedCount > RecievedCount && (retTable == null || retTable.Rows.Count < TweetCount)
                 && NoTweetSnowFlake < NoTweetLimitSnowFlake
-                && unchecked(Environment.TickCount - QueryTick) < GiveupMilliSeconds);
+                && sw.ElapsedMilliseconds < GiveupMilliSeconds);
             CancelToken.Cancel();
             if (retTable == null) { return new SimilarMediaTweet[0]; }
 
