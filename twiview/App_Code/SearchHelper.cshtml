@@ -13,13 +13,48 @@
 
 @helper MediaSearch()
 {
-    <p>画像で検索(仮)<br />
-    出てこないときも多いけどしょうがないね(´・ω・`)</p>
-    <div class="container">
-        <form action="/Search/Media" method="post" enctype="multipart/form-data" class="form-inline">
-            <input name="File" accept="image/*" type="file" />
-            <br />
-            <button type="submit" class="btn btn-primary">うｐ</button>
-        </form>
+    <div id="media_search" style="border: dashed;">
+        <p>
+            画像で検索(仮)<br />
+            出てこないときも多いけどしょうがないね(´・ω・`)<br />
+            画像をこの辺にドラッグドロップしても動くかも。
+        </p>
+        <div class="container">
+            <form id="file_form" action="/Search/Media" method="post" enctype="multipart/form-data" class="form-inline">
+                <input id="file_input" name="File" accept="image/*" type="file" />
+            </form>
+        </div>
     </div>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            $('#media_search').on(
+                {
+                    'dragover': function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    },
+                    'dragenter': function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        $(this).css('background-color', 'aquamarine');
+                    },
+                    'dragleave': function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    },
+                    'drop': function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        $(this).css('background-color', '');
+                        if (e.originalEvent.dataTransfer && e.originalEvent.dataTransfer.files.length) {
+                            $('#file_input')[0].files = e.originalEvent.dataTransfer.files;
+                            $('#file_form').submit();
+                        }
+                    }
+                });
+            $('#file_input').on('change', function (e) {
+                $('#file_form').submit();
+            });
+        });
+    </script>
 }
