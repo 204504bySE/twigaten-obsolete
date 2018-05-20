@@ -37,6 +37,14 @@ namespace twiview.Controllers
                 SetCookie(nameof(UserLikeMode), UserLikeMode.ToString(), Response, true);
                 Direct = Direct ?? true;
             }
+            public SearchParameters() : base() { }
+            ///<summary>コピー用 Fileはコピーしない (LoginParameters分も除く)</summary>
+            public SearchParameters(SearchParameters p)
+            {
+                Str = p.Str;
+                UserLikeMode = p.UserLikeMode;
+                Direct = p.Direct;
+            }
         }
         [Route("search")]
         public ActionResult Index(SearchParameters p)

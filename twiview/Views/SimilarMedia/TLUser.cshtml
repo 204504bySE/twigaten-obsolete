@@ -1,67 +1,42 @@
 ﻿@using twiview.Locale;
 @using twiview.Models;
-@model twiview.Models.SimilarMediaModel
+@using twiview.Controllers;
+@model twiview.Models.SimilarMediaModelTLUser
 
 @helper RenderScripts()
 {
     @Styles.Render("~/Content/bootstrap-datepicker")
-    @ScriptHelper.datetimepickerScript(Model.Date, Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id }) + @"?Date=")
+    @ScriptHelper.datetimepickerScript(Model.Date, Url.Action(Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p)) + @"?Date=")
 }
 
 @helper Pager(bool datepicker = false)
 {
     <nav>
         <ul class="pagination">
-            <li @(Model.isLatest ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id })">@Locale.Pager_Latest</a></li>
+            <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p))</li>
             @if (Model.NextNew == null || Model.isLatest)
             {
             <li class="disabled"><a>@Locale.Pager_Newer</a></li> }
             else
             {
-            <li><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After=Model.NextNew })">@Locale.Pager_Newer</a></li> }
+            <li><a href="@Url.Action(Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { After = Model.NextNew, Before = null, Date = null })">@Locale.Pager_Newer</a></li> }
             @if (Model.NextOld == null)
             {
             <li class="disabled"><a>@Locale.Pager_Older</a></li> }
             else
             {
-            <li><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.NextOld })">@Locale.Pager_Older</a></li> }
+            <li><a href="@Url.Action(Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Before = Model.NextOld, After = null, Date = null })">@Locale.Pager_Older</a></li> }
         </ul>
         <div style="display:inline-block"><span style="vertical-align:super"><span class="glyphicon glyphicon-retweet" style="color:#19cf86"></span> RT</span>
             <ul class="pagination">
-                @switch (Model.RangeMode)
-                {
-                    case SimilarMediaModel.RangeModes.Before:
-                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, RT = false })">@Locale.Pager_Hide</a></li>
-                        break;
-                    case SimilarMediaModel.RangeModes.After:
-                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, RT = false })">@Locale.Pager_Hide</a></li>
-                        break;
-                    default:
-                        <li @(Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.GetRetweet ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), RT = false })">@Locale.Pager_Hide</a></li>
-                        break;
-                }
+                <li @(Model.p.RT.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { RT = true })</li>
+                <li @(!Model.p.RT.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Hide, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { RT = false })</li>
             </ul>
         </div>
         <div style="display:inline-block"><span style="vertical-align:super">@Locale.SimilarMedia_ShowNoDup</span>
             <ul class="pagination">
-                @switch (Model.RangeMode)
-                {
-                    case SimilarMediaModel.RangeModes.Before:
-                        <li @(Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Before = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
-                        break;
-                    case SimilarMediaModel.RangeModes.After:
-                        <li @(Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, After = Model.LastTweet, Show0 = false })">@Locale.Pager_Hide</a></li>
-                        break;
-                    default:
-                        <li @(Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = true })">@Locale.Pager_Show</a></li>
-                        <li @(!Model.ShowNoDup ? "class=active" : "")><a href="@Url.Action(Model.ActionName.ToString(), new { UserID = Model.TargetUser.user_id, Date = Model.Date.ToString("yyyy/MM/dd HH:mm:ss"), Show0 = false })">@Locale.Pager_Hide</a></li>
-                        break;
-                }
+                <li @(Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = true })</li>
+                <li @(!Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Hide, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = false })</li>
             </ul>
         </div>
     </nav>
@@ -71,9 +46,9 @@ if (datepicker)
             <form method="get" class="form-inline" style="display:inline">
                 @Locale.Pager_ResultsPerPage
                 <select class="form-control" name="Count" onchange="this.form.submit()">
-                    <option value="10" @(Model.TweetCount == 10 ? "selected" : "")>10</option>
-                    <option value="20" @(Model.TweetCount == 20 ? "selected" : "")>20</option>
-                    <option value="50" @(Model.TweetCount == 50 ? "selected" : "")>50</option>
+                    <option value="10" @(Model.p.Count.Value == 10 ? "selected" : "")>10</option>
+                    <option value="20" @(Model.p.Count.Value == 20 ? "selected" : "")>20</option>
+                    <option value="50" @(Model.p.Count.Value == 50 ? "selected" : "")>50</option>
                 </select>
                 @switch (Model.RangeMode)
                 {
@@ -84,9 +59,11 @@ if (datepicker)
                         <input type="hidden" name="After" value="@Model.LastTweet" />
                         break;
                     default:
-                        <input type="hidden" name="Date" value="@Model.Date.ToString("yyyy/MM/dd HH:mm:ss")" />
+                        <input type="hidden" name="Date" value="@Model.p.Date" />
                         break;
                 }
+                <input type="hidden" name="RT" value="@Model.p.RT.ToString()" />
+                <input type="hidden" name="Show0" value="@Model.p.Show0.ToString()" />
             </form>
             <form method="get" class="form-inline" style="display:inline">
                 @Locale.Pager_Datetimepicker

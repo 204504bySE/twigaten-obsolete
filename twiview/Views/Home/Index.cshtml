@@ -13,7 +13,7 @@
 </div>
 @ScriptHelper.TweetButton()
 <div>
-    <p>2/12 「ぼっち画像」選択を追加(適当</p>
+    <p>5/13 「@Html.ActionLink("画像で検索", "Index", "Search")」をドラッグドロップに対応</p>
     <p>└(└ ・o・)┘↓こういうのができたようです。ご活用下さい。</p>
     <blockquote class="twitter-tweet" data-lang="ja"><p lang="ja" dir="ltr">ツイートの共有メニューからTwiGaTenに飛ぶためのアプリを作ってみたよ&#13;&#13;&quot;Jump to TwiGaTen - Google Play の Android アプリ&quot; <a href="https://t.co/9ZUZppHQQN">https://t.co/9ZUZppHQQN</a></p>&mdash; 銀卿 (@@Ginkyo0523) <a href="https://twitter.com/Ginkyo0523/status/899956017424777217?ref_src=twsrc%5Etfw">2017年8月22日</a></blockquote>
     <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
@@ -23,8 +23,9 @@
     <p>
         Twitter上の画像付きツイートを収集し、よく似た画像が含まれるツイートをまとめて表示します。<br />
         ユーザー名やツイートのURLで検索することもできます。<br />
+        画像でも一応検索できます。
     </p>
-    <p>@Html.ActionLink("ユーザー名/ツイートURLで検索 »", "Index", "Search", null, new { @class = "btn btn-success" })</p>
+    <p>@Html.ActionLink("ユーザー名/ツイートURL/画像で検索 »", "Index", "Search", null, new { @class = "btn btn-success" })</p>
 </div>
 <div>
     <h2>#サインインすると</h2>

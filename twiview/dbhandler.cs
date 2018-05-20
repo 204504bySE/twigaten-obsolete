@@ -9,6 +9,7 @@ using MySql.Data.MySqlClient;
 using CoreTweet;
 using twitenlib;
 using System.Diagnostics;
+using System.IO;
 
 namespace twiview
 {
@@ -258,6 +259,33 @@ ORDER BY p.dcthash_distance, o.created_at LIMIT 1
             }
             if(Table == null || Table.Rows.Count < 1) { return null; }
             else { return Table.Rows[0].Field<long?>(0); }
+        }
+
+        //twimg/thumb/*に画像がないときに元画像にリダイレクトさせたい
+        public string SourceUrlThumb(string FileName)
+        {
+            if(!long.TryParse(Path.GetFileNameWithoutExtension(FileName), out long media_id)) { return null; }
+            DataTable Table;
+            using(MySqlCommand cmd = new MySqlCommand(@"SELECT media_url FROM media WHERE media_id = @media_id;"))
+            {
+                cmd.Parameters.Add("@media_id", MySqlDbType.Int64).Value = media_id;
+                Table = SelectTable(cmd);
+            }
+            if(Table == null || Table.Rows.Count < 1) { return null; }
+            return Table.Rows[0].Field<string>(0);
+        }
+        //twimg/profile_image/*に画像がないときに元画像にリダイレクトさせたい
+        public string SourceUrlIcon(string FileName)
+        {
+            if (!long.TryParse(Path.GetFileNameWithoutExtension(FileName), out long user_id)) { return null; }
+            DataTable Table;
+            using (MySqlCommand cmd = new MySqlCommand(@"SELECT profile_image_url FROM user WHERE user_id = @user_id;"))
+            {
+                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
+                Table = SelectTable(cmd);
+            }
+            if (Table == null || Table.Rows.Count < 1) { return null; }
+            return Table.Rows[0].Field<string>(0);
         }
 
         //特定のツイートの各画像とその類似画像
@@ -669,6 +697,7 @@ m.media_id, m.media_url, m.type, md.downloaded_at,
                 rettmp.media.orig_media_url = Table.Rows[i].Field<string>(25);
                 rettmp.media.type = Table.Rows[i].Field<string>(26);
                 rettmp.media.media_url = LocalText.MediaUrl(rettmp.media, !Table.Rows[i].IsNull(27));
+                rettmp.media.local_media_url = LocalText.MediaUrl(rettmp.media, true);
                 rettmp.SimilarMediaCount = Table.Rows[i].Field<long?>(28) ?? -1;    //COUNTはNOT NULLじゃない
 
                 if (GetSimilars)

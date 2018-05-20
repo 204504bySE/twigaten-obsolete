@@ -1,4 +1,5 @@
 ﻿@using twiview.Locale;
+@using twiview.Controllers;
 @model twiview.Models.SimilarMediaModelFeatured
 
 @{ViewBag.title = string.Format(Locale.Title_Featured, Model.Date.ToString("yyyy/MM/dd")); }
@@ -34,8 +35,8 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 {
     <div>
     <ul class="pagination">
-        <li @(Model.Order == DBHandlerView.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink(Locale.Order_Featured, "Featured", new { Date = Model.Date.ToLocalTime().ToString("yyyy-MM-dd-HH"), Order = DBHandlerView.TweetOrder.Featured })</li>
-        <li @(Model.Order == DBHandlerView.TweetOrder.New ? "class=active" : "")>@Html.ActionLink(Locale.Order_New, "Featured", new { Date = Model.Date.ToLocalTime().ToString("yyyy-MM-dd-HH"), Order = DBHandlerView.TweetOrder.New })</li>
+        <li @(Model.p.Order.Value == DBHandlerView.TweetOrder.Featured ? "class=active" : "")>@Html.ActionLink(Locale.Order_Featured, "Featured", new SimilarMediaController.FeaturedParameters(Model.p) { Order = DBHandlerView.TweetOrder.Featured })</li>
+        <li @(Model.p.Order.Value == DBHandlerView.TweetOrder.New ? "class=active" : "")>@Html.ActionLink(Locale.Order_New, "Featured", new SimilarMediaController.FeaturedParameters(Model.p) { Order = DBHandlerView.TweetOrder.New })</li>
     </ul>
     <ul class="pagination">
         <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, "Featured", new { Date = DateTimeOffset.Now.ToString("yyyy-MM-dd-HH") })</li>
@@ -45,9 +46,9 @@ var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
         }
         else
         {
-            <li>@Html.ActionLink(Locale.Pager_Newer, "Featured", new { Date = (Model.Date + Model.Span).ToLocalTime().ToString("yyyy-MM-dd-HH") })</li>
+            <li>@Html.ActionLink(Locale.Pager_Newer, "Featured", new SimilarMediaController.FeaturedParameters(Model.p) { Date = (Model.Date + Model.Span).ToLocalTime().ToString("yyyy-MM-dd-HH") })</li>
         }
-        <li>@Html.ActionLink(Locale.Pager_Older, "Featured", new { Date = (Model.Date - Model.Span).ToLocalTime().ToString("yyyy-MM-dd-HH") })</li>
+        <li>@Html.ActionLink(Locale.Pager_Older, "Featured", new SimilarMediaController.FeaturedParameters(Model.p) { Date = (Model.Date - Model.Span).ToLocalTime().ToString("yyyy-MM-dd-HH") })</li>
     </ul>
     </div>
     if (datepicker)

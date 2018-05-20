@@ -7,13 +7,13 @@
     }
     else
     {
-        ViewBag.Title = string.Format(Locale.Title_NoTweetToShow, Model.TargetTweetID);
+        ViewBag.Title = string.Format(Locale.Title_NoTweetToShow, Model.p.TweetID);
     }
     @section TwitterCard{
         @if(Model.Tweets.Length > 0)
         {
             <meta name="twitter:description" content="@(Model.Tweets[0].tweet.text)" />
-            <meta name="twitter:image" content="@(LocalText.MediaUrlFull(Model.Tweets[0].media, Request))" />
+            <meta name="twitter:image" content="@(LocalText.MediaUrlCard(Model.Tweets[0].media, Request))" />
         } else { <meta name="twitter:description" content="このツイートは収集されていないか、削除されたか、または非公開アカウントのツイートです。" /> }
     }
 }
@@ -21,13 +21,13 @@
 {
     <h2>@Html.Raw(string.Format(Locale.Headline_OneTweet, Html.ActionLink('@' + Model.Tweets[0].tweet.user.screen_name, "UserTweet", new{ UserID = Model.Tweets[0].tweet.user.user_id }).ToString()))</h2>
     <p>@TextHelper.TweetPermalink(Model.Tweets[0].tweet)</p>
-    <p>@ScriptHelper.TweetButton(@Url.Action("OneTweet", new { TweetID = Model.TargetTweetID }))</p>
+    <p>@ScriptHelper.TweetButton(@Url.Action("OneTweet", new { TweetID = Model.p.TweetID }))</p>
     <p>@(Locale.Headline_TimeToSearch): @(Model.QueryElapsedMilliseconds)ms</p>
     @SimilarMediaHelper.SimilarMediaAll(Model.Tweets, (Model.ViewMoreButton ? Model.SimilarLimit : 0), false)
 }
 else
 {
-    <h2>@Html.Raw(string.Format(Locale.Headline_NoTweetToShow_HTML, Model.TargetTweetID))</h2>
+    <h2>@Html.Raw(string.Format(Locale.Headline_NoTweetToShow_HTML, Model.p.TweetID))</h2>
     <p>@(Locale.Headline_TimeToSearch): @(Model.QueryElapsedMilliseconds)ms</p>
     @SimilarMediaHelper.NoTweetToShow()
 }

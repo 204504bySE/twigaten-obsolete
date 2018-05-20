@@ -17,6 +17,13 @@ namespace twiview.Controllers
             public long? UserID { get; set; }
             ///<summary>URL (Format varies)</summary>
             public string Date { get; set; }
+            public SimilarMediaParameters() : base() { }
+            ///<summary>コピー用(LoginParameters分を除く)</summary>
+            public SimilarMediaParameters(SimilarMediaParameters p)
+            {
+                UserID = p.UserID;
+                Date = p.Date;
+            }
         }
         
         public ActionResult Index()
@@ -27,12 +34,18 @@ namespace twiview.Controllers
         public class FeaturedParameters : SimilarMediaParameters
         {
             ///<summary>URL > Cookie</summary>
-            public DBHandlerView.TweetOrder? Order { get; set; }            
+            public DBHandlerView.TweetOrder? Order { get; set; }
 
             protected override void ValidateValues(HttpResponseBase Response)
             {
                 Order = Order ?? DBHandlerView.TweetOrder.Featured;
                 SetCookie(nameof(Order), Order.ToString(), Response);
+            }
+            public FeaturedParameters() : base() { }
+            ///<summary>コピー用</summary>
+            public FeaturedParameters(FeaturedParameters p) : base(p)
+            {
+                Order = p.Order;
             }
         }
         [Route("featured/{Date?}")]
@@ -41,7 +54,7 @@ namespace twiview.Controllers
             p.Validate(Session, Response);
             DateTimeOffset? Date = StrToDateDay(p.Date);
             if (p.Date != null && (!Date.HasValue || Date.Value > DateTimeOffset.UtcNow)) { return RedirectToAction(nameof(Featured)); }
-            return View(new SimilarMediaModelFeatured(3, Date, p.Order.Value));
+            return View(new SimilarMediaModelFeatured(p, 3));
         }
 
         public class OneTweetParameters : SimilarMediaParameters
@@ -54,6 +67,13 @@ namespace twiview.Controllers
             {
                 More = More ?? false;
             }
+            public OneTweetParameters() : base() { }
+            ///<summary>コピー用(LoginParameters分を除く)</summary>
+            public OneTweetParameters(OneTweetParameters p) : base(p)
+            {
+                TweetID = p.TweetID;
+                More = p.More;
+            }
         }
         [Route("tweet/{TweetID:long}")]
         public ActionResult OneTweet(OneTweetParameters p)
@@ -64,8 +84,8 @@ namespace twiview.Controllers
             if (SourceTweetID != null) { return RedirectToActionPermanent(nameof(OneTweet), new { TweetID = SourceTweetID, More = p.More }); }
 
             SimilarMediaModelOneTweet Model;
-            if (p.More.Value) { Model = new SimilarMediaModelOneTweet(p.TweetID, p.ID, 100, false); }
-            else { Model = new SimilarMediaModelOneTweet(p.TweetID, p.ID, 7, true); }
+            if (p.More.Value) { Model = new SimilarMediaModelOneTweet(p, 100, false); }
+            else { Model = new SimilarMediaModelOneTweet(p, 7, true); }
             if(Model.IsNotFound) { Response.StatusCode = 404; }
             return View(Model);
         }
@@ -95,6 +115,16 @@ namespace twiview.Controllers
 
                 Show0 = Show0 ?? false;
                 SetCookie(nameof(Show0), Show0.ToString(), Response);
+            }
+            public TLUserParameters() : base() { }
+            ///<summary>コピー用(LoginParameters分を除く)</summary>
+            public TLUserParameters(TLUserParameters p) : base(p)
+            {
+                Count = p.Count;
+                RT = p.RT;
+                Show0 = p.Show0;
+                Before = p.Before;
+                After = p.After;
             }
         }
         static readonly Regex OldDateRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$", RegexOptions.Compiled);
@@ -130,7 +160,7 @@ namespace twiview.Controllers
                 { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate, true); }
             }
 
-            SimilarMediaModel Model = new SimilarMediaModelTimeline((long)(p.UserID ?? p.ID), p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, p.Show0.Value, RangeMode);
+            SimilarMediaModel Model = new SimilarMediaModelTimeline(p, 3, LastTweet, RangeMode);
             if (Model.IsNotFound) { Response.StatusCode = 404; }
             return View("TLUser", Model);
         }
@@ -166,7 +196,7 @@ namespace twiview.Controllers
                 { LastTweet = SnowFlake.SecondinSnowFlake(ParsedDate, true); }
             }
 
-            SimilarMediaModel Model = new SimilarMediaModelUserTweet(p.UserID.Value, p.ID, p.Count.Value, 3, LastTweet, p.RT.Value, p.Show0.Value, RangeMode);
+            SimilarMediaModel Model = new SimilarMediaModelUserTweet(p, 3, LastTweet, RangeMode);
             if (Model.IsNotFound) { Response.StatusCode = 404; }
             return View("TLUser", Model);
         }
@@ -179,7 +209,7 @@ namespace twiview.Controllers
         }
 
         //"yyyy-MM-dd-HH" を変換する 失敗したらnull
-        DateTimeOffset? StrToDateDay(string DateStr)
+        public static DateTimeOffset? StrToDateDay(string DateStr)
         {
             if (DateStr == null) { return null; }
             try

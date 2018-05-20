@@ -48,10 +48,9 @@ namespace twiview
         }
 
         //単にhttps://…を必要に応じてつけるだけ
-        public static string MediaUrlFull(TweetData._media Media, HttpRequestBase Request)
+        public static string MediaUrlCard(TweetData._media Media, HttpRequestBase Request)
         {
-            if (Media.media_url.IndexOf("://") > 0) { return Media.media_url; }
-            else { return Request.Url.GetLeftPart(UriPartial.Authority) + Media.media_url; }
+            return Request.Url.GetLeftPart(UriPartial.Authority) + Media.local_media_url; 
         }
 
         public static string MediaUrl(TweetData._media Media, bool IsCached)

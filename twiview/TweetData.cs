@@ -47,6 +47,7 @@ namespace twiview
             public string type { get; set; }
             public string media_url { get; set; }   //鯖に保存してあればそのURL
             public string orig_media_url { get; set; }
+            public string local_media_url { get; set; } //鯖に保存してなくても鯖用のURL
             public long dcthash { get; set; }
             //public sbyte dcthash_distance { get; set; }
         }

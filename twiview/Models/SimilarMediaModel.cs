@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using twitenlib;
+using twiview.Controllers;
 
 namespace twiview.Models
 {
@@ -13,8 +14,6 @@ namespace twiview.Models
         public TweetData._user TargetUser { get; protected set; }
         public SimilarMediaTweet[] Tweets { get; protected set; }
         public long LastTweet { get; protected set; }
-        public bool GetRetweet { get; protected set; }
-        public bool ShowNoDup { get; protected set; }
         public long QueryElapsedMilliseconds { get; protected set; }
         public int SimilarLimit { get; protected set; }
         public DateTimeOffset Date { get { return SnowFlake.DatefromSnowFlake(LastTweet).ToLocalTime(); } }
@@ -51,28 +50,28 @@ namespace twiview.Models
                     default:
                         return null;
                 } } }
-        public int TweetCount { get; protected set; }   //実際の個数じゃなくて件数指定
         public enum ActionNames { Featured, OneTweet, Timeline, UserTweet }
         public ActionNames ActionName;  //ViewでActionNameを取得する方法どこ？
     }
 
     public class SimilarMediaModelFeatured : SimilarMediaModel
     {
-        public DBHandlerView.TweetOrder Order { get; }
-        public new DateTimeOffset Date { get; }
+        public SimilarMediaController.FeaturedParameters p;
+        public new DateTimeOffset Date;
         public TimeSpan Span { get; } = new TimeSpan(1, 0, 0);
         
-        public SimilarMediaModelFeatured(int SimilarLimit, DateTimeOffset? BeginDate, DBHandlerView.TweetOrder sortOrder)
+        public SimilarMediaModelFeatured(SimilarMediaController.FeaturedParameters Validated, int SimilarLimit)
         {
             //BeginDate == null で最新の時刻用になる
             sw.Start();
+            p = Validated;
             ActionName = ActionNames.Featured;
             this.SimilarLimit = SimilarLimit;
+            DateTimeOffset? BeginDate = SimilarMediaController.StrToDateDay(p.Date);
             if (BeginDate.HasValue && BeginDate.Value + Span <= DateTimeOffset.UtcNow) { Date = BeginDate.Value; }
             else { Date = DateTimeOffset.UtcNow - Span; isLatest = true; }
             LastTweet = SnowFlake.SecondinSnowFlake((Date + Span).AddSeconds(-1),true);
-            Order = sortOrder;
-            Tweets = db.SimilarMediaFeatured(SimilarLimit, SnowFlake.SecondinSnowFlake(Date,false), LastTweet,Order);
+            Tweets = db.SimilarMediaFeatured(SimilarLimit, SnowFlake.SecondinSnowFlake(Date,false), LastTweet, p.Order.Value);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
@@ -80,16 +79,16 @@ namespace twiview.Models
 
     public class SimilarMediaModelOneTweet : SimilarMediaModel
     {
-        public long TargetTweetID;
+        public SimilarMediaController.OneTweetParameters p;
         public bool ViewMoreButton;
-        public SimilarMediaModelOneTweet(long tweet_id, long? login_user_id, int SimilarLimit, bool ViewMoreButton)
+        public SimilarMediaModelOneTweet(SimilarMediaController.OneTweetParameters Validated, int SimilarLimit, bool ViewMoreButton)
         {
             sw.Start();
+            p = Validated;
             ActionName = ActionNames.OneTweet;
-            TargetTweetID = tweet_id;
             this.SimilarLimit = SimilarLimit;
             this.ViewMoreButton = ViewMoreButton;
-            Tweets = db.SimilarMediaTweet(tweet_id, login_user_id, SimilarLimit);
+            Tweets = db.SimilarMediaTweet(p.TweetID, p.ID, SimilarLimit);
 
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
@@ -97,43 +96,46 @@ namespace twiview.Models
     }
 
 
-    public class SimilarMediaModelTimeline : SimilarMediaModel
+    public abstract class SimilarMediaModelTLUser : SimilarMediaModel
     {
-        public SimilarMediaModelTimeline(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool ShowNoDup, RangeModes RangeMode)
+        public SimilarMediaController.TLUserParameters p;
+    }
+
+    public class SimilarMediaModelTimeline : SimilarMediaModelTLUser
+    {
+        public SimilarMediaModelTimeline(SimilarMediaController.TLUserParameters Validated, int SimilarLimit, long? LastTweet, RangeModes RangeMode)
         {
             sw.Start();
+            p = Validated;
             ActionName = ActionNames.Timeline;
-            TargetUser = db.SelectUser(target_user_id);
+            long TargetUserID = (p.UserID ?? p.ID).Value;
+            TargetUser = db.SelectUser(TargetUserID);
             if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
             else { this.LastTweet = (long)LastTweet; }
             this.isLatest = (LastTweet == null);
             this.RangeMode = RangeMode;
-            this.TweetCount = TweetCount;
-            this.GetRetweet = GetRetweet;
-            this.ShowNoDup = ShowNoDup;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaTimeline(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, ShowNoDup, RangeMode != RangeModes.After);
+            Tweets = db.SimilarMediaTimeline(TargetUserID, p.ID, this.LastTweet, p.Count.Value, SimilarLimit, p.RT.Value, p.Show0.Value, RangeMode != RangeModes.After);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
     }
 
-    public class SimilarMediaModelUserTweet : SimilarMediaModel
+    public class SimilarMediaModelUserTweet : SimilarMediaModelTLUser
     {
-        public SimilarMediaModelUserTweet(long target_user_id, long? login_user_id, int TweetCount, int SimilarLimit, long? LastTweet, bool GetRetweet, bool ShowNoDup, RangeModes RangeMode)
+        public SimilarMediaModelUserTweet(SimilarMediaController.TLUserParameters Validated, int SimilarLimit, long? LastTweet, RangeModes RangeMode)
         {
             sw.Start();
+            p = Validated;
             ActionName = ActionNames.UserTweet;
-            TargetUser = db.SelectUser(target_user_id);
+            long TargetUserID = (p.UserID ?? p.ID).Value;
+            TargetUser = db.SelectUser(TargetUserID);
             if (LastTweet == null) { this.LastTweet = SnowFlake.Now(true); }
             else { this.LastTweet = (long)LastTweet; }
             this.isLatest = (LastTweet == null);
             this.RangeMode = RangeMode;
-            this.TweetCount = TweetCount;
-            this.GetRetweet = GetRetweet;
-            this.ShowNoDup = ShowNoDup;
             this.SimilarLimit = SimilarLimit;
-            Tweets = db.SimilarMediaUser(target_user_id, login_user_id, this.LastTweet, TweetCount, SimilarLimit, GetRetweet, ShowNoDup, RangeMode != RangeModes.After);
+            Tweets = db.SimilarMediaUser(TargetUserID, p.ID, this.LastTweet, p.Count.Value, SimilarLimit, p.RT.Value, p.Show0.Value, RangeMode != RangeModes.After);
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
         }
