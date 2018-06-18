@@ -103,7 +103,7 @@ namespace twiview.Controllers
             p.Validate(Session, Response);
             //screen_name 検索
             if(p.Str == null || p.Str == "") { return RedirectToAction("Index"); }
-            return View(new SearchModelUsers(p.Str, p.ID, p.UserLikeMode.Value));
+            return View(new SearchModelUsers(p));
         }
 
         static class PictHash

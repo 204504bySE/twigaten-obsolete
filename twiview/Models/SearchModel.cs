@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using twiview.Controllers;
 
 namespace twiview.Models
 {
@@ -9,23 +10,22 @@ namespace twiview.Models
 
     public class SearchModelUsers : SearchModel
     {
+        public SearchController.SearchParameters p;
         public long QueryElapsedMilliseconds { get; protected set; }
         protected System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         DBHandlerView db = new DBHandlerView();
         public string target_screen_name { get; }
-        public string ModeStr { get; }
         public int Limit { get; }
-        public bool Logined { get; }
+        public bool Logined { get { return p.ID.HasValue; } }
 
         public TweetData._user[] Users { get; }
 
-        public SearchModelUsers(string _target_screen_name, long? LoginUserID, DBHandlerView.SelectUserLikeMode _Mode) {
+        public SearchModelUsers(SearchController.SearchParameters Validated) {
             sw.Start();
+            p = Validated;
             Limit = 100;
-            Logined = (LoginUserID != null);
-            target_screen_name = _target_screen_name.Trim().Replace("@", "").Replace("%", "");
-            ModeStr = _Mode.ToString();
-            Users = db.SelectUserLike(target_screen_name.Trim().Replace(' ', '%').Replace("_", @"\_") + "%", LoginUserID, _Mode, Limit);   //前方一致
+            target_screen_name = p.Str.Trim().Replace("@", "").Replace("%", "");
+            Users = db.SelectUserLike(target_screen_name.Trim().Replace(' ', '%').Replace("_", @"\_") + "%", p.ID, p.UserLikeMode.Value, Limit);   //前方一致
 
             sw.Stop();
             QueryElapsedMilliseconds = sw.ElapsedMilliseconds;
