@@ -55,7 +55,8 @@ ON DUPLICATE KEY UPDATE token=@token, token_secret=@token_secret;"))
         //ログインユーザー自身のユーザー情報を格納
         //Tokens.Account.VerifyCredentials() の戻り値を投げて使う
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"INSERT INTO user VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, @is_default_profile_image, @location, @description)
+            //updated_atはアイコンの更新時刻なのでINSERT時はNULL
+            using (MySqlCommand cmd = new MySqlCommand(@"INSERT INTO user VALUES (@user_id, @name, @screen_name, @isprotected, @profile_image_url, NULL, @is_default_profile_image, @location, @description)
 ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@isprotected, location=@location, description=@description;"))
             {
                 cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = ProfileResponse.Id;
