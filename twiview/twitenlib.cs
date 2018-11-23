@@ -176,7 +176,6 @@ namespace twitenlib
 
     public class DBHandler
     {
-        protected static readonly Config config = Config.Instance;
         readonly string ConnectionStr;
         public DBHandler(string user, string pass, string server ="localhost", uint timeout = 20, uint poolsize = 40, uint lifetime = 3600)
         {
