@@ -93,7 +93,7 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT
-user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description
+user_id, name, screen_name, isprotected, profile_image_url, is_default_profile_image, location, description
 FROM user WHERE user_id = @user_id"))
             {
                 cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
@@ -169,10 +169,10 @@ FROM user AS u WHERE screen_name LIKE @screen_name ");
                     screen_name = row.Field<string>(2),
                     isprotected = row.Field<bool?>(3) ?? row.Field<sbyte>(3) != 0,
                     profile_image_url = row.Field<string>(4),
-                    location = row.Field<string>(7),
-                    description = LocalText.TextToLink(row.Field<string>(8))    //htmlにしておく
+                    location = row.Field<string>(6),
+                    description = LocalText.TextToLink(row.Field<string>(7))    //htmlにしておく
                 };
-                rettmp.profile_image_url = LocalText.ProfileImageUrl(rettmp, !row.IsNull(5), row.Field<bool>(6));
+                rettmp.profile_image_url = LocalText.ProfileImageUrl(rettmp, row.Field<bool>(5));
                 ret.Add(rettmp);
             }
             return ret.ToArray();
@@ -302,7 +302,6 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m
-NATURAL LEFT JOIN media_downloaded_at md
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
@@ -367,7 +366,6 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m 
-NATURAL LEFT JOIN media_downloaded_at md
 WHERE " + (ShowNoDup ? "" : @"(EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash)) AND") + @"
 o.tweet_id BETWEEN " + (Before ? "@time - @timerange AND @time" : "@time AND @time + @timerange") + @"
@@ -402,7 +400,6 @@ INNER JOIN user ou ON f.friend_id = ou.user_id
 INNER JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
-NATURAL LEFT JOIN media_downloaded_at md
 WHERE " + (ShowNoDup ? "" : @"(EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash)) AND") + @"
 f.user_id = @target_user_id
@@ -495,7 +492,6 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 NATURAL JOIN media m
-NATURAL LEFT JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet" + (ShowNoDup ? "" : @"
@@ -510,7 +506,6 @@ FROM tweet o USE INDEX (user_id)
 NATURAL JOIN user ou
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
-NATURAL LEFT JOIN media_downloaded_at md
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -552,7 +547,6 @@ FROM tweet o USE INDEX (PRIMARY)
 NATURAL JOIN user ou
 NATURAL JOIN tweet_media t
 NATURAL JOIN media m
-NATURAL LEFT JOIN media_downloaded_at md
 WHERE (EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
 OR EXISTS (SELECT * FROM dcthashpair WHERE hash_pri = m.dcthash))
 AND o.tweet_id BETWEEN @begin AND @end
@@ -609,15 +603,17 @@ LIMIT 50;";
             {
                 case TweetOrder.New:
                     sorted = retTable.Rows.Cast<DataRow>()
-                        .OrderByDescending((DataRow row) => row.Field<int>(10) + row.Field<int>(11))
+                        //ふぁぼ+RT数
+                        .OrderByDescending((DataRow row) => row.Field<int>(9) + row.Field<int>(10))
                         .Take(50)
-                        .OrderByDescending((DataRow row) => row.Field<long>(8))
+                        //ツイの時刻
+                        .OrderByDescending((DataRow row) => row.Field<long>(7))
                         .ToArray();
                     break;
                 case TweetOrder.Featured:
                 default:
                     sorted = retTable.Rows.Cast<DataRow>()
-                        .OrderByDescending((DataRow row) => row.Field<int>(10) + row.Field<int>(11))
+                        .OrderByDescending((DataRow row) => row.Field<int>(9) + row.Field<int>(10))
                         .Take(50)
                         .ToArray();
                     break;
@@ -635,26 +631,26 @@ LIMIT 50;";
 
         //TabletoTweetに渡すリレーションの形式
         const string SimilarMediaHeadRT = @"SELECT
-ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.is_default_profile_image, ou.isprotected,
+ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
-rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.updated_at, ru.is_default_profile_image, ru.isprotected,
+rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.is_default_profile_image, ru.isprotected,
 rt.created_at, rt.text, rt.favorite_count, rt.retweet_count,
-m.media_id, m.media_url, m.type, md.downloaded_at,
-(SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1 +
-(SELECT COUNT(media_id) FROM dcthashpair
-    INNER JOIN media ON hash_sub = media.dcthash
-    WHERE hash_pri = m.dcthash) + 
-(SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
+m.media_id, m.media_url, m.type,
+(SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
+    + (SELECT COUNT(media_id) FROM dcthashpair
+        INNER JOIN media ON hash_sub = media.dcthash
+        WHERE hash_pri = m.dcthash)
+    + (SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
         const string SimilarMediaHeadnoRT = @"SELECT
-ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.is_default_profile_image, ou.isprotected,
+ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
-NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-m.media_id, m.media_url, m.type, md.downloaded_at,
-(SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1 +
-(SELECT COUNT(media_id) FROM dcthashpair
-    INNER JOIN media ON hash_sub = media.dcthash
-    WHERE hash_pri = m.dcthash) + 
-(SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+m.media_id, m.media_url, m.type,
+(SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
+    + (SELECT COUNT(media_id) FROM dcthashpair
+        INNER JOIN media ON hash_sub = media.dcthash
+        WHERE hash_pri = m.dcthash)
+    + (SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
 
         SimilarMediaTweet[] TableToTweet(DataTable Table, long? login_user_id, int SimilarLimit, bool GetNoSimilar = false, bool GetSimilars = true)
         {
@@ -669,39 +665,38 @@ m.media_id, m.media_url, m.type, md.downloaded_at,
                 rettmp.tweet.user.name = Table.Rows[i].Field<string>(1);
                 rettmp.tweet.user.screen_name = Table.Rows[i].Field<string>(2);
                 rettmp.tweet.user.profile_image_url = Table.Rows[i].Field<string>(3);  
-                rettmp.tweet.user.isprotected = Table.Rows[i].Field<bool?>(6) ?? Table.Rows[i].Field<sbyte>(6) != 0;
-                rettmp.tweet.tweet_id = Table.Rows[i].Field<long>(7);
-                rettmp.tweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(8));
-                rettmp.tweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(9));
-                rettmp.tweet.favorite_count = Table.Rows[i].Field<int>(10);
-                rettmp.tweet.retweet_count = Table.Rows[i].Field<int>(11);
+                rettmp.tweet.user.isprotected = Table.Rows[i].Field<bool>(4);
+                rettmp.tweet.tweet_id = Table.Rows[i].Field<long>(6);
+                rettmp.tweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(7));
+                rettmp.tweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(8));
+                rettmp.tweet.favorite_count = Table.Rows[i].Field<int>(9);
+                rettmp.tweet.retweet_count = Table.Rows[i].Field<int>(10);
 
-                //アイコンが鯖内にあればそれの絶対パスに置き換える
-                rettmp.tweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.user, !Table.Rows[i].IsNull(4), Table.Rows[i].Field<bool>(5));
+                //アイコンが鯖内にあってもなくてもそれの絶対パスに置き換える
+                rettmp.tweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.user, Table.Rows[i].Field<bool>(4));
 
-                if (!Table.Rows[i].IsNull(12)) //RTなら元ツイートが入っている
+                if (!Table.Rows[i].IsNull(11)) //RTなら元ツイートが入っている
                 {
                     rettmp.tweet.retweet = new TweetData._tweet();
-                    rettmp.tweet.retweet.tweet_id = Table.Rows[i].Field<long>(12);
-                    rettmp.tweet.retweet.user.user_id = Table.Rows[i].Field<long>(13);
-                    rettmp.tweet.retweet.user.name = Table.Rows[i].Field<string>(14);
-                    rettmp.tweet.retweet.user.screen_name = Table.Rows[i].Field<string>(15);
-                    rettmp.tweet.retweet.user.profile_image_url = Table.Rows[i].Field<string>(16);
-                    rettmp.tweet.retweet.user.isprotected = Table.Rows[i].Field<bool>(19);
-                    rettmp.tweet.retweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(20));
-                    rettmp.tweet.retweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(21));
-                    rettmp.tweet.retweet.favorite_count = Table.Rows[i].Field<int>(22);
-                    rettmp.tweet.retweet.retweet_count = Table.Rows[i].Field<int>(23);
+                    rettmp.tweet.retweet.tweet_id = Table.Rows[i].Field<long>(11);
+                    rettmp.tweet.retweet.user.user_id = Table.Rows[i].Field<long>(12);
+                    rettmp.tweet.retweet.user.name = Table.Rows[i].Field<string>(13);
+                    rettmp.tweet.retweet.user.screen_name = Table.Rows[i].Field<string>(14);
+                    rettmp.tweet.retweet.user.profile_image_url = Table.Rows[i].Field<string>(15);
+                    rettmp.tweet.retweet.user.isprotected = Table.Rows[i].Field<bool>(17);
+                    rettmp.tweet.retweet.created_at = DateTimeOffset.FromUnixTimeSeconds(Table.Rows[i].Field<long>(18));
+                    rettmp.tweet.retweet.text = LocalText.TextToLink(Table.Rows[i].Field<string>(19));
+                    rettmp.tweet.retweet.favorite_count = Table.Rows[i].Field<int>(20);
+                    rettmp.tweet.retweet.retweet_count = Table.Rows[i].Field<int>(21);
 
-                    //アイコンが鯖内にあればそれの絶対パスに置き換える
-                    rettmp.tweet.retweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.retweet.user, !Table.Rows[i].IsNull(17), Table.Rows[i].Field<bool>(18));
+                    //アイコンが鯖内にあってもなくてもそれの絶対パスに置き換える
+                    rettmp.tweet.retweet.user.profile_image_url = LocalText.ProfileImageUrl(rettmp.tweet.retweet.user, Table.Rows[i].Field<bool>(16));
                 }
-                rettmp.media.media_id = Table.Rows[i].Field<long>(24);
-                rettmp.media.orig_media_url = Table.Rows[i].Field<string>(25);
-                rettmp.media.type = Table.Rows[i].Field<string>(26);
-                rettmp.media.media_url = LocalText.MediaUrl(rettmp.media, !Table.Rows[i].IsNull(27));
-                rettmp.media.local_media_url = LocalText.MediaUrl(rettmp.media, true);
-                rettmp.SimilarMediaCount = Table.Rows[i].Field<long?>(28) ?? -1;    //COUNTはNOT NULLじゃない
+                rettmp.media.media_id = Table.Rows[i].Field<long>(22);
+                rettmp.media.orig_media_url = Table.Rows[i].Field<string>(23);
+                rettmp.media.type = Table.Rows[i].Field<string>(24);
+                rettmp.media.media_url = rettmp.media.local_media_url = LocalText.MediaUrl(rettmp.media);
+                rettmp.SimilarMediaCount = Table.Rows[i].Field<long?>(25) ?? -1;    //COUNTはNOT NULLじゃない
 
                 if (GetSimilars)
                 {
@@ -731,13 +726,13 @@ m.media_id, m.media_url, m.type, md.downloaded_at,
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT 
-ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.updated_at, ou.is_default_profile_image, ou.isprotected,
+ou.user_id, ou.name, ou.screen_name, ou.profile_image_url,  ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
-NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-a.media_id, a.media_url, a.type, a.downloaded_at,
+NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+a.media_id, a.media_url, a.type,
 NULL
 FROM(
-    SELECT tweet_media.tweet_id, m.media_id, m.media_url, m.type, md.downloaded_at
+    SELECT tweet_media.tweet_id, m.media_id, m.media_url, m.type
     FROM ((
             SELECT media_id FROM media 
             WHERE dcthash = (SELECT dcthash FROM media WHERE media_id = @media_id)
@@ -750,7 +745,6 @@ FROM(
         ) ORDER BY media_id LIMIT @limitplus
     ) AS i
     NATURAL JOIN media m
-    NATURAL LEFT JOIN media_downloaded_at md
     NATURAL JOIN tweet_media 
     ORDER BY tweet_media.tweet_id LIMIT @limitplus
 ) AS a

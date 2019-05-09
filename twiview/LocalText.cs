@@ -53,22 +53,19 @@ namespace twiview
             return Request.Url.GetLeftPart(UriPartial.Authority) + Media.local_media_url; 
         }
 
-        public static string MediaUrl(TweetData._media Media, bool IsCached)
+        public static string MediaUrl(TweetData._media Media)
         {   //Viewに使う画像のURLを返す
             //orig_media_urlとmedia_idが必要
             if(Media.orig_media_url == null) { return null; }
-            /*if (IsCached)*/ { return config.PictPaththumb + Media.media_id.ToString() + Path.GetExtension(Media.orig_media_url); }
-            //else if (Media.orig_media_url.IndexOf("twimg.com/") > 0) { return Media.orig_media_url + ":thumb"; }
-            //else { return Media.orig_media_url; }
+            else{ return config.PictPaththumb + Media.media_id.ToString() + Path.GetExtension(Media.orig_media_url); }
         }
 
-        public static string ProfileImageUrl(TweetData._user User, bool IsCached, bool IsDefaultProfileImage)
+        public static string ProfileImageUrl(TweetData._user User, bool IsDefaultProfileImage)
         {   //Viewに使うアイコンのURLを返す
             //user_idとprofile_image_urlが必要
             if (User.profile_image_url == null) { return null; }
             if (IsDefaultProfileImage) { return config.PictPathProfileImage + '_' + Path.GetFileName(User.profile_image_url); }
-            else /*if (IsCached)*/ { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
-            //else { return User.profile_image_url; }
+            else { return config.PictPathProfileImage + User.user_id.ToString() + Path.GetExtension(User.profile_image_url); }
         }
 
         public static string wbrEveryLetter(string Input)

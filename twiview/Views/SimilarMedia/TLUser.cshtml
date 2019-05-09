@@ -13,7 +13,7 @@
 {
     <nav>
         <ul class="pagination">
-            <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p))</li>
+            <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { After = null, Before = null, Date = null })</li>
             @if (Model.NextNew == null || Model.isLatest)
             {
             <li class="disabled"><a>@Locale.Pager_Newer</a></li> }
@@ -35,7 +35,7 @@
         </div>
         <div style="display:inline-block"><span style="vertical-align:super">@Locale.SimilarMedia_ShowNoDup</span>
             <ul class="pagination">
-                <li @(Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = true })</li>
+                <li @(Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = true }, new { rel = "nofollow" })</li>
                 <li @(!Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Hide, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = false })</li>
             </ul>
         </div>
