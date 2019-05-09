@@ -130,7 +130,7 @@ FROM user WHERE user_id = @user_id"))
         {
             DataTable Table;
             System.Text.StringBuilder cmdBuilder = new System.Text.StringBuilder(@"SELECT
-user_id, name, screen_name, isprotected, profile_image_url, updated_at, is_default_profile_image, location, description
+user_id, name, screen_name, isprotected, profile_image_url, is_default_profile_image, location, description
 FROM user AS u WHERE screen_name LIKE @screen_name ");
 
             switch (Mode)
