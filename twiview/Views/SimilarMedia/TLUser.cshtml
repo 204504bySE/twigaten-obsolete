@@ -16,32 +16,34 @@
             <li @(Model.isLatest ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Latest, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { After = null, Before = null, Date = null })</li>
             @if (Model.NextNew == null || Model.isLatest)
             {
-            <li class="disabled"><a>@Locale.Pager_Newer</a></li> }
+                <li class="disabled"><a>@Locale.Pager_Newer</a></li> }
             else
             {
-            <li><a href="@Url.Action(Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { After = Model.NextNew, Before = null, Date = null })">@Locale.Pager_Newer</a></li> }
+                <li>@Html.ActionLink(Locale.Pager_Newer, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { After = Model.NextNew, Before = null, Date = null })</li>}
             @if (Model.NextOld == null)
             {
-            <li class="disabled"><a>@Locale.Pager_Older</a></li> }
+                <li class="disabled"><a>@Locale.Pager_Older</a></li> }
             else
             {
-            <li><a href="@Url.Action(Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Before = Model.NextOld, After = null, Date = null })">@Locale.Pager_Older</a></li> }
+                <li>@Html.ActionLink(Locale.Pager_Older, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Before = Model.NextOld, After = null, Date = null })</li>}
         </ul>
-        <div style="display:inline-block"><span style="vertical-align:super"><span class="glyphicon glyphicon-retweet" style="color:#19cf86"></span> RT</span>
+        <div style="display:inline-block">
+            <span style="vertical-align:super"><span class="glyphicon glyphicon-retweet" style="color:#19cf86"></span> RT</span>
             <ul class="pagination">
                 <li @(Model.p.RT.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { RT = true })</li>
                 <li @(!Model.p.RT.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Hide, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { RT = false })</li>
             </ul>
         </div>
-        <div style="display:inline-block"><span style="vertical-align:super">@Locale.SimilarMedia_ShowNoDup</span>
+        <div style="display:inline-block">
+            <span style="vertical-align:super">@Locale.SimilarMedia_ShowNoDup</span>
             <ul class="pagination">
-                <li @(Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = true }, new { rel = "nofollow" })</li>
+                <li @(Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Show, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = true })</li>
                 <li @(!Model.p.Show0.Value ? "class=active" : "")>@Html.ActionLink(Locale.Pager_Hide, Model.ActionName.ToString(), new SimilarMediaController.TLUserParameters(Model.p) { Show0 = false })</li>
             </ul>
         </div>
     </nav>
-if (datepicker)
-{
+    if (datepicker)
+    {
         <nav class="form-group">
             <form method="get" class="form-inline" style="display:inline">
                 @Locale.Pager_ResultsPerPage
@@ -76,7 +78,7 @@ if (datepicker)
                 <button type="submit" class="btn btn-primary">Go</button>
             </form>
         </nav>
-}
+    }
 }
 
 @{
@@ -115,6 +117,11 @@ if (datepicker)
     }
 
     @section TwitterCard{@TextHelper.TwitterCardDefault()}
+    @section MetaTags
+    {
+        @if (Model.ActionName == SimilarMediaModel.ActionNames.Timeline
+                || Model.p.Show0 == true) { <meta name="robots" content="noindex" /> }
+    }
 
     if (Model.TargetUser != null)
     {
@@ -134,10 +141,10 @@ if (datepicker)
         {
             case SimilarMediaModel.RangeModes.Before:
             case SimilarMediaModel.RangeModes.Date:
-            <h3>(~@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</h3>
+                <h3>(~@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))</h3>
                 break;
             case SimilarMediaModel.RangeModes.After:
-            <h3>(@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")~)</h3>
+                <h3>(@Model.Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss")~)</h3>
                 break;
             default:
                 break;
@@ -172,6 +179,7 @@ if (datepicker)
         @SimilarMediaHelper.NoTweetToShow()
     }
 
-    if (Model.TargetUser != null){ @RenderScripts() }
+    if (Model.TargetUser != null)
+    { @RenderScripts() }
 }
 
