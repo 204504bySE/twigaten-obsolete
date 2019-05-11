@@ -117,11 +117,7 @@
     }
 
     @section TwitterCard{@TextHelper.TwitterCardDefault()}
-    @section MetaTags
-    {
-        @if (Model.ActionName == SimilarMediaModel.ActionNames.Timeline
-                || Model.p.Show0 == true) { <meta name="robots" content="noindex" /> }
-    }
+    @section MetaTags{<meta name="robots" content="noindex" />}
 
     if (Model.TargetUser != null)
     {

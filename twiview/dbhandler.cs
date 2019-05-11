@@ -724,7 +724,7 @@ m.media_id, m.media_url, m.type,
         //except_tweet_idを除く
         public SimilarMediaTweet[] SimilarMedia(long media_id, int SimilarLimit, long except_tweet_id, long? login_user_id = null)
         {
-            DataTable Table;
+            DataTable Table;            
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT 
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url,  ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,

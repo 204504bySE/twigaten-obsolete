@@ -14,7 +14,7 @@ namespace twiview.Controllers
 {
     public class SearchController : Controller
     {
-        DBHandlerView db = new DBHandlerView();
+        static readonly DBHandlerView db = new DBHandlerView();
         static readonly Regex StatusRegex = new Regex(@"(?<=twitter\.com\/.+?\/status(es)?\/)\d+", RegexOptions.Compiled);
         static readonly Regex ScreenNameRegex = new Regex(@"(?<=twitter\.com\/|@|^)[_\w]+(?=[\/_\w]*$)", RegexOptions.Compiled);
 
@@ -50,10 +50,10 @@ namespace twiview.Controllers
         public ActionResult Index(SearchParameters p)
         {
             p.Validate(Session, Response);
-            if (p.Str == null || p.Str == "") { return View(); }
+            if (string.IsNullOrWhiteSpace(p.Str)) { return View(); }
 
             //ツイートのURLっぽいならそのツイートのページに飛ばす
-            string StatusStr = StatusRegex.Match(p.Str).Value;
+            string StatusStr = StatusRegex.Match(p.Str.Trim()).Value;
             if (!string.IsNullOrWhiteSpace(StatusStr))
             {
                 long StatusID = long.Parse(StatusStr);
@@ -65,7 +65,7 @@ namespace twiview.Controllers
             });
             }
             //ユーザー名検索
-            string ScreenName = ScreenNameRegex.Match(p.Str).Value;
+            string ScreenName = ScreenNameRegex.Match(p.Str.Trim()).Value;
             if (!string.IsNullOrWhiteSpace(ScreenName))
             {
                 if (p.Direct.Value)

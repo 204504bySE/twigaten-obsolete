@@ -11,14 +11,14 @@
 @helper UserTweetLink(TweetData._user User)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
-if(User.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(User.user_id)">@@@(User.screen_name)</a>
+if(User.isprotected){ <span class="glyphicon glyphicon-lock"></span> }<a href="/users/@(User.user_id)" rel="nofollow">@@@(User.screen_name)</a>
 }
 
 @helper UserTweetLink(TweetData._tweet Tweet, bool wbr = true)
 {
 var html = ((System.Web.Mvc.WebViewPage)WebPageContext.Current.Page).Html;
 if (Tweet.user.isprotected){<span class="glyphicon glyphicon-lock"></span>}
-    <a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))">
+    <a href="/users/@(Tweet.user.user_id)?Date=@(Tweet.created_at.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss"))" rel="nofollow">
     @@@if (wbr) {@html.Raw(LocalText.wbrEveryLetter(Tweet.user.screen_name))}
     else {@Tweet.user.screen_name}</a>
 }
