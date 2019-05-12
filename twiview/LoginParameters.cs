@@ -9,8 +9,8 @@ using twiview.Locale;
 
 namespace twiview
 {
-    //URLやCookieから引数を受け取ったりする
-    //Controllerごとに引数を足したりした派生クラスは各Controllerのファイルでおｋ
+    ///<summary>URLやCookieから引数を受け取ったりする
+    ///Controllerごとに引数を足したりした派生クラスは各Controllerのファイルでおｋ</summary>
     public class LoginParameters
     {
         ///<summary>Cookie (Login user ID)</summary>
@@ -43,14 +43,14 @@ namespace twiview
             };
             Response.SetCookie(cookie);
         }
-        
+
+        static readonly DBHandlerView dbView = new DBHandlerView();
         public void Validate(HttpSessionStateBase Session, HttpResponseBase Response)
         {
             //ログイン確認
-            DBHandlerView dbView = new DBHandlerView();
             if (ID != null)
             {
-                if(LoginToken != null && LoginToken == dbView.SelectUserLoginString(ID.Value))
+                if (LoginToken != null && LoginTokenEncrypt.VerifyToken(LoginToken, dbView.SelectUserLoginToken(ID.Value)))
                 {
                     //Cookieの有効期限を延長する
                     SetCookie(nameof(ID), ID.ToString(), Response);

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Web.Mvc;
-using System.Security.Cryptography;
 using CoreTweet;
 
 namespace twiview.Controllers
@@ -33,7 +32,6 @@ namespace twiview.Controllers
             /// <summary>TempData</summary>
             public OAuth.OAuthSession OAuthSession { get; set; }
 
-            static RNGCryptoServiceProvider RNG = new RNGCryptoServiceProvider();
 
             //(新規)ログインの処理
             public DBHandlerToken.VerifytokenResult StoreNewLogin(Tokens Token, HttpSessionStateBase Session, HttpResponseBase Response)
@@ -52,16 +50,13 @@ namespace twiview.Controllers
                 ScreenName = SelfUserInfo.ScreenName;
                 Session[nameof(ScreenName)] = ScreenName;
 
-                byte[] random = new byte[64];
-                string base64str;
-                RNG.GetBytes(random);
-                base64str = Convert.ToBase64String(random);
-                if (dbToken.StoreUserLoginString(Token.UserId, base64str) < 1) { throw new Exception("トークンの保存に失敗しました"); }
+                var token = LoginTokenEncrypt.NewToken();
+                if (dbToken.StoreUserLoginToken(Token.UserId, token.Hash44) < 1) { throw new Exception("トークンの保存に失敗しました"); }
 
                 SetCookie(nameof(ID), Token.UserId.ToString(), Response);
-                SetCookie(nameof(LoginToken), base64str, Response);
+                SetCookie(nameof(LoginToken), token.Text88, Response);
                 ID = Token.UserId;
-                LoginToken = base64str;
+                LoginToken = token.Text88;
 
                 return vt;
             }

@@ -36,7 +36,7 @@ ON DUPLICATE KEY UPDATE token=@token, token_secret=@token_secret;"))
 
         public enum VerifytokenResult { New, Exist, Modified }
         //revokeされてたものはNewと返す
-        public VerifytokenResult Verifytoken(Tokens token, bool StoreifNotExist = true)
+        public VerifytokenResult Verifytoken(Tokens token)
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand("SELECT * FROM token WHERE user_id = @user_id;"))
@@ -73,12 +73,12 @@ ON DUPLICATE KEY UPDATE name=@name, screen_name=@screen_name, isprotected=@ispro
             }
         }
 
-        public int StoreUserLoginString(long user_id, string base64str)
+        public int StoreUserLoginToken(long user_id, string logintoken)
         {
-            using (MySqlCommand cmd = new MySqlCommand(@"INSERT INTO viewlogin VALUES (@user_id, @logintoken) ON DUPLICATE KEY UPDATE logintoken=@logintoken;"))
+            using (MySqlCommand cmd = new MySqlCommand(@"INSERT INTO viewlogin (user_id, logintoken) VALUES (@user_id, @logintoken) ON DUPLICATE KEY UPDATE logintoken=@logintoken;"))
             {
                 cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
-                cmd.Parameters.Add("@logintoken", MySqlDbType.VarChar).Value = base64str;
+                cmd.Parameters.Add("@logintoken", MySqlDbType.VarChar).Value = logintoken;
 
                 return ExecuteNonQuery(cmd);
             }
@@ -102,7 +102,7 @@ FROM user WHERE user_id = @user_id"))
             return TableToUser(Table)[0];
         }
 
-        public string SelectUserLoginString(long user_id)
+        public string SelectUserLoginToken(long user_id)
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT logintoken FROM viewlogin WHERE user_id = @user_id;"))
