@@ -534,7 +534,7 @@ AND (
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_large = m.dcthash)
-))") + @"
+)") + @"
 ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 }
                 cmd.Parameters.Add("@target_user_id", MySqlDbType.Int64).Value = target_user_id;
