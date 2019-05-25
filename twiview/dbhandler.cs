@@ -275,33 +275,6 @@ ORDER BY o.created_at LIMIT 1
             else { return Table.Rows[0].Field<long?>(0); }
         }
 
-        //twimg/thumb/*に画像がないときに元画像にリダイレクトさせたい
-        public string SourceUrlThumb(string FileName)
-        {
-            if(!long.TryParse(Path.GetFileNameWithoutExtension(FileName), out long media_id)) { return null; }
-            DataTable Table;
-            using(MySqlCommand cmd = new MySqlCommand(@"SELECT media_url FROM media WHERE media_id = @media_id;"))
-            {
-                cmd.Parameters.Add("@media_id", MySqlDbType.Int64).Value = media_id;
-                Table = SelectTable(cmd);
-            }
-            if(Table == null || Table.Rows.Count < 1) { return null; }
-            return Table.Rows[0].Field<string>(0);
-        }
-        //twimg/profile_image/*に画像がないときに元画像にリダイレクトさせたい
-        public string SourceUrlIcon(string FileName)
-        {
-            if (!long.TryParse(Path.GetFileNameWithoutExtension(FileName), out long user_id)) { return null; }
-            DataTable Table;
-            using (MySqlCommand cmd = new MySqlCommand(@"SELECT profile_image_url FROM user WHERE user_id = @user_id;"))
-            {
-                cmd.Parameters.Add("@user_id", MySqlDbType.Int64).Value = user_id;
-                Table = SelectTable(cmd);
-            }
-            if (Table == null || Table.Rows.Count < 1) { return null; }
-            return Table.Rows[0].Field<string>(0);
-        }
-
         //特定のツイートの各画像とその類似画像
         //鍵かつフォロー外なら何も出ない
         public SimilarMediaTweet[] SimilarMediaTweet(long tweet_id, long? login_user_id, int SimilarLimit)
@@ -315,7 +288,8 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
-JOIN media m USING (media_id)
+JOIN media m ON t.media_id = m.media_id
+LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
@@ -381,7 +355,8 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
-JOIN media m USING (media_id)
+JOIN media m ON t.media_id = m.media_id
+LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE " + (ShowNoDup ? "" : @"(
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
@@ -419,7 +394,8 @@ JOIN user ou ON f.friend_id = ou.user_id
 JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
 LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 JOIN tweet_media t ON o.tweet_id = t.tweet_id
-JOIN media m USING (media_id)
+JOIN media m ON t.media_id = m.media_id
+LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE " + (ShowNoDup ? "" : @"(
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
@@ -516,7 +492,8 @@ LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
 LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
-JOIN media m USING (media_id)
+JOIN media m ON t.media_id = m.media_id
+LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet" + (ShowNoDup ? "" : @"
@@ -535,6 +512,7 @@ LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 JOIN user ou ON o.user_id = ou.user_id
 JOIN tweet_media t ON o.tweet_id = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -579,7 +557,8 @@ FROM tweet o USE INDEX (PRIMARY)
 LEFT JOIN tweet_text ot USING (tweet_id)
 JOIN user ou USING (user_id)
 JOIN tweet_media t USING (tweet_id)
-JOIN media m USING (media_id)
+JOIN media m ON t.media_id = m.media_id
+LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE (
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
@@ -651,7 +630,7 @@ ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile
 o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
 rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.is_default_profile_image, ru.isprotected,
 rt.created_at, COALESCE(rtt.text, rt.text), rt.favorite_count, rt.retweet_count,
-m.media_id, m.media_url, m.type,
+m.media_id, COALESCE(mt.media_url, m.media_url), COALESCE(mt.type, m.type),
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
     + (SELECT COUNT(media_id) FROM dcthashpairslim
         JOIN media ON hash_large = media.dcthash
@@ -668,7 +647,7 @@ m.media_id, m.media_url, m.type,
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
 o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-m.media_id, m.media_url, m.type,
+m.media_id, COALESCE(mt.media_url, m.media_url), COALESCE(mt.type, m.type),
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
     + (SELECT COUNT(media_id) FROM dcthashpairslim
         JOIN media ON hash_large = media.dcthash
@@ -768,7 +747,7 @@ NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 a.media_id, a.media_url, a.type,
 NULL
 FROM(
-    SELECT tweet_media.tweet_id, m.media_id, m.media_url, m.type
+    SELECT t.tweet_id, m.media_id, COALESCE(mt.media_url, m.media_url) AS media_url, COALESCE(mt.type, m.type) AS type
     FROM ((
             SELECT media_id FROM media 
             WHERE dcthash = @media_hash
@@ -785,9 +764,10 @@ FROM(
             ORDER BY media.media_id LIMIT @limitplus
         ) ORDER BY media_id LIMIT @limitplus
     ) AS i
-    JOIN media m USING (media_id)
-    JOIN tweet_media USING (media_id)
-    ORDER BY tweet_media.tweet_id LIMIT @limitplus
+    JOIN media m ON i.media_id = m.media_id
+    LEFT JOIN media_text mt ON m.media_id = mt.media_id
+    JOIN tweet_media t ON m.media_id = t.media_id
+    ORDER BY t.tweet_id LIMIT @limitplus
 ) AS a
 JOIN tweet o USING (tweet_id)
 LEFT JOIN tweet_text ot USING (tweet_id)
