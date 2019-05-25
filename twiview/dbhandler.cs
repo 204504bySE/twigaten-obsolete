@@ -222,7 +222,7 @@ ORDER BY o.created_at LIMIT 1
 ) UNION ALL (
 SELECT o.tweet_id, m.media_id
 FROM dcthashpairslim p 
-INNER JOIN media m ON p.hash_large = m.dcthash
+JOIN media m ON p.hash_large = m.dcthash
 JOIN tweet_media USING (media_id)
 JOIN tweet o USING (tweet_id)
 JOIN user ou USING (user_id)
@@ -232,7 +232,7 @@ ORDER BY o.created_at LIMIT 1
 ) UNION ALL (
 SELECT o.tweet_id, m.media_id
 FROM dcthashpairslim p 
-INNER JOIN media m ON p.hash_small = m.dcthash
+JOIN media m ON p.hash_small = m.dcthash
 JOIN tweet_media USING (media_id)
 JOIN tweet o USING (tweet_id)
 JOIN user ou USING (user_id)
@@ -308,11 +308,14 @@ ORDER BY o.created_at LIMIT 1
         {
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(SimilarMediaHeadRT + @"
-FROM tweet o INNER JOIN user ou ON o.user_id = ou.user_id
+FROM tweet o
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
+JOIN user ou ON o.user_id = ou.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
+LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
-INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
-NATURAL JOIN media m
+JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
+JOIN media m USING (media_id)
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
             {
@@ -371,12 +374,14 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
             {
                 QueryText = SimilarMediaHeadRT + @"
 FROM friend f 
-INNER JOIN user ou ON f.friend_id = ou.user_id
-INNER JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
+JOIN user ou ON f.friend_id = ou.user_id
+JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
+LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
-INNER JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
-NATURAL JOIN media m 
+JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
+JOIN media m USING (media_id)
 WHERE " + (ShowNoDup ? "" : @"(
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
@@ -393,8 +398,8 @@ AND NOT EXISTS (SELECT * FROM block WHERE user_id = @login_user_id AND target_id
 AND NOT EXISTS(
     SELECT *
     FROM friend fs
-    INNER JOIN user ous ON fs.user_id = ous.user_id
-    INNER JOIN tweet os ON ous.user_id = os.user_id
+    JOIN user ous ON fs.user_id = ous.user_id
+    JOIN tweet os ON ous.user_id = os.user_id
     WHERE os.retweet_id = rt.tweet_id
     AND fs.user_id = @target_user_id
     AND (@login_user_id = @target_user_id
@@ -410,10 +415,11 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
             {
                 QueryText = SimilarMediaHeadnoRT + @"
 FROM friend f 
-INNER JOIN user ou ON f.friend_id = ou.user_id
-INNER JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
-NATURAL JOIN tweet_media t
-NATURAL JOIN media m
+JOIN user ou ON f.friend_id = ou.user_id
+JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
+JOIN tweet_media t ON o.tweet_id = t.tweet_id
+JOIN media m USING (media_id)
 WHERE " + (ShowNoDup ? "" : @"(
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
@@ -504,11 +510,13 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 {
                     cmd.CommandText = SimilarMediaHeadRT + @"
 FROM tweet o USE INDEX (user_id)
-NATURAL JOIN user ou
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
+JOIN user ou ON o.user_id = ou.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
+LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
-INNER JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
-NATURAL JOIN media m
+JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
+JOIN media m USING (media_id)
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet" + (ShowNoDup ? "" : @"
@@ -523,9 +531,10 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 {
                     cmd.CommandText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (user_id)
-NATURAL JOIN user ou
-NATURAL JOIN tweet_media t
-NATURAL JOIN media m
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
+JOIN user ou ON o.user_id = ou.user_id
+JOIN tweet_media t ON o.tweet_id = t.tweet_id
+JOIN media m ON t.media_id = m.media_id
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
 AND o.tweet_id " + (Before ? "<" : ">") + @" @lasttweet
@@ -567,9 +576,10 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
 
             string QueryText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (PRIMARY)
-NATURAL JOIN user ou
-NATURAL JOIN tweet_media t
-NATURAL JOIN media m
+LEFT JOIN tweet_text ot USING (tweet_id)
+JOIN user ou USING (user_id)
+JOIN tweet_media t USING (tweet_id)
+JOIN media m USING (media_id)
 WHERE (
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
     OR EXISTS (SELECT * FROM dcthashpairslim WHERE hash_small = m.dcthash)
@@ -588,7 +598,7 @@ LIMIT 50;";
                 {
                     cmd.Parameters.Add("@begin", MySqlDbType.Int64).Value = QuerySnowFlake + QueryRangeSnowFlake * i;
                     cmd.Parameters.Add("@end", MySqlDbType.Int64).Value = QuerySnowFlake + QueryRangeSnowFlake * (i + 1) - 1;
-                    Table[i] = SelectTable(cmd, IsolationLevel.ReadUncommitted);
+                    Table[i] = SelectTable(cmd);
                 }
             });
             retTable = Table[0];
@@ -631,32 +641,40 @@ LIMIT 50;";
 
 
 
-        //TabletoTweetに渡すリレーションの形式
+        ///<summary>TabletoTweetに渡すリレーションの形式
+        ///ou:user o:tweet ot:tweet_text
+        ///rt:RT元ツイのtweet ru:RT元ツイのuser
+        ///m:media
+        /// </summary>
         const string SimilarMediaHeadRT = @"SELECT
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
-o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
+o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
 rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.is_default_profile_image, ru.isprotected,
-rt.created_at, rt.text, rt.favorite_count, rt.retweet_count,
+rt.created_at, COALESCE(rtt.text, rt.text), rt.favorite_count, rt.retweet_count,
 m.media_id, m.media_url, m.type,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
     + (SELECT COUNT(media_id) FROM dcthashpairslim
-        INNER JOIN media ON hash_large = media.dcthash
+        JOIN media ON hash_large = media.dcthash
         WHERE hash_small = m.dcthash)
     + (SELECT COUNT(media_id) FROM dcthashpairslim
-        INNER JOIN media ON hash_small = media.dcthash
+        JOIN media ON hash_small = media.dcthash
         WHERE hash_large = m.dcthash)
     + (SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
+        ///<summary>TabletoTweetに渡すリレーションの形式
+        ///ou:user o:tweet ot:tweet_text
+        ///m:media
+        /// </summary>
         const string SimilarMediaHeadnoRT = @"SELECT
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
-o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
+o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 m.media_id, m.media_url, m.type,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
     + (SELECT COUNT(media_id) FROM dcthashpairslim
-        INNER JOIN media ON hash_large = media.dcthash
+        JOIN media ON hash_large = media.dcthash
         WHERE hash_small = m.dcthash)
     + (SELECT COUNT(media_id) FROM dcthashpairslim
-        INNER JOIN media ON hash_small = media.dcthash
+        JOIN media ON hash_small = media.dcthash
         WHERE hash_large = m.dcthash)
     + (SELECT COUNT(tweet_id) FROM tweet_media WHERE media_id = m.media_id) - 1";
 
@@ -742,9 +760,10 @@ m.media_id, m.media_url, m.type,
             }
             long media_hash = Table.Rows[0].Field<long>(0);
 
+            //リレーションの形式はSimilarMediaHeadNoRTに準じる
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT 
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url,  ou.is_default_profile_image, ou.isprotected,
-o.tweet_id, o.created_at, o.text, o.favorite_count, o.retweet_count,
+o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 a.media_id, a.media_url, a.type,
 NULL
@@ -766,12 +785,13 @@ FROM(
             ORDER BY media.media_id LIMIT @limitplus
         ) ORDER BY media_id LIMIT @limitplus
     ) AS i
-    NATURAL JOIN media m
-    NATURAL JOIN tweet_media 
+    JOIN media m USING (media_id)
+    JOIN tweet_media USING (media_id)
     ORDER BY tweet_media.tweet_id LIMIT @limitplus
 ) AS a
-NATURAL JOIN tweet o
-NATURAL JOIN user ou
+JOIN tweet o USING (tweet_id)
+LEFT JOIN tweet_text ot USING (tweet_id)
+JOIN user ou USING (user_id)
 WHERE (ou.isprotected = 0 OR ou.user_id = @user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @user_id AND friend_id = o.user_id))
 AND o.tweet_id != @except_tweet_id
 ORDER BY o.tweet_id

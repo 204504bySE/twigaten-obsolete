@@ -303,7 +303,7 @@ namespace twitenlib
                 using (MySqlConnection conn = NewConnection())
                 {
                     conn.Open();
-                    using (MySqlTransaction tran = conn.BeginTransaction(IsolationLevel.ReadUncommitted))
+                    using (MySqlTransaction tran = conn.BeginTransaction(IsolationLevel.ReadCommitted))
                     {
                         foreach (MySqlCommand c in cmd)
                         {
