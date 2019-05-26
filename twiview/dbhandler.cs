@@ -627,10 +627,10 @@ LIMIT 50;";
         /// </summary>
         const string SimilarMediaHeadRT = @"SELECT
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
-o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
+o.tweet_id, o.created_at, ot.text, o.favorite_count, o.retweet_count,
 rt.tweet_id, ru.user_id, ru.name, ru.screen_name, ru.profile_image_url, ru.is_default_profile_image, ru.isprotected,
-rt.created_at, COALESCE(rtt.text, rt.text), rt.favorite_count, rt.retweet_count,
-m.media_id, COALESCE(mt.media_url, m.media_url), COALESCE(mt.type, m.type),
+rt.created_at, rtt.text, rt.favorite_count, rt.retweet_count,
+m.media_id, mt.media_url, mt.type,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
     + (SELECT COUNT(media_id) FROM dcthashpairslim
         JOIN media ON hash_large = media.dcthash
@@ -645,9 +645,9 @@ m.media_id, COALESCE(mt.media_url, m.media_url), COALESCE(mt.type, m.type),
         /// </summary>
         const string SimilarMediaHeadnoRT = @"SELECT
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url, ou.is_default_profile_image, ou.isprotected,
-o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
+o.tweet_id, o.created_at, ot.text, o.favorite_count, o.retweet_count,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-m.media_id, COALESCE(mt.media_url, m.media_url), COALESCE(mt.type, m.type),
+m.media_id, mt.media_url, mt.type,
 (SELECT COUNT(media_id) FROM media WHERE dcthash = m.dctHash) - 1
     + (SELECT COUNT(media_id) FROM dcthashpairslim
         JOIN media ON hash_large = media.dcthash
@@ -742,12 +742,12 @@ m.media_id, COALESCE(mt.media_url, m.media_url), COALESCE(mt.type, m.type),
             //リレーションの形式はSimilarMediaHeadNoRTに準じる
             using (MySqlCommand cmd = new MySqlCommand(@"SELECT 
 ou.user_id, ou.name, ou.screen_name, ou.profile_image_url,  ou.is_default_profile_image, ou.isprotected,
-o.tweet_id, o.created_at, COALESCE(ot.text, o.text), o.favorite_count, o.retweet_count,
+o.tweet_id, o.created_at, ot.text, o.favorite_count, o.retweet_count,
 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 a.media_id, a.media_url, a.type,
 NULL
 FROM(
-    SELECT t.tweet_id, m.media_id, COALESCE(mt.media_url, m.media_url) AS media_url, COALESCE(mt.type, m.type) AS type
+    SELECT t.tweet_id, m.media_id, mt.media_url, mt.type
     FROM ((
             SELECT media_id FROM media 
             WHERE dcthash = @media_hash
