@@ -282,13 +282,13 @@ ORDER BY o.created_at LIMIT 1
             DataTable Table;
             using (MySqlCommand cmd = new MySqlCommand(SimilarMediaHeadRT + @"
 FROM tweet o
-LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 JOIN user ou ON o.user_id = ou.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
-LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
+LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE o.tweet_id = @tweet_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = ou.user_id));"))
@@ -350,12 +350,12 @@ AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM 
 FROM friend f 
 JOIN user ou ON f.friend_id = ou.user_id
 JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
-LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
-LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 JOIN tweet_media t ON COALESCE(rt.tweet_id, o.tweet_id) = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
+LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE " + (ShowNoDup ? "" : @"(
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
@@ -392,9 +392,9 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
 FROM friend f 
 JOIN user ou ON f.friend_id = ou.user_id
 JOIN tweet o USE INDEX (PRIMARY) ON ou.user_id = o.user_id
-LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 JOIN tweet_media t ON o.tweet_id = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE " + (ShowNoDup ? "" : @"(
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
@@ -489,10 +489,10 @@ FROM tweet o USE INDEX (user_id)
 LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 JOIN user ou ON o.user_id = ou.user_id
 LEFT JOIN tweet rt ON o.retweet_id = rt.tweet_id
-LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN user ru ON rt.user_id = ru.user_id
 JOIN tweet_media t ON COALESCE(o.retweet_id, o.tweet_id) = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN tweet_text rtt ON rt.tweet_id = rtt.tweet_id
 LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
@@ -508,10 +508,10 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
                 {
                     cmd.CommandText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (user_id)
-LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 JOIN user ou ON o.user_id = ou.user_id
 JOIN tweet_media t ON o.tweet_id = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE ou.user_id = @target_user_id
 AND (ou.isprotected = 0 OR ou.user_id = @login_user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @login_user_id AND friend_id = @target_user_id))
@@ -554,10 +554,10 @@ ORDER BY o.tweet_id " + (Before ? "DESC" : "ASC") + " LIMIT @limitplus;";
 
             string QueryText = SimilarMediaHeadnoRT + @"
 FROM tweet o USE INDEX (PRIMARY)
-LEFT JOIN tweet_text ot USING (tweet_id)
 JOIN user ou USING (user_id)
-JOIN tweet_media t USING (tweet_id)
+JOIN tweet_media t ON o.tweet_id = t.tweet_id
 JOIN media m ON t.media_id = m.media_id
+LEFT JOIN tweet_text ot ON o.tweet_id = ot.tweet_id
 LEFT JOIN media_text mt ON m.media_id = mt.media_id
 WHERE (
     EXISTS (SELECT * FROM media WHERE dcthash = m.dcthash AND media_id != m.media_id)
@@ -765,13 +765,13 @@ FROM(
         ) ORDER BY media_id LIMIT @limitplus
     ) AS i
     JOIN media m ON i.media_id = m.media_id
-    LEFT JOIN media_text mt ON m.media_id = mt.media_id
     JOIN tweet_media t ON m.media_id = t.media_id
-    ORDER BY t.tweet_id LIMIT @limitplus
+    LEFT JOIN media_text mt ON m.media_id = mt.media_id
+ORDER BY t.tweet_id LIMIT @limitplus
 ) AS a
 JOIN tweet o USING (tweet_id)
-LEFT JOIN tweet_text ot USING (tweet_id)
 JOIN user ou USING (user_id)
+LEFT JOIN tweet_text ot USING (tweet_id)
 WHERE (ou.isprotected = 0 OR ou.user_id = @user_id OR EXISTS (SELECT * FROM friend WHERE user_id = @user_id AND friend_id = o.user_id))
 AND o.tweet_id != @except_tweet_id
 ORDER BY o.tweet_id
